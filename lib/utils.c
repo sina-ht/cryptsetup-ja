@@ -28,6 +28,7 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
+#include <stdlib.h>
 
 #include "internal.h"
 
@@ -58,6 +59,26 @@ uint64_t crypt_getphysmemory_kb(void)
 	phys_memory_kb *= phys_pages;
 
 	return phys_memory_kb;
+}
+
+void *aligned_malloc(void **base, int size, int alignment)
+{
+#ifdef HAVE_POSIX_MEMALIGN
+	return posix_memalign(base, alignment, size) ? NULL : *base;
+#else
+/* Credits go to Michal's padlock patches for this alignment code */
+	char *ptr;
+
+	ptr = malloc(size + alignment);
+	if (!ptr)
+		return NULL;
+
+	*base = ptr;
+	if (alignment > 1 && ((long)ptr & (alignment - 1)))
+		ptr += alignment - ((long)(ptr) & (alignment - 1));
+
+	return ptr;
+#endif
 }
 
 /* MEMLOCK */
