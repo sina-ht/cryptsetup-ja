@@ -337,7 +337,7 @@ static int acquire_and_verify(struct crypt_device *cd, struct device *device, co
 
 	if (r) {
 		free(h);
-		return r;
+		return -EINVAL;
 	}
 
 	*lock = h;

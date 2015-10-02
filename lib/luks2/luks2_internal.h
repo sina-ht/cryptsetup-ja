@@ -146,6 +146,13 @@ typedef struct  {
 	keyslot_repair_func repair;
 } keyslot_handler;
 
+/* can not fit prototype alloc function */
+int reenc_keyslot_alloc(struct crypt_device *cd,
+	struct luks2_hdr *hdr,
+	int keyslot,
+	const char *reenc_mode,
+	int64_t data_shift);
+
 /**
  * LUKS2 digest handlers (EXPERIMENTAL)
  */

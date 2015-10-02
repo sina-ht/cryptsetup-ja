@@ -64,6 +64,8 @@ libcryptsetup_la_SOURCES = \
 	lib/utils_device_locking.c	\
 	lib/utils_device_locking.h	\
 	lib/utils_pbkdf.c		\
+	lib/utils_reencrypt.c		\
+	lib/utils_reencrypt.h		\
 	lib/utils_storage_wrappers.c	\
 	lib/utils_storage_wrappers.h	\
 	lib/libdevmapper.c		\
@@ -99,6 +101,7 @@ libcryptsetup_la_SOURCES = \
 	lib/luks2/luks2_digest_pbkdf2.c	\
 	lib/luks2/luks2_keyslot.c	\
 	lib/luks2/luks2_keyslot_luks2.c	\
+	lib/luks2/luks2_keyslot_reenc.c	\
 	lib/luks2/luks2_segment.c	\
 	lib/luks2/luks2_token_keyring.c	\
 	lib/luks2/luks2_token.c		\

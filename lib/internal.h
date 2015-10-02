@@ -40,6 +40,8 @@
 #include "utils_keyring.h"
 #include "utils_io.h"
 #include "crypto_backend.h"
+#include "utils_reencrypt.h"
+#include "utils_storage_wrappers.h"
 
 #include "libcryptsetup.h"
 
@@ -73,6 +75,7 @@
 	} while (0)
 
 struct crypt_device;
+struct luks2_reenc_context;
 
 struct volume_key {
 	int id;
@@ -120,6 +123,7 @@ size_t device_block_size(struct crypt_device *cd, struct device *device);
 int device_read_ahead(struct device *device, uint32_t *read_ahead);
 int device_size(struct device *device, uint64_t *size);
 int device_open(struct crypt_device *cd, struct device *device, int flags);
+int device_open_excl(struct crypt_device *cd, struct device *device, int flags);
 void device_disable_direct_io(struct device *device);
 int device_is_identical(struct device *device1, struct device *device2);
 int device_is_rotational(struct device *device);
@@ -177,6 +181,7 @@ unsigned crypt_cpusonline(void);
 uint64_t crypt_getphysmemory_kb(void);
 
 int init_crypto(struct crypt_device *ctx);
+void *aligned_malloc(void **base, int size, int alignment);
 
 void logger(struct crypt_device *cd, int level, const char *file, int line, const char *format, ...) __attribute__ ((format (printf, 5, 6)));
 #define log_dbg(c, x...) logger(c, CRYPT_LOG_DEBUG, __FILE__, __LINE__, x)
@@ -207,6 +212,13 @@ int PLAIN_activate(struct crypt_device *cd,
 		     uint32_t flags);
 
 void *crypt_get_hdr(struct crypt_device *cd, const char *type);
+void crypt_set_reenc_context(struct crypt_device *cd, struct luks2_reenc_context *rh);
+struct luks2_reenc_context *crypt_get_reenc_context(struct crypt_device *cd);
+
+int luks2_check_device_size(struct crypt_device *cd, struct luks2_hdr *hdr, uint64_t *device_size, bool activation);
+
+int onlyLUKS2(struct crypt_device *cd);
+int onlyLUKS2mask(struct crypt_device *cd, uint32_t mask);
 
 int crypt_wipe_device(struct crypt_device *cd,
 	struct device *device,
