@@ -7,15 +7,18 @@ compiler:
   - gcc
 
 env:
-  - MAKE_CHECK="gcrypt"
-  - MAKE_CHECK="openssl"
-  - MAKE_CHECK="kernel"
+  global:
+    # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+    #   via the "travis encrypt" command using the project repo's public key
+   - secure: "xkOTgfKxiBanrd1OjkOnoceEQpYAsNeiBBZcVXsTgxHJZSYy7zWFFZ/tgAYdaicFsgqGaU+zkBkoAiHb+9hb/dFosZuLvyCZ6yJagENpsEgVvWk8BljHAlJ7+ISWPEqzAZeIiuS9G8hl0Lx236LZHmcVbklFCbaiyeJurjEVm2pqbsTaofdQVGbeDrRI7IFfeTK9WHDkIdPvr3//1IgbhLVlYWNdcCxBQkXzcFIjNT0PwzlabNniaznt6kv8RnlXINTJGbuU+4aYWbGCx5j+ktDfEZap8eU/Ne7h4utPoqE+UVNFGMqCezplJG5GVnvrX/xSovN/+GVr1QUxkXF11DKZ1/W+RhAqCO4jkdQ2ONaO4QIHDZLQVgFZ6KoX/i/9f33sBF8fazJYE2fjqw/h21ajlrUeS0UfcY03+JBS2yFHO3C8b8dhsACX153PCmxCrAORUIYNhVrdYj/tHzGUkYVDMTw7vpIIXW/gGaIwhxSP6fxHiPw4iKRNHF/Du4V9NYp4SC8Y9U2vWcuLPrGPtyTSkAIW6RTzr0U7sRfc87zWvc1MG2Y1TKW2e4VrNe+mbVkWs5l+ymsYsgQQnXX2FmIN+UkgtgfvAPCeZtzZV+INUc5xEjZf4bl6FFpCGNiA2rZM2YWY+fXVX0iBe6VGRHg8PpPXUbpk+U7ZVQyRNBg="
+   - MAKE_CHECK="openssl_compile"
 
 branches:
   only:
     - master
     - wip-luks2
     - v2_0_x
+    - coverity_scan
 
 before_install:
   - uname -a
@@ -38,3 +41,13 @@ script:
 
 after_script:
   - travis_after_script
+
+addons:
+  coverity_scan:
+    project:
+      name: "mbroz/cryptsetup"
+      description: "Build submitted via Travis CI"
+    notification_email: gmazyland@gmail.com
+    build_command_prepend: "./configure; make clean"
+    build_command:   "make -j 2"
+    branch_pattern: coverity_scan
