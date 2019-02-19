@@ -99,6 +99,27 @@ endif
 
 # reencrypt
 if REENCRYPT
+
+cryptsetup_reencrypt_next_SOURCES =	\
+	lib/utils_crypt.c		\
+	lib/utils_keyring.c		\
+	src/reencrypt_next.c		\
+	lib/utils_io.c			\
+	lib/utils_blkid.c		\
+	src/utils_tools.c		\
+	src/utils_password.c		\
+	src/utils_luks2.c		\
+	src/cryptsetup.h
+
+cryptsetup_reencrypt_next_LDADD =		\
+	-lm					\
+	libcryptsetup.la			\
+	@POPT_LIBS@				\
+	@UUID_LIBS@				\
+	@BLKID_LIBS@
+
+sbin_PROGRAMS += cryptsetup-reencrypt-next
+
 cryptsetup_reencrypt_SOURCES =		\
 	lib/utils_crypt.c		\
 	lib/utils_io.c			\
