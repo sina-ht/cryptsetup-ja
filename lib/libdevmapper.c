@@ -2717,3 +2717,58 @@ int dm_linear_target_set(struct dm_target *tgt, size_t seg_offset, size_t seg_si
 
 	return 0;
 }
+
+static int dm_target_debug(const struct dm_target *tgt, char *out, size_t out_len, uint64_t *size)
+{
+	const char *key_name;
+	ssize_t ret;
+	int r = 0;
+
+	ret = snprintf(out, out_len - 1, "%" SCNu64 " %" SCNu64 " ", tgt->offset, tgt->size);
+	if (ret < 0 || (size_t)ret >= out_len)
+		return -EINVAL;
+	out_len -= ret;
+	out += ret;
+
+	switch (tgt->type) {
+	case DM_CRYPT:
+		key_name = tgt->u.crypt.vk->key_description;
+		ret = snprintf(out, out_len, "crypt %s %s %" SCNu64 " %s %" SCNu64 " ss:%" SCNu32, tgt->u.crypt.cipher, key_name ?: "<binary_key>", tgt->u.crypt.iv_offset, device_path(tgt->data_device), tgt->u.crypt.offset, tgt->u.crypt.sector_size);
+		break;
+	case DM_VERITY:
+		ret = snprintf(out, out_len, "verity %s <skipped> ", device_path(tgt->data_device));
+		break;
+	case DM_INTEGRITY:
+		ret = snprintf(out, out_len, "integrity %s %" SCNu64 " <skipped>", device_path(tgt->data_device), tgt->u.integrity.offset);
+		break;
+	case DM_LINEAR:
+		ret = snprintf(out, out_len, "linear %s %" SCNu64, device_path(tgt->data_device), tgt->u.linear.offset);
+		break;
+	default:
+		ret = snprintf(out, out_len, "unknown %s <skipped>", device_path(tgt->data_device));
+		r = -ENOTSUP;
+	}
+
+	if (ret < 0 || (size_t) ret >= out_len)
+		return -EINVAL;
+
+	*size += tgt->size;
+
+	return r;
+}
+
+/* FIXME: Drop this function (and static above) after code review */
+void dm_debug_table(const struct crypt_dm_active_device *dmd)
+{
+	char buffer[512];
+	uint64_t size = 0;
+	const struct dm_target *t = &dmd->segment;
+
+	while (t) {
+		if (!dm_target_debug(t, buffer, sizeof(buffer), &size))
+			log_dbg(NULL, "%s", buffer);
+		t = t->next;
+	}
+
+	log_dbg(NULL, "Whole dm dev size %" PRIu64 " (sectors)", size);
+}

@@ -1013,6 +1013,10 @@ static int reenc_load_overlay_device(struct crypt_device *cd, struct luks2_hdr *
 	}
 
 	r = dm_reload_device(cd, overlay, &dmd, 0, 0);
+	if (!r) {
+		log_dbg(cd, "Current %s device has following table in inactive slot:", overlay);
+		dm_debug_table(&dmd);
+	}
 
 	/* what else on error here ? */
 out:
@@ -1071,11 +1075,20 @@ static int reenc_replace_device(struct crypt_device *cd, const char *target, con
 	if (exists) {
 		r = dm_reload_device(cd, target, &dmd_source, 0, 0);
 		if (!r) {
+			log_dbg(cd, "Current %s device has following table in inactive slot:", target);
+			dm_debug_table(&dmd_source);
+		}
+		if (!r) {
 			log_dbg(cd, "Resuming device %s", target);
 			r = dm_resume_device(cd, target, dmflags | act2dmflags(dmd_source.flags));
 		}
-	} else
+	} else {
 		r = dm_create_device(cd, target, CRYPT_LUKS2, &dmd_source);
+		if (!r) {
+			log_dbg(cd, "Created %s device with following table:", target);
+			dm_debug_table(&dmd_source);
+		}
+	}
 err:
 	dm_targets_free(cd, &dmd_source);
 	dm_targets_free(cd, &dmd_target);
@@ -1119,6 +1132,10 @@ static int reenc_swap_backing_device(struct crypt_device *cd, const char *name,
 
 	r = dm_reload_device(cd, name, &dmd, 0, 0);
 	if (!r) {
+		log_dbg(cd, "Current %s device has following table in inactive slot:", name);
+		dm_debug_table(&dmd);
+	}
+	if (!r) {
 		log_dbg(cd, "Resuming device %s", name);
 		r = dm_resume_device(cd, name, dmd.flags);
 	}
@@ -1151,6 +1168,11 @@ static int reenc_activate_hotzone_device(struct crypt_device *cd, const char *na
 		goto err;
 
 	r = dm_create_device(cd, name, "HOTZONE", &dmd);
+
+	if (!r) {
+		log_dbg(cd, "Created following %s device:", name);
+		dm_debug_table(&dmd);
+	}
 err:
 	dm_targets_free(cd, &dmd);
 
