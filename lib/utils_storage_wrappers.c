@@ -32,12 +32,17 @@
 #include "utils_storage_wrappers.h"
 #include "internal.h"
 
+#define DEBUG 1
+
 struct crypt_storage_wrapper {
 	crypt_storage_wrapper_type type;
 	int dev_fd;
 	int block_size;
 	size_t mem_alignment;
 	uint64_t data_offset;
+#ifdef DEBUG
+	char debug_device[PATH_MAX];
+#endif
 	union {
 	struct {
 		struct crypt_storage *s;
@@ -185,6 +190,9 @@ int crypt_storage_wrapper_init(struct crypt_device *cd,
 		return -ENOMEM;
 
 	memset(w, 0, sizeof(*w));
+#ifdef DEBUG
+	snprintf(w->debug_device, sizeof(w->debug_device), "%s", device_path(device));
+#endif
 	w->data_offset = data_offset;
 	w->mem_alignment = device_alignment(device);
 	w->block_size = device_block_size(cd, device);
@@ -242,6 +250,14 @@ err:
 ssize_t crypt_storage_wrapper_read(struct crypt_storage_wrapper *cw,
 		off_t offset, void *buffer, size_t buffer_length)
 {
+#ifdef DEBUG
+	off_t _offset;
+	log_dbg(NULL, "crypt_storage_wrapper_read params: offset %zu (%zu sectors), length %zu (%zu secotrs)", offset, offset / cw->block_size, buffer_length, buffer_length / cw->block_size);
+	_offset = (off_t) cw->data_offset + offset;
+	log_dbg(NULL, "read_lseek_blockwise: device: %s, fd %d, offset total: %ld (sector %zu), length: %zu (%zu sectors)",
+			cw->debug_device, cw->dev_fd, _offset, _offset / cw->block_size, buffer_length, buffer_length / cw->block_size);
+#endif
+
 	return read_lseek_blockwise(cw->dev_fd,
 			cw->block_size,
 			cw->mem_alignment,
@@ -255,14 +271,27 @@ ssize_t crypt_storage_wrapper_read_decrypt(struct crypt_storage_wrapper *cw,
 {
 	int r;
 	ssize_t read;
-
-	if (cw->type == DMCRYPT)
+#ifdef DEBUG
+	uint64_t _offset;
+	log_dbg(NULL, "crypt_storage_wrapper_read_decrypt params: offset %zu, length %zu", offset, buffer_length);
+#endif
+	if (cw->type == DMCRYPT) {
+#ifdef DEBUG
+	log_dbg(NULL, "read_lseek_blockwise: dm device: %s, fd %d, offset total: %zu (sector %zu), length: %zu (%zu sectors)",
+			cw->u.dm.name, cw->u.dm.dmcrypt_fd, offset, offset / cw->block_size, buffer_length, buffer_length / cw->block_size);
+#endif
 		return read_lseek_blockwise(cw->u.dm.dmcrypt_fd,
 				cw->block_size,
 				cw->mem_alignment,
 				buffer,
 				buffer_length,
 				offset);
+	}
+#ifdef DEBUG
+	_offset = cw->data_offset + offset;
+	log_dbg(NULL, "read_lseek_blockwise: device: %s, fd %d, offset total: %zu (sector %zu), length: %zu (%zu sectors)",
+			cw->debug_device, cw->dev_fd, _offset, _offset / cw->block_size, buffer_length, buffer_length / cw->block_size);
+#endif
 
 	read = read_lseek_blockwise(cw->dev_fd,
 			cw->block_size,
@@ -288,11 +317,16 @@ ssize_t crypt_storage_wrapper_decrypt(struct crypt_storage_wrapper *cw,
 {
 	int r;
 	ssize_t read;
-
+#ifdef DEBUG
+	log_dbg(NULL, "crypt_storage_wrapper_decrypt params: offset %zu, length %zu", offset, buffer_length);
+#endif
 	if (cw->type == NONE)
 		return 0;
 
 	if (cw->type == DMCRYPT) {
+#ifdef DEBUG
+	log_dbg(NULL, "Entering crypt_storage_wrapper_read_decrypt()");
+#endif
 		/* there's nothing we can do, just read/decrypt via dm-crypt */
 		read = crypt_storage_wrapper_read_decrypt(cw, offset, buffer, buffer_length);
 		if (read < 0 || (size_t)read != buffer_length)
@@ -313,6 +347,13 @@ ssize_t crypt_storage_wrapper_decrypt(struct crypt_storage_wrapper *cw,
 ssize_t crypt_storage_wrapper_write(struct crypt_storage_wrapper *cw,
 		off_t offset, void *buffer, size_t buffer_length)
 {
+#ifdef DEBUG
+	uint64_t _offset;
+	log_dbg(NULL, "crypt_storage_wrapper_write params: offset %zu, length %zu", offset, buffer_length);
+	_offset = cw->data_offset + offset;
+	log_dbg(NULL, "write_lseek_blockwise: device: %s, fd %d, offset total: %zu (sector %zu), length: %zu (%zu sectors)",
+			cw->debug_device, cw->dev_fd, _offset, _offset / cw->block_size, buffer_length, buffer_length / cw->block_size);
+#endif
 	return write_lseek_blockwise(cw->dev_fd,
 			cw->block_size,
 			cw->mem_alignment,
@@ -324,19 +365,34 @@ ssize_t crypt_storage_wrapper_write(struct crypt_storage_wrapper *cw,
 ssize_t crypt_storage_wrapper_encrypt_write(struct crypt_storage_wrapper *cw,
 		off_t offset, void *buffer, size_t buffer_length)
 {
-	if (cw->type == DMCRYPT)
+#ifdef DEBUG
+	uint64_t _offset;
+	log_dbg(NULL, "crypt_storage_wrapper_encrypt_write params: offset %zu, length %zu", offset, buffer_length);
+#endif
+	if (cw->type == DMCRYPT) {
+#ifdef DEBUG
+	log_dbg(NULL, "write_lseek_blockwise: dm device: %s, fd %d, offset total: %zu (sector %zu), length: %zu (%zu sectors)",
+			cw->u.dm.name, cw->u.dm.dmcrypt_fd, offset, offset / cw->block_size, buffer_length, buffer_length / cw->block_size);
+#endif
 		return write_lseek_blockwise(cw->u.dm.dmcrypt_fd,
 				cw->block_size,
 				cw->mem_alignment,
 				buffer,
 				buffer_length,
 				offset);
+	}
 
 	if (cw->type == USPACE &&
 	    crypt_storage_encrypt(cw->u.cb.s,
 		    cw->u.cb.iv_start + (offset >> SECTOR_SHIFT),
 		    buffer_length, buffer))
 		return -EINVAL;
+
+#ifdef DEBUG
+	_offset = cw->data_offset + offset;
+	log_dbg(NULL, "write_lseek_blockwise: device: %s, fd %d, offset total: %zu (sector %zu), length: %zu (%zu sectors)",
+			cw->debug_device, cw->dev_fd, _offset, _offset / cw->block_size, buffer_length, buffer_length / cw->block_size);
+#endif
 
 	return write_lseek_blockwise(cw->dev_fd,
 			cw->block_size,
@@ -349,11 +405,19 @@ ssize_t crypt_storage_wrapper_encrypt_write(struct crypt_storage_wrapper *cw,
 ssize_t crypt_storage_wrapper_encrypt(struct crypt_storage_wrapper *cw,
 		off_t offset, void *buffer, size_t buffer_length)
 {
+#ifdef DEBUG
+	log_dbg(NULL, "crypt_storage_wrapper_encrypt params: offset %zu, length %zu", offset, buffer_length);
+#endif
 	if (cw->type == NONE)
 		return 0;
 
-	if (cw->type == DMCRYPT)
+	if (cw->type == DMCRYPT) {
+#ifdef DEBUG
+	log_dbg(NULL, "Impossible with dm-crypt backend.");
+	/* or we may 1) write through dm-crypt device and 2) read ciphertext device again :) */
+#endif
 		return -ENOTSUP;
+	}
 
 	if (crypt_storage_encrypt(cw->u.cb.s,
 			cw->u.cb.iv_start + (offset >> SECTOR_SHIFT),
