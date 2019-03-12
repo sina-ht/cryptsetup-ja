@@ -30,6 +30,10 @@
 
 typedef enum { REENC_OK = 0, REENC_ERR, REENC_ROLLBACK, REENC_FATAL } reenc_status_t;
 
+// #define DEBUG_DMTABLES 1
+// #define DEBUG_ZERO 1
+// #define DEBUG 1
+
 void LUKS2_reenc_context_free(struct crypt_device *cd, struct luks2_reenc_context *rh)
 {
 	if (!rh)
@@ -1996,6 +2000,19 @@ static reenc_status_t _reencrypt_step(struct crypt_device *cd,
 		bool online)
 {
 	int r;
+#ifdef DEBUG_DMTABLES
+	char cmd[1024];
+	unsigned step = 0;
+#endif
+#ifdef DEBUG
+	char backup_name[128];
+	static unsigned bcp=0;
+#endif
+#ifdef DEBUG_ZERO
+	char *zero_buffer = calloc(LUKS2_get_reencrypt_buffer_length(rh), 1);
+	if (!zero_buffer)
+		return REENC_ERR;
+#endif
 
 	/* update reencrypt keyslot protection parameters in memory only */
 	r = reenc_keyslot_update(cd, rh);
@@ -2027,6 +2044,15 @@ static reenc_status_t _reencrypt_step(struct crypt_device *cd,
 		if (r != REENC_OK)
 			return r;
 	}
+
+#ifdef DEBUG_DMTABLES
+	snprintf(cmd, 1024, "dmsetup info > /tmp/log-step%d", step);
+	system(cmd);
+	snprintf(cmd, 1024, "dmsetup table >> /tmp/log-step%d", step);
+	system(cmd);
+	snprintf(cmd, 1024, "dmsetup table --inactive >> /tmp/log-step%d", step++);
+	system(cmd);
+#endif
 
 	log_dbg(cd, "Reencrypting chunk starting at offset: %zu, size :%zu.", rh->offset, rh->length);
 	log_dbg(cd, "data_offset: %zu", crypt_get_data_offset(cd) << SECTOR_SHIFT);
@@ -2070,6 +2096,12 @@ static reenc_status_t _reencrypt_step(struct crypt_device *cd,
 			log_err(cd, "Decryption failed.");
 			return REENC_ROLLBACK;
 		}
+#ifdef DEBUG_ZERO
+		if (memcmp(zero_buffer, rh->reenc_buffer, rh->read)) {
+			log_err(cd, "reencryption is fishy.");
+			return REENC_FATAL;
+		}
+#endif
 		if (crypt_storage_wrapper_encrypt(rh->cw2, rh->offset, rh->reenc_buffer, rh->read)) {
 			log_err(cd, "Failed to encrypt chunk starting at sector %zu.", rh->offset);
 			return REENC_ROLLBACK;
@@ -2084,6 +2116,11 @@ static reenc_status_t _reencrypt_step(struct crypt_device *cd,
 		/* Teardown overlay devices with dm-error. None bio shall pass! */
 		return REENC_ROLLBACK;
 	}
+
+#ifdef DEBUG
+	snprintf(backup_name, sizeof(backup_name), "%u-dirty-debug-luks2-backup-uuid-%s", bcp, crypt_get_uuid(cd));
+	crypt_header_backup(cd, CRYPT_LUKS2, backup_name);
+#endif
 	if (rh->rp.type != REENC_PROTECTION_CHECKSUM) {
 		r = crypt_storage_wrapper_decrypt(rh->cw1, rh->offset, rh->reenc_buffer, rh->read);
 		if (r) {
@@ -2091,6 +2128,12 @@ static reenc_status_t _reencrypt_step(struct crypt_device *cd,
 			log_err(cd, "Decryption failed.");
 			return REENC_ROLLBACK;
 		}
+#ifdef DEBUG_ZERO
+		if (memcmp(zero_buffer, rh->reenc_buffer, rh->read)) {
+			log_err(cd, "reencryption is fishy.");
+			return REENC_FATAL;
+		}
+#endif
 		if (rh->read != crypt_storage_wrapper_encrypt_write(rh->cw2, rh->offset, rh->reenc_buffer, rh->read)) {
 			/* severity fatal */
 			log_err(cd, "Failed to write chunk starting at sector %zu.", rh->offset);
@@ -2115,6 +2158,11 @@ static reenc_status_t _reencrypt_step(struct crypt_device *cd,
 		return REENC_FATAL;
 	}
 
+#ifdef DEBUG
+	snprintf(backup_name, sizeof(backup_name), "%u-clear-debug-luks2-backup-uuid-%s", bcp++, crypt_get_uuid(cd));
+	crypt_header_backup(cd, CRYPT_LUKS2, backup_name);
+#endif
+
 	if (online) {
 		/* severity normal */
 		log_dbg(cd, "Resuming device %s", rh->hotzone_name);
@@ -2125,11 +2173,17 @@ static reenc_status_t _reencrypt_step(struct crypt_device *cd,
 		}
 	}
 
+#ifdef DEBUG_ZERO
+	free(zero_buffer);
+#endif
 	return REENC_OK;
 }
 
 static int _reencrypt_teardown_ok(struct crypt_device *cd, struct luks2_hdr *hdr, struct luks2_reenc_context *rh)
 {
+#ifdef DEBUG_DMTABLES
+	char cmd[1024];
+#endif
 	int i, r;
 	bool finished = (!continue_reencryption(cd, rh, rh->device_size));
 
@@ -2139,6 +2193,14 @@ static int _reencrypt_teardown_ok(struct crypt_device *cd, struct luks2_hdr *hdr
 		return -EINVAL;
 	}
 
+#ifdef DEBUG_DMTABLES
+	snprintf(cmd, 1024, "dmsetup info > /tmp/log-step-final");
+	system(cmd);
+	snprintf(cmd, 1024, "dmsetup table >> /tmp/log-step-final");
+	system(cmd);
+	snprintf(cmd, 1024, "dmsetup table --inactive >> /tmp/log-step-final");
+	system(cmd);
+#endif
 	if (rh->online) {
 		r = LUKS2_reload(cd, rh->device_name, rh->vks, CRYPT_ACTIVATE_KEYRING_KEY | CRYPT_ACTIVATE_SHARED);
 		if (r)
@@ -2238,6 +2300,9 @@ int crypt_reencrypt_step(struct crypt_device *cd)
 int crypt_reencrypt(struct crypt_device *cd,
 		    int (*progress)(uint64_t size, uint64_t offset, void *usrptr))
 {
+#ifdef DEBUG
+	char backup_name[1024];
+#endif
 	int r;
 	luks2_reencrypt_info ri;
 	struct luks2_hdr *hdr;
@@ -2271,6 +2336,14 @@ int crypt_reencrypt(struct crypt_device *cd,
 			return -EINVAL;
 		}
 	}
+#ifdef DEBUG
+	if (LUKS2_hdr_write(cd, hdr)) {
+		log_err(cd, "Failed to store luks2 hdr");
+		return -EINVAL;
+	}
+	snprintf(backup_name, sizeof(backup_name), "clear-debug-luks2-backup-uuid-%s", crypt_get_uuid(cd));
+	crypt_header_backup(cd, CRYPT_LUKS2, backup_name);
+#endif
 
 	log_dbg(cd, "Progress %" PRIu64 ", device_size %" PRIu64, rh->progress, rh->device_size);
 	if (progress && progress(rh->device_size, rh->progress, NULL))
