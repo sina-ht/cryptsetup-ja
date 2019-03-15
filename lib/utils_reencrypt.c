@@ -24,6 +24,11 @@
 #include <unistd.h>
 #include <linux/fs.h>
 #include <sys/ioctl.h>
+#include <time.h>
+
+const struct timespec mytime = {
+	//.tv_sec = 1,
+};
 
 #include "luks2_internal.h"
 #include "utils_device_locking.h"
@@ -2162,6 +2167,7 @@ static reenc_status_t _reencrypt_step(struct crypt_device *cd,
 	snprintf(backup_name, sizeof(backup_name), "%u-clear-debug-luks2-backup-uuid-%s", bcp++, crypt_get_uuid(cd));
 	crypt_header_backup(cd, CRYPT_LUKS2, backup_name);
 #endif
+	nanosleep(&mytime, NULL);
 
 	if (online) {
 		/* severity normal */
@@ -2171,6 +2177,8 @@ static reenc_status_t _reencrypt_step(struct crypt_device *cd,
 			log_err(cd, "Failed to resume device %s.", rh->hotzone_name);
 			return REENC_ERR;
 		}
+
+		nanosleep(&mytime, NULL);
 	}
 
 #ifdef DEBUG_ZERO
