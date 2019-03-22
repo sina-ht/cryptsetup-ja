@@ -22,7 +22,6 @@
  */
 
 #include "cryptsetup.h"
-#include <uuid/uuid.h>
 
 static const char *opt_cipher = NULL;
 static const char *opt_keyslot_cipher = NULL;

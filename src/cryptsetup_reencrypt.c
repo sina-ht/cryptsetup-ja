@@ -23,7 +23,6 @@
 #include <sys/ioctl.h>
 #include <linux/fs.h>
 #include <arpa/inet.h>
-#include <uuid/uuid.h>
 
 #define PACKAGE_REENC "crypt_reencrypt"
 
