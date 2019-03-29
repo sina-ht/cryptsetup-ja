@@ -652,7 +652,7 @@ static int dm_prepare_uuid(struct crypt_device *cd, const char *name, const char
 
 /* return number of holders in general, if matched dm_uuid prefix it's returned via dm_name */
 /* negative value is error */
-int lookup_holder_dm_name(const char *dm_uuid, size_t max_len, const char *bdev, char *dm_name, size_t dm_name_length)
+static int lookup_holder_dm_name(const char *dm_uuid, size_t max_len, const char *bdev, char *dm_name, size_t dm_name_length)
 {
 	struct dirent *entry;
 	char dm_subpath[PATH_MAX], data_dev_dir[PATH_MAX], uuid[max_len];
