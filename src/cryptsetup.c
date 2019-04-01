@@ -2549,6 +2549,9 @@ static int action_reencrypt_luks2(struct crypt_device *cd, char **password, size
 	char cipher [MAX_CIPHER_LEN], mode[MAX_CIPHER_LEN];
 	struct crypt_params_luks2 luks2_params = {};
 
+	if (opt_header_device && crypt_set_data_device(cd, action_argv[0]))
+		return -EINVAL;
+
 	if (opt_cipher && (r = crypt_parse_name_and_mode(opt_cipher, cipher, NULL, mode))) {
 		log_err(_("No known cipher specification pattern detected."));
 		return r;
@@ -2576,7 +2579,7 @@ static int action_reencrypt_luks2(struct crypt_device *cd, char **password, size
 	if (r < 0)
 		return r;
 
-	if (opt_keep_key) {
+	if (!opt_keep_key) {
 		r = crypt_keyslot_add_by_key(cd, CRYPT_ANY_SLOT, NULL,
 				(opt_key_size ?: DEFAULT_LUKS1_KEYBITS) / 8,
 				*password, *passwordLen, CRYPT_VOLUME_KEY_NO_SEGMENT);
