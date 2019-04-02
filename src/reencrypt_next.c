@@ -25,6 +25,7 @@
 #include <uuid/uuid.h>
 
 #include "cryptsetup.h"
+#include "lib/utils_keyring.h"
 
 static const char *opt_active_name = NULL;
 static const char *opt_resilience_mode = "checksum";

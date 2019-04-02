@@ -45,7 +45,6 @@
 #include "lib/utils_fips.h"
 #include "lib/utils_io.h"
 #include "lib/utils_blkid.h"
-#include "lib/utils_keyring.h"
 
 #include "libcryptsetup.h"
 

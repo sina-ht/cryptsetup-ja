@@ -117,6 +117,8 @@ cryptsetup_reencrypt_next_LDADD =		\
 	-lm					\
 	libcryptsetup.la			\
 	@POPT_LIBS@				\
+	@PWQUALITY_LIBS@			\
+	@PASSWDQC_LIBS@				\
 	@UUID_LIBS@				\
 	@BLKID_LIBS@
 
