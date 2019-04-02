@@ -38,7 +38,6 @@
 #include <popt.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <uuid/uuid.h>
 
 #include "lib/nls.h"
 #include "lib/utils_crypt.h"
