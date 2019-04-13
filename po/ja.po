@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: cryptsetup 2.2.0-git\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
 "POT-Creation-Date: 2019-04-09 21:27+0900\n"
-"PO-Revision-Date: 2019-04-09 21:32+0900\n"
+"PO-Revision-Date: 2019-04-13 15:01+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -58,181 +58,183 @@ msgstr "指定された改ざん確認タグの自動再計算はサポートさ
 
 #: lib/libdevmapper.c:1550
 msgid "Requested dmcrypt performance options are not supported."
-msgstr "指定された dmcrypt パフォーマンスオションはサポートされていません。"
+msgstr "指定された dmcrypt パフォーマンスオプションはサポートされていません。"
 
 #: lib/libdevmapper.c:1553
 msgid "Discard/TRIM is not supported."
-msgstr ""
+msgstr "Discard/TRIM はサポートしていません。"
 
 #: lib/libdevmapper.c:2428
 #, c-format
 msgid "Failed to query dm-%s segment."
-msgstr ""
+msgstr "dm-%s のクエリーに失敗しました。"
 
 #: lib/random.c:80
 msgid ""
 "System is out of entropy while generating volume key.\n"
 "Please move mouse or type some text in another window to gather some random events.\n"
 msgstr ""
+"ボリュームキーを生成するためのエントロピー(この文脈では乱数の乱れ度合)が足りません。\n"
+"マウスを動かしたり、他のウィンドウで文字を入力したりしてみてください。\n"
 
 #: lib/random.c:84
 #, c-format
 msgid "Generating key (%d%% done).\n"
-msgstr ""
+msgstr "キー生成中 (%d%% 完了)。\n"
 
 #: lib/random.c:170
 msgid "Running in FIPS mode."
-msgstr ""
+msgstr "FIPS モードで実行中。"
 
 #: lib/random.c:176
 msgid "Fatal error during RNG initialisation."
-msgstr ""
+msgstr "RNG(乱数生成器)初期化中に重大なエラーが発生しました。"
 
 #: lib/random.c:213
 msgid "Unknown RNG quality requested."
-msgstr ""
+msgstr "不明な RNG(乱数生成器) の質(quality)が要求されました。"
 
 #: lib/random.c:218
 msgid "Error reading from RNG."
-msgstr ""
+msgstr "RNG(乱数生成器)から読み込み中にエラー。"
 
 #: lib/setup.c:219
 msgid "Cannot initialize crypto RNG backend."
-msgstr ""
+msgstr "暗号向けRNG(乱数生成器)バックエンドの初期化ができません。"
 
 #: lib/setup.c:225
 msgid "Cannot initialize crypto backend."
-msgstr ""
+msgstr "暗号バックエンドの初期化ができません。"
 
 #: lib/setup.c:256 lib/setup.c:1906 lib/verity/verity.c:123
 #, c-format
 msgid "Hash algorithm %s not supported."
-msgstr ""
+msgstr "ハッシュアルゴリズム %s がサポートされていません。"
 
 #: lib/setup.c:259 lib/loopaes/loopaes.c:90
 #, c-format
 msgid "Key processing error (using hash %s)."
-msgstr ""
+msgstr "鍵の処理でエラー (ハッシュ %s を使用)。"
 
 #: lib/setup.c:320 lib/setup.c:347
 msgid "Cannot determine device type. Incompatible activation of device?"
-msgstr ""
+msgstr "デバイスタイプがわかりません。互換性のないデバイスのアクティベーションをしようとしていませんか？"
 
 #: lib/setup.c:326 lib/setup.c:2900
 msgid "This operation is supported only for LUKS device."
-msgstr ""
+msgstr "この操作は LUKS デバイスでしかサポートされていません。"
 
 #: lib/setup.c:353
 msgid "This operation is supported only for LUKS2 device."
-msgstr ""
+msgstr "この操作は LUKS2 デバイスでしかサポートされていません。"
 
 #: lib/setup.c:401
 msgid "All key slots full."
-msgstr ""
+msgstr "キースロットがいっぱいです。"
 
 #: lib/setup.c:412
 #, c-format
 msgid "Key slot %d is invalid, please select between 0 and %d."
-msgstr ""
+msgstr "キースロット %d は不正です。0 から %d の間を選んでください。"
 
 #: lib/setup.c:418
 #, c-format
 msgid "Key slot %d is full, please select another one."
-msgstr ""
+msgstr "キースロット %d は使われています。別の番号を選んでください。"
 
 #: lib/setup.c:594
 #, c-format
 msgid "Header detected but device %s is too small."
-msgstr ""
+msgstr "ヘッダが検出されましたがデバイス %s が小さすぎます。"
 
 #: lib/setup.c:631
 msgid "This operation is not supported for this device type."
-msgstr ""
+msgstr "この操作はこのデバイスタイプではサポートされていません。"
 
 #: lib/setup.c:798 lib/luks1/keymanage.c:481
 #, c-format
 msgid "Unsupported LUKS version %d."
-msgstr ""
+msgstr "LUKS バージョン %d はサポートされていません。"
 
 #: lib/setup.c:815 lib/setup.c:1410 lib/setup.c:1819
 msgid "Detached metadata device is not supported for this crypt type."
-msgstr ""
+msgstr "分離したメタデータデバイスはこの暗号タイプではサポートされていません。"
 
 #: lib/setup.c:1295 lib/setup.c:2399 lib/setup.c:2471 lib/setup.c:2483
 #: lib/setup.c:2632 lib/setup.c:4034
 #, c-format
 msgid "Device %s is not active."
-msgstr ""
+msgstr "デバイス %s はアクティブではありません。"
 
 #: lib/setup.c:1317
 #, c-format
 msgid "Underlying device for crypt device %s disappeared."
-msgstr ""
+msgstr "暗号化されたデバイス %s の元になるデバイスが消滅しました。"
 
 #: lib/setup.c:1395
 msgid "Invalid plain crypt parameters."
-msgstr ""
+msgstr "不正な plain crypt のパラメータ。"
 
 #: lib/setup.c:1400 lib/setup.c:1809 src/integritysetup.c:72
 msgid "Invalid key size."
-msgstr ""
+msgstr "不正なキーサイズ。"
 
 #: lib/setup.c:1405 lib/setup.c:1814 lib/setup.c:2016
 msgid "UUID is not supported for this crypt type."
-msgstr ""
+msgstr "UUID はこの暗号タイプではサポートされていません。"
 
 #: lib/setup.c:1420 lib/setup.c:1610 src/cryptsetup.c:1049
 msgid "Unsupported encryption sector size."
-msgstr ""
+msgstr "サポートされていない暗号化セクタサイズです。"
 
 #: lib/setup.c:1428 lib/setup.c:1727
 msgid "Device size is not aligned to requested sector size."
-msgstr ""
+msgstr "デバイスサイズが要求されたセクタサイズのアライメントに合いません。"
 
 #: lib/setup.c:1479 lib/setup.c:1598
 msgid "Can't format LUKS without device."
-msgstr ""
+msgstr "デバイスなしには LUKS 形式にフォーマットできません。"
 
 #: lib/setup.c:1485 lib/setup.c:1604
 msgid "Requested data alignment is not compatible with data offset."
-msgstr ""
+msgstr "要求されたデータアライメントとデータオフセットが合いません。"
 
 #: lib/setup.c:1553 lib/setup.c:1722
 msgid "WARNING: Data offset is outside of currently available data device.\n"
-msgstr ""
+msgstr "警告: データオフセットが現在利用可能なデータの外にあります。\n"
 
 #: lib/setup.c:1563 lib/setup.c:1742 lib/setup.c:1761 lib/setup.c:2028
 #, c-format
 msgid "Cannot wipe header on device %s."
-msgstr ""
+msgstr "デバイス %s のヘッダを消し去れません。"
 
 #: lib/setup.c:1615
 msgid "WARNING: The device activation will fail, dm-crypt is missing support for requested encryption sector size.\n"
-msgstr ""
+msgstr "警告: デバイスアクティベーションが失敗しました。dm-crypt が要求された暗号セクタサイズをサポートしていません。\n"
 
 #: lib/setup.c:1637
 msgid "Volume key is too small for encryption with integrity extensions."
-msgstr ""
+msgstr "ボリュームキーは改ざん耐性拡張のため暗号には鍵長が小さすぎます。"
 
 #: lib/setup.c:1692
 #, c-format
 msgid "Cipher %s-%s (key size %zd bits) is not available."
-msgstr ""
+msgstr "暗号 %s-%s (キーサイズ %zd ビット) は利用できません。"
 
 #: lib/setup.c:1754
 #, c-format
 msgid "Cannot format device %s which is still in use."
-msgstr ""
+msgstr "デバイス %s は使用中のためフォーマットできません。"
 
 #: lib/setup.c:1757 lib/setup.c:1782
 #, c-format
 msgid "Cannot format device %s, permission denied."
-msgstr ""
+msgstr "デバイス %s は権限がないためフォーマットできません。"
 
 #: lib/setup.c:1769 lib/setup.c:2080
 #, c-format
 msgid "Cannot format integrity for device %s."
-msgstr ""
+msgstr "デバイス %s を改ざん耐性がつくようフォーマットできません。"
 
 #: lib/setup.c:1779
 #, c-format
