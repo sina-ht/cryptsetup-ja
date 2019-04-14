@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: cryptsetup 2.2.0-git\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
 "POT-Creation-Date: 2019-04-09 21:27+0900\n"
-"PO-Revision-Date: 2019-04-13 15:01+0900\n"
+"PO-Revision-Date: 2019-04-14 19:11+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -239,139 +239,139 @@ msgstr "デバイス %s を改ざん耐性がつくようフォーマットで�
 #: lib/setup.c:1779
 #, c-format
 msgid "Cannot format device %s in use."
-msgstr ""
+msgstr "デバイス %s は使用中のためフォーマットできません。"
 
 #: lib/setup.c:1786
 #, c-format
 msgid "Cannot format device %s."
-msgstr ""
+msgstr "デバイス %s をフォーマットできません。"
 
 #: lib/setup.c:1804
 msgid "Can't format LOOPAES without device."
-msgstr ""
+msgstr "LOOPAES としてフォーマットするにはデバイスが必要です。"
 
 #: lib/setup.c:1849
 msgid "Can't format VERITY without device."
-msgstr ""
+msgstr "VERITY としてフォーマットするにはデバイスが必要です。"
 
 #: lib/setup.c:1860 lib/verity/verity.c:106
 #, c-format
 msgid "Unsupported VERITY hash type %d."
-msgstr ""
+msgstr "VERITY ハッシュタイプ %d はサポートしていません。"
 
 #: lib/setup.c:1866 lib/verity/verity.c:114
 msgid "Unsupported VERITY block size."
-msgstr ""
+msgstr "サポートしていない VERITY ブロックサイズです。"
 
 #: lib/setup.c:1871 lib/verity/verity.c:75
 msgid "Unsupported VERITY hash offset."
-msgstr ""
+msgstr "サポートしていない VERITY ハッシュオフセットです。"
 
 #: lib/setup.c:1876
 msgid "Unsupported VERITY FEC offset."
-msgstr ""
+msgstr "サポートしていない VERITY FEC オフセットです。"
 
 #: lib/setup.c:1900
 msgid "Data area overlaps with hash area."
-msgstr ""
+msgstr "データ領域がハッシュ領域と重なっています。"
 
 #: lib/setup.c:1925
 msgid "Hash area overlaps with FEC area."
-msgstr ""
+msgstr "ハッシュ領域が FEC 領域と重なっています。"
 
 #: lib/setup.c:1932
 msgid "Data area overlaps with FEC area."
-msgstr ""
+msgstr "データ領域が FEC 領域と重なっています。"
 
 #: lib/setup.c:2137
 #, c-format
 msgid "Unknown crypt device type %s requested."
-msgstr ""
+msgstr "不明な暗号デバイスタイプ %s が指定されました。"
 
 #: lib/setup.c:2405 lib/setup.c:2477 lib/setup.c:2490
 #, c-format
 msgid "Unsupported parameters on device %s."
-msgstr ""
+msgstr "デバイス %s のパラメータはサポートしていません。"
 
 #: lib/setup.c:2411 lib/setup.c:2496
 #, c-format
 msgid "Mismatching parameters on device %s."
-msgstr ""
+msgstr "デバイス %s のパラメータがミスマッチしています。"
 
 #: lib/setup.c:2664
 msgid "Cannot resize loop device."
-msgstr ""
+msgstr "ループデバイスはリサイズできません。"
 
 #: lib/setup.c:2673
 #, c-format
 msgid "Device %s size is not aligned to requested sector size (%u bytes)."
-msgstr ""
+msgstr "デバイス %s のサイズが指定されたセクタサイズ (%u バイト) に合っていません。"
 
 #: lib/setup.c:2732
 msgid "Do you really want to change UUID of device?"
-msgstr ""
+msgstr "デバイスの UUID を本当に変更してもいいですか？"
 
 #: lib/setup.c:2808
 msgid "Header backup file does not contain compatible LUKS header."
-msgstr ""
+msgstr "ヘッダのバックアップファイルの中味が LUKS ヘッダと互換性がありません。"
 
 #: lib/setup.c:2908
 #, c-format
 msgid "Volume %s is not active."
-msgstr ""
+msgstr "ボリューム %s はアクティブではありません。"
 
 #: lib/setup.c:2919
 #, c-format
 msgid "Volume %s is already suspended."
-msgstr ""
+msgstr "ボリューム %s は既に停止されています。"
 
 #: lib/setup.c:2932
 #, c-format
 msgid "Suspend is not supported for device %s."
-msgstr ""
+msgstr "デバイス %s の停止はサポートされていません。"
 
 #: lib/setup.c:2934
 #, c-format
 msgid "Error during suspending device %s."
-msgstr ""
+msgstr "デバイス %s 停止中にエラー。"
 
 #: lib/setup.c:2967 lib/setup.c:3034
 #, c-format
 msgid "Volume %s is not suspended."
-msgstr ""
+msgstr "ボリューム %s は停止されていません。"
 
 #: lib/setup.c:2996
 #, c-format
 msgid "Resume is not supported for device %s."
-msgstr ""
+msgstr "デバイス %s は再開をサポートしていません。"
 
 #: lib/setup.c:2998 lib/setup.c:3066
 #, c-format
 msgid "Error during resuming device %s."
-msgstr ""
+msgstr "デバイス %s の再開中にエラー。"
 
 #: lib/setup.c:3134 lib/setup.c:3322
 msgid "Cannot add key slot, all slots disabled and no volume key provided."
-msgstr ""
+msgstr "キースロットを追加できません。全てのスロットが無効でボリュームキーが渡されませんでした。"
 
 #: lib/setup.c:3274
 msgid "Failed to swap new key slot."
-msgstr ""
+msgstr "新しいキースロットを交換できませんでした。"
 
 #: lib/setup.c:3439 lib/setup.c:3878 lib/setup.c:3891 lib/setup.c:3899
 #: lib/setup.c:3912 lib/setup.c:4211 lib/setup.c:5309
 msgid "Volume key does not match the volume."
-msgstr ""
+msgstr "ボリュームキーがボリュームに合いません。"
 
 #: lib/setup.c:3460
 #, c-format
 msgid "Key slot %d is invalid."
-msgstr ""
+msgstr "キースロット %d は不正です。"
 
 #: lib/setup.c:3466
 #, c-format
 msgid "Key slot %d is not used."
-msgstr ""
+msgstr "キースロット %d が未使用です。"
 
 #: lib/setup.c:3485
 msgid "Device header overlaps with data area."
