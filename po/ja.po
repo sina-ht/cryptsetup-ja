@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: cryptsetup 2.2.0-git\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
 "POT-Creation-Date: 2019-04-09 21:27+0900\n"
-"PO-Revision-Date: 2019-04-14 19:11+0900\n"
+"PO-Revision-Date: 2019-05-04 23:15+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -375,180 +375,180 @@ msgstr "キースロット %d が未使用です。"
 
 #: lib/setup.c:3485
 msgid "Device header overlaps with data area."
-msgstr ""
+msgstr "デバイスヘッダがデータ領域に重なっています。"
 
 #: lib/setup.c:3695 lib/setup.c:3965
 msgid "Device type is not properly initialised."
-msgstr ""
+msgstr "デバイスタイプが正しく初期化されていません。"
 
 #: lib/setup.c:3739
 #, c-format
 msgid "Cannot use device %s, name is invalid or still in use."
-msgstr ""
+msgstr "デバイス %s を使えません。名前が不正か使用中です。"
 
 #: lib/setup.c:3742
 #, c-format
 msgid "Device %s already exists."
-msgstr ""
+msgstr "デバイス %s は既に存在します。"
 
 #: lib/setup.c:3865
 msgid "Incorrect volume key specified for plain device."
-msgstr ""
+msgstr "正しくないボリュームキーがプレーンデバイスに指定されました。"
 
 #: lib/setup.c:3931
 msgid "Incorrect root hash specified for verity device."
-msgstr ""
+msgstr "正しくないルートハッシュが verity デバイスに指定されました。"
 
 #: lib/setup.c:4008 lib/setup.c:4023
 #, c-format
 msgid "Device %s is still in use."
-msgstr ""
+msgstr "デバイス %s は使用中です。"
 
 #: lib/setup.c:4038
 #, c-format
 msgid "Invalid device %s."
-msgstr ""
+msgstr "デバイス %s は不正です。"
 
 #: lib/setup.c:4147
 msgid "Function not available in FIPS mode."
-msgstr ""
+msgstr "FIPS モードでは使えません。"
 
 #: lib/setup.c:4161
 msgid "Volume key buffer too small."
-msgstr ""
+msgstr "ボリュームキーのバッファが小さすぎます。"
 
 #: lib/setup.c:4169
 msgid "Cannot retrieve volume key for plain device."
-msgstr ""
+msgstr "プレーンデバイス向けのボリュームキーが取得できません。"
 
 #: lib/setup.c:4180
 #, c-format
 msgid "This operation is not supported for %s crypt device."
-msgstr ""
+msgstr "この操作は %s 暗号化デバイスではサポートされていません。"
 
 #: lib/setup.c:4367
 msgid "Dump operation is not supported for this device type."
-msgstr ""
+msgstr "このデバイスタイプはダンプ操作をサポートしていません。"
 
 #: lib/setup.c:4957
 #, c-format
 msgid "Cannot convert device %s which is still in use."
-msgstr ""
+msgstr "使用中のデバイス %s を変換できません。"
 
 #: lib/setup.c:5242
 #, c-format
 msgid "Failed to assign keyslot %u as the new volume key."
-msgstr ""
+msgstr "新しいボリュームキー向けのキースロット %u を確保できません。"
 
 #: lib/setup.c:5315
 msgid "Failed to initialise default LUKS2 keyslot parameters."
-msgstr ""
+msgstr "デフォルト LUKS2 キースロットパラメータを初期化できません。"
 
 #: lib/setup.c:5321
 #, c-format
 msgid "Failed to assign keyslot %d to digest."
-msgstr ""
+msgstr "ダイジェストするためのキースロット %d が確保できません。"
 
 #: lib/setup.c:5406
 msgid "Failed to load key in kernel keyring."
-msgstr ""
+msgstr "キーをカーネルキーリングにロードできません。"
 
 #: lib/setup.c:5473
 msgid "Kernel keyring is not supported by the kernel."
-msgstr ""
+msgstr "カーネルがカーネルキーリングをサポートしていません。"
 
 #: lib/setup.c:5483
 #, c-format
 msgid "Failed to read passphrase from keyring (error %d)."
-msgstr ""
+msgstr "キーリングからパスフレーズが読み出せません (エラー %d)。"
 
 #: lib/utils.c:81
 msgid "Cannot get process priority."
-msgstr ""
+msgstr "プロセス優先度を取得できません。"
 
 #: lib/utils.c:95
 msgid "Cannot unlock memory."
-msgstr ""
+msgstr "メモリをアンロックできません。"
 
 #: lib/utils.c:169 lib/tcrypt/tcrypt.c:498
 msgid "Failed to open key file."
-msgstr ""
+msgstr "キーファイルがオープンできません。"
 
 #: lib/utils.c:174
 msgid "Cannot read keyfile from a terminal."
-msgstr ""
+msgstr "ターミナルからキーファイルを読みこめません。"
 
 #: lib/utils.c:191
 msgid "Failed to stat key file."
-msgstr ""
+msgstr "キーファイルを stat() できません。"
 
 #: lib/utils.c:199 lib/utils.c:220
 msgid "Cannot seek to requested keyfile offset."
-msgstr ""
+msgstr "指定されたキーファイルオフセットにシークできません。"
 
 #: lib/utils.c:214 lib/utils.c:229 src/utils_password.c:188
 #: src/utils_password.c:201
 msgid "Out of memory while reading passphrase."
-msgstr ""
+msgstr "パスフレーズ読み込み中にメモリが不足しました。"
 
 #: lib/utils.c:249
 msgid "Error reading passphrase."
-msgstr ""
+msgstr "パスフレーズの読み込みでエラー。"
 
 #: lib/utils.c:266
 msgid "Nothing to read on input."
-msgstr ""
+msgstr "読もうとしたら入力が空です。"
 
 #: lib/utils.c:273
 msgid "Maximum keyfile size exceeded."
-msgstr ""
+msgstr "キーファイルが最大サイズを超えています。"
 
 #: lib/utils.c:278
 msgid "Cannot read requested amount of data."
-msgstr ""
+msgstr "指定されたサイズのデータを読み込めません。"
 
 #: lib/utils_device.c:184 lib/luks1/keyencryption.c:92
 #, c-format
 msgid "Device %s doesn't exist or access denied."
-msgstr ""
+msgstr "デバイス %s は存在しないかアクセスが拒否されました。"
 
 #: lib/utils_device.c:194
 #, c-format
 msgid "Device %s is not compatible."
-msgstr ""
+msgstr "デバイス %s は互換性がありません。"
 
 #: lib/utils_device.c:560
 #, c-format
 msgid "Device %s is too small. Need at least %<PRIu64> bytes."
-msgstr ""
+msgstr "デバイス %s が小さすぎます。少なくとも %<PRIu64> バイト必要です。"
 
 #: lib/utils_device.c:641
 #, c-format
 msgid "Cannot use device %s which is in use (already mapped or mounted)."
-msgstr ""
+msgstr "デバイス %s は使用中で使えません (既にマップされているかマウントされています)。"
 
 #: lib/utils_device.c:645
 #, c-format
 msgid "Cannot use device %s, permission denied."
-msgstr ""
+msgstr "デバイス %s が使えません、拒否されました。"
 
 #: lib/utils_device.c:648
 #, c-format
 msgid "Cannot get info about device %s."
-msgstr ""
+msgstr "デバイス %s についての情報が取得できません。"
 
 #: lib/utils_device.c:671
 msgid "Cannot use a loopback device, running as non-root user."
-msgstr ""
+msgstr "ループバックデバイスが使えません、非 root ユーザで実行していませんか。"
 
 #: lib/utils_device.c:681
 msgid "Attaching loopback device failed (loop device with autoclear flag is required)."
-msgstr ""
+msgstr "ループデバイスのアタッチできません (autoclear 付きのループデバイスが必要です)。"
 
 #: lib/utils_device.c:727
 #, c-format
 msgid "Requested offset is beyond real size of device %s."
-msgstr ""
+msgstr "指定されたオフセットはデバイス %s の実際のサイズを超えています。"
 
 #: lib/utils_device.c:735
 #, c-format
