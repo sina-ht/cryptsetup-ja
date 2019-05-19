@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: cryptsetup 2.2.0-git\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
 "POT-Creation-Date: 2019-04-09 21:27+0900\n"
-"PO-Revision-Date: 2019-05-04 23:15+0900\n"
+"PO-Revision-Date: 2019-05-19 23:31+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -553,85 +553,85 @@ msgstr "指定されたオフセットはデバイス %s の実際のサイズ�
 #: lib/utils_device.c:735
 #, c-format
 msgid "Device %s has zero size."
-msgstr ""
+msgstr "デバイス %s のサイズが 0 です。"
 
 #: lib/utils_device.c:746 lib/luks1/keyencryption.c:258
 #, c-format
 msgid "Device %s is too small."
-msgstr ""
+msgstr "デバイス %s のサイズが小さすぎます。"
 
 #: lib/utils_pbkdf.c:100
 msgid "Requested PBKDF target time cannot be zero."
-msgstr ""
+msgstr "要求された PBKDF の目標時間は 0 ではいけません。"
 
 #: lib/utils_pbkdf.c:106
 #, c-format
 msgid "Unknown PBKDF type %s."
-msgstr ""
+msgstr "%s は不明な PBKDF タイプです。"
 
 #: lib/utils_pbkdf.c:111
 #, c-format
 msgid "Requested hash %s is not supported."
-msgstr ""
+msgstr "要求されたハッシュ %s はサポートしていません。"
 
 #: lib/utils_pbkdf.c:122
 msgid "Requested PBKDF type is not supported for LUKS1."
-msgstr ""
+msgstr "要求された PBKDF タイプは LUKS1 ではサポートされていません。"
 
 #: lib/utils_pbkdf.c:128
 msgid "PBKDF max memory or parallel threads must not be set with pbkdf2."
-msgstr ""
+msgstr "PBKDF の max memory や parallel threads は pbkdf2 の時は設定できません。"
 
 #: lib/utils_pbkdf.c:133 lib/utils_pbkdf.c:143
 #, c-format
 msgid "Forced iteration count is too low for %s (minimum is %u)."
-msgstr ""
+msgstr "%s について強制される最小繰り返し回数が小さすぎます (最小 %u)。"
 
 #: lib/utils_pbkdf.c:148
 #, c-format
 msgid "Forced memory cost is too low for %s (minimum is %u kilobytes)."
-msgstr ""
+msgstr "%s について強制されるメモリコストが小さすぎます (最小 %u KB)。"
 
 #: lib/utils_pbkdf.c:155
 #, c-format
 msgid "Requested maximum PBKDF memory cost is too high (maximum is %d kilobytes)."
-msgstr ""
+msgstr "指定された PBKDF メモリコストが大きすぎます (最大 %d KB)。"
 
 #: lib/utils_pbkdf.c:160
 msgid "Requested maximum PBKDF memory cannot be zero."
-msgstr ""
+msgstr "PBKDF メモリは 0 ではいけません。"
 
 #: lib/utils_pbkdf.c:164
 msgid "Requested PBKDF parallel threads cannot be zero."
-msgstr ""
+msgstr "要求された PBKDF 並列スレッド数は 0 ではいけません。"
 
 #: lib/utils_benchmark.c:166
 msgid "PBKDF benchmark disabled but iterations not set."
-msgstr ""
+msgstr "PBKDF ベンチマークが無効ですが繰り返し回数が設定されていません。"
 
 #: lib/utils_benchmark.c:185
 #, c-format
 msgid "Not compatible PBKDF2 options (using hash algorithm %s)."
-msgstr ""
+msgstr "PBKDF2 と互換性のないオプションです (ハッシュアルゴリズム %s)。"
 
 #: lib/utils_benchmark.c:205
 msgid "Not compatible PBKDF options."
-msgstr ""
+msgstr "互換性のない PBKDF オプションです。"
 
 #: lib/utils_device_locking.c:103
 #, c-format
 msgid "Locking aborted. The locking path %s/%s is unusable (not a directory or missing)."
-msgstr ""
+msgstr "ロックを中止します。ロックに使うパス %s/%s が使用できません (ディレクトリでないか存在していません)。"
 
 #: lib/utils_device_locking.c:110
 #, c-format
 msgid "WARNING: Locking directory %s/%s is missing!\n"
-msgstr ""
+msgstr "警告: ロックに使うディレクトリ %s/%s がありません！\n"
 
 #: lib/utils_device_locking.c:120
 #, c-format
 msgid "Locking aborted. The locking path %s/%s is unusable (%s is not a directory)."
-msgstr ""
+msgstr "ロックを中止します。ロックに使うパス %s/%s が使用できません (%s はディレクトリではありません)。"
 
 #: lib/luks1/keyencryption.c:40
 #, c-format
@@ -639,33 +639,35 @@ msgid ""
 "Failed to setup dm-crypt key mapping for device %s.\n"
 "Check that kernel supports %s cipher (check syslog for more info)."
 msgstr ""
+"デバイス %s の dm-crypt のキーマッピングの設定に失敗しました。\n"
+"カーネルが暗号 %s をサポートしているか確認してください (syslog にさらに情報があります)。"
 
 #: lib/luks1/keyencryption.c:45
 msgid "Key size in XTS mode must be 256 or 512 bits."
-msgstr ""
+msgstr "XTS モードのキーサイズは 256 か 512 ビットでなければなりません。"
 
 #: lib/luks1/keyencryption.c:47
 msgid "Cipher specification should be in [cipher]-[mode]-[iv] format."
-msgstr ""
+msgstr "暗号の指定は [暗号]-[モード]-[初期ベクタ] という形式であるべきです。"
 
 #: lib/luks1/keyencryption.c:98 lib/luks1/keymanage.c:345
 #: lib/luks1/keymanage.c:642 lib/luks1/keymanage.c:1081
 #: lib/luks2/luks2_json_metadata.c:1186 lib/luks2/luks2_keyslot.c:488
 #, c-format
 msgid "Cannot write to device %s, permission denied."
-msgstr ""
+msgstr "デバイス %s に書き込めません。パーミッションがありません。"
 
 #: lib/luks1/keyencryption.c:120
 msgid "Failed to open temporary keystore device."
-msgstr ""
+msgstr "一時的なキーストアデバイスを開けません。"
 
 #: lib/luks1/keyencryption.c:127
 msgid "Failed to access temporary keystore device."
-msgstr ""
+msgstr "一時的なキーストアデバイスにアクセスできません。"
 
 #: lib/luks1/keyencryption.c:203 lib/luks2/luks2_keyslot_luks2.c:91
 msgid "IO error while encrypting keyslot."
-msgstr ""
+msgstr "キースロットを暗号化中にI/Oエラーが発生しました。"
 
 #: lib/luks1/keyencryption.c:249 lib/luks1/keymanage.c:348
 #: lib/luks1/keymanage.c:594 lib/luks1/keymanage.c:645 lib/tcrypt/tcrypt.c:663
@@ -676,23 +678,23 @@ msgstr ""
 #: src/cryptsetup_reencrypt.c:207
 #, c-format
 msgid "Cannot open device %s."
-msgstr ""
+msgstr "デバイス %s を開けません。"
 
 #: lib/luks1/keyencryption.c:260 lib/luks2/luks2_keyslot_luks2.c:152
 msgid "IO error while decrypting keyslot."
-msgstr ""
+msgstr "キースロットを復号化中にI/Oエラーが発生しました。"
 
 #: lib/luks1/keymanage.c:111
 #, c-format
 msgid "Device %s is too small. (LUKS1 requires at least %<PRIu64> bytes.)"
-msgstr ""
+msgstr "デバイス %s が小さすぎます。(LUKS1 は最低でも %<PRIu64> バイト必要です。)"
 
 #: lib/luks1/keymanage.c:132 lib/luks1/keymanage.c:140
 #: lib/luks1/keymanage.c:152 lib/luks1/keymanage.c:163
 #: lib/luks1/keymanage.c:175
 #, c-format
 msgid "LUKS keyslot %u is invalid."
-msgstr ""
+msgstr "LUKS キースロット %u は不正です。"
 
 #: lib/luks1/keymanage.c:228 lib/luks1/keymanage.c:478
 #: lib/luks2/luks2_json_metadata.c:1020 src/cryptsetup.c:1240
@@ -702,54 +704,54 @@ msgstr ""
 #: src/cryptsetup.c:2174 src/cryptsetup.c:2338 src/cryptsetup_reencrypt.c:1372
 #, c-format
 msgid "Device %s is not a valid LUKS device."
-msgstr ""
+msgstr "デバイス %s は有効な LUKS デバイスではありません。"
 
 #: lib/luks1/keymanage.c:247 lib/luks2/luks2_json_metadata.c:1039
 #, c-format
 msgid "Requested header backup file %s already exists."
-msgstr ""
+msgstr "要求されたヘッダバックアップファイル %s は既に存在しています。"
 
 #: lib/luks1/keymanage.c:249 lib/luks2/luks2_json_metadata.c:1041
 #, c-format
 msgid "Cannot create header backup file %s."
-msgstr ""
+msgstr "ヘッダバックアップファイル %s が作成できません。"
 
 #: lib/luks1/keymanage.c:254 lib/luks2/luks2_json_metadata.c:1046
 #, c-format
 msgid "Cannot write header backup file %s."
-msgstr ""
+msgstr "ヘッダバックアップファイル %s に書き込めません。"
 
 #: lib/luks1/keymanage.c:287 lib/luks2/luks2_json_metadata.c:1095
 msgid "Backup file doesn't contain valid LUKS header."
-msgstr ""
+msgstr "バックアップファイルが有効な LUKS ヘッダを含んでいません。"
 
 #: lib/luks1/keymanage.c:300 lib/luks1/keymanage.c:555
 #: lib/luks2/luks2_json_metadata.c:1116
 #, c-format
 msgid "Cannot open header backup file %s."
-msgstr ""
+msgstr "ヘッダバックアップファイル %s をオープンできません。"
 
 #: lib/luks1/keymanage.c:306 lib/luks2/luks2_json_metadata.c:1122
 #, c-format
 msgid "Cannot read header backup file %s."
-msgstr ""
+msgstr "ヘッダバックアップファイル %s を読めません。"
 
 #: lib/luks1/keymanage.c:318
 msgid "Data offset or key size differs on device and backup, restore failed."
-msgstr ""
+msgstr "データオフセットかキーサイズがデバイスとバックアップで異なるのでリストアできません。"
 
 #: lib/luks1/keymanage.c:326
 #, c-format
 msgid "Device %s %s%s"
-msgstr ""
+msgstr "デバイス %s %s%s"
 
 #: lib/luks1/keymanage.c:327
 msgid "does not contain LUKS header. Replacing header can destroy data on that device."
-msgstr ""
+msgstr "LUKS ヘッダが含まれていません。ヘッダを置き換えるとデバイスのデータを破壊する恐れがあります。"
 
 #: lib/luks1/keymanage.c:328
 msgid "already contains LUKS header. Replacing header will destroy existing keyslots."
-msgstr ""
+msgstr "LUKS ヘッダを既に含んでいます。ヘッダを置き換えると既にあるキースロットを破壊します。"
 
 #: lib/luks1/keymanage.c:329 lib/luks2/luks2_json_metadata.c:1158
 msgid ""
