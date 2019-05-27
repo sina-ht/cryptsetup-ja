@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: cryptsetup 2.2.0-git\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
 "POT-Creation-Date: 2019-04-09 21:27+0900\n"
-"PO-Revision-Date: 2019-05-19 23:31+0900\n"
+"PO-Revision-Date: 2019-05-27 19:07+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -757,207 +757,207 @@ msgstr "LUKS ヘッダを既に含んでいます。ヘッダを置き換える�
 msgid ""
 "\n"
 "WARNING: real device header has different UUID than backup!"
-msgstr ""
+msgstr "\n警告: 実デバイスのヘッダはバックアップとUUIDが異なります！"
 
 #: lib/luks1/keymanage.c:381
 msgid "Non standard key size, manual repair required."
-msgstr ""
+msgstr "標準的でないキーサイズなので、手動の修復が必要です。"
 
 #: lib/luks1/keymanage.c:386
 msgid "Non standard keyslots alignment, manual repair required."
-msgstr ""
+msgstr "標準的でないキースロットアライメントなので、手動の修復が必要です。"
 
 #: lib/luks1/keymanage.c:396
 msgid "Repairing keyslots."
-msgstr ""
+msgstr "キースロットを修復中です。"
 
 #: lib/luks1/keymanage.c:415
 #, c-format
 msgid "Keyslot %i: offset repaired (%u -> %u)."
-msgstr ""
+msgstr "キースロット %i: オフセットを修復 (%u -> %u)."
 
 #: lib/luks1/keymanage.c:423
 #, c-format
 msgid "Keyslot %i: stripes repaired (%u -> %u)."
-msgstr ""
+msgstr "キースロット %i: のストライプを修復 (%u -> %u)."
 
 #: lib/luks1/keymanage.c:432
 #, c-format
 msgid "Keyslot %i: bogus partition signature."
-msgstr ""
+msgstr "キースロット %i: パーティションの印(signature)がおかしいです。"
 
 #: lib/luks1/keymanage.c:437
 #, c-format
 msgid "Keyslot %i: salt wiped."
-msgstr ""
+msgstr "キースロット %i: ソルトを消しました。"
 
 #: lib/luks1/keymanage.c:454
 msgid "Writing LUKS header to disk."
-msgstr ""
+msgstr "LUKS ヘッダを書きこんでいます。"
 
 #: lib/luks1/keymanage.c:459
 msgid "Repair failed."
-msgstr ""
+msgstr "修復に失敗しました。"
 
 #: lib/luks1/keymanage.c:487 lib/luks1/keymanage.c:758
 #, c-format
 msgid "Requested LUKS hash %s is not supported."
-msgstr ""
+msgstr "要求された LUKS ハッシュ %s はサポートしていません。"
 
 #: lib/luks1/keymanage.c:515 src/cryptsetup.c:964
 msgid "No known problems detected for LUKS header."
-msgstr ""
+msgstr "LUKS ヘッダに既知の不具合は検出されませんでした。"
 
 #: lib/luks1/keymanage.c:667
 #, c-format
 msgid "Error during update of LUKS header on device %s."
-msgstr ""
+msgstr "デバイス %s の LUKS ヘッダを更新中にエラーが発生しました。"
 
 #: lib/luks1/keymanage.c:676
 #, c-format
 msgid "Error re-reading LUKS header after update on device %s."
-msgstr ""
+msgstr "デバイス %s の LUKS ヘッダを更新後の再読み込み中にエラーが発生しました。"
 
 #: lib/luks1/keymanage.c:752
 msgid "Data offset for LUKS header must be either 0 or higher than header size."
-msgstr ""
+msgstr "LUKS ヘッダのデータへのオフセットは 0 かヘッダサイズより大きくなければいけません。"
 
 #: lib/luks1/keymanage.c:763 lib/luks1/keymanage.c:828
 #: lib/luks2/luks2_json_format.c:277 lib/luks2/luks2_json_metadata.c:938
 msgid "Wrong LUKS UUID format provided."
-msgstr ""
+msgstr "LUKS UUID の形式が間違っています。"
 
 #: lib/luks1/keymanage.c:786
 msgid "Cannot create LUKS header: reading random salt failed."
-msgstr ""
+msgstr "LUKS ヘッダを作成できません: ランダムなソルトを読み込めません。"
 
 #: lib/luks1/keymanage.c:807
 #, c-format
 msgid "Cannot create LUKS header: header digest failed (using hash %s)."
-msgstr ""
+msgstr "LUKS ヘッダを作成できません: ヘッダのハッシュが求められません (ハッシュには %s を使用)。"
 
 #: lib/luks1/keymanage.c:851
 #, c-format
 msgid "Key slot %d active, purge first."
-msgstr ""
+msgstr "キースロット %d が使用中なので、パージしてください。"
 
 #: lib/luks1/keymanage.c:857
 #, c-format
 msgid "Key slot %d material includes too few stripes. Header manipulation?"
-msgstr ""
+msgstr "キースロット %d のストライプが少なすぎます。ヘッダを細工でもしましたか？"
 
 #: lib/luks1/keymanage.c:1067
 #, c-format
 msgid "Key slot %d is invalid, please select keyslot between 0 and %d."
-msgstr ""
+msgstr "キースロット %d は不正です。0 から %d の間を選んでください。"
 
 #: lib/luks1/keymanage.c:1085 lib/luks2/luks2_keyslot.c:492
 #, c-format
 msgid "Cannot wipe device %s."
-msgstr ""
+msgstr "デバイス %s をワイプできません。"
 
 #: lib/loopaes/loopaes.c:146
 msgid "Detected not yet supported GPG encrypted keyfile."
-msgstr ""
+msgstr "GPG の暗号化されたキーファイルがまだサポートされていません。"
 
 #: lib/loopaes/loopaes.c:147
 msgid "Please use gpg --decrypt <KEYFILE> | cryptsetup --keyfile=- ...\n"
-msgstr ""
+msgstr "以下のようにしてください。 gpg --decrypt <KEYFILE> | cryptsetup --keyfile=- ...\n"
 
 #: lib/loopaes/loopaes.c:168 lib/loopaes/loopaes.c:188
 msgid "Incompatible loop-AES keyfile detected."
-msgstr ""
+msgstr "互換性のない loop-AES キーファイルが検出されました。"
 
 #: lib/loopaes/loopaes.c:245
 msgid "Kernel doesn't support loop-AES compatible mapping."
-msgstr ""
+msgstr "カーネルが loop-AES 互換マッピングをサポートしていません。"
 
 #: lib/tcrypt/tcrypt.c:505
 #, c-format
 msgid "Error reading keyfile %s."
-msgstr ""
+msgstr "キーファイル %s を読み込み中にエラー。"
 
 #: lib/tcrypt/tcrypt.c:545
 #, c-format
 msgid "Maximum TCRYPT passphrase length (%d) exceeded."
-msgstr ""
+msgstr "TCRYPT パスフレーズの最大長 (%d) を超えました。"
 
 #: lib/tcrypt/tcrypt.c:586
 #, c-format
 msgid "PBKDF2 hash algorithm %s not available, skipping."
-msgstr ""
+msgstr "PBKDF2 ハッシュアルゴリズム %s が利用できないのでスキップします。"
 
 #: lib/tcrypt/tcrypt.c:604 src/cryptsetup.c:919
 msgid "Required kernel crypto interface not available."
-msgstr ""
+msgstr "必要なカーネル crypto インターフェースが使用できません。"
 
 #: lib/tcrypt/tcrypt.c:606 src/cryptsetup.c:921
 msgid "Ensure you have algif_skcipher kernel module loaded."
-msgstr ""
+msgstr "algif_skcipher カーネルモジュールをロードしてください。"
 
 #: lib/tcrypt/tcrypt.c:746
 #, c-format
 msgid "Activation is not supported for %d sector size."
-msgstr ""
+msgstr "アクティベーションは %d セクタサイズではサポートしていません。"
 
 #: lib/tcrypt/tcrypt.c:752
 msgid "Kernel doesn't support activation for this TCRYPT legacy mode."
-msgstr ""
+msgstr "カーネルが TCRYPT レガシーモードのアクティベーションをサポートしていません。"
 
 #: lib/tcrypt/tcrypt.c:786
 #, c-format
 msgid "Activating TCRYPT system encryption for partition %s."
-msgstr ""
+msgstr "TCRYPT システム暗号をパーティション %s に対してアクティベーションしました。"
 
 #: lib/tcrypt/tcrypt.c:864
 msgid "Kernel doesn't support TCRYPT compatible mapping."
-msgstr ""
+msgstr "カーネルが TCRYPT 互換のマッピングをサポートしていません。"
 
 #: lib/tcrypt/tcrypt.c:1086
 msgid "This function is not supported without TCRYPT header load."
-msgstr ""
+msgstr "この機能は TCRYPT ヘッダの読み込みなしではサポートしません。"
 
 #: lib/verity/verity.c:69 lib/verity/verity.c:175
 #, c-format
 msgid "Verity device %s doesn't use on-disk header."
-msgstr ""
+msgstr "Verity デバイス %s はディスク上のヘッダを使いません。"
 
 #: lib/verity/verity.c:94
 #, c-format
 msgid "Device %s is not a valid VERITY device."
-msgstr ""
+msgstr "デバイス %s が有効な VERITY デバイスではありません。"
 
 #: lib/verity/verity.c:101
 #, c-format
 msgid "Unsupported VERITY version %d."
-msgstr ""
+msgstr "VERITY バージョン %d はサポートされていません。"
 
 #: lib/verity/verity.c:132
 msgid "VERITY header corrupted."
-msgstr ""
+msgstr "VERITY ヘッダが壊れています。"
 
 #: lib/verity/verity.c:169
 #, c-format
 msgid "Wrong VERITY UUID format provided on device %s."
-msgstr ""
+msgstr "デバイス %s の VERITY UUID フォーマットが間違っています。"
 
 #: lib/verity/verity.c:202
 #, c-format
 msgid "Error during update of verity header on device %s."
-msgstr ""
+msgstr "デバイス %s の verity ヘッダを更新中にエラー。"
 
 #: lib/verity/verity.c:266
 msgid "Errors cannot be repaired with FEC device."
-msgstr ""
+msgstr "FEC デバイスのエラーが修復できません。"
 
 #: lib/verity/verity.c:268
 #, c-format
 msgid "Found %u repairable errors with FEC device."
-msgstr ""
+msgstr "FEC デバイスに %u 個の修復可能なエラーが見つかりました。"
 
 #: lib/verity/verity.c:306
 msgid "Kernel doesn't support dm-verity mapping."
-msgstr ""
+msgstr "カーネルが dm-verity マッピングをサポートしていません。"
 
 #: lib/verity/verity.c:317
 msgid "Verity device detected corruption after activation."
