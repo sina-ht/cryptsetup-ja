@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: cryptsetup 2.2.0-git\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
 "POT-Creation-Date: 2019-04-09 21:27+0900\n"
-"PO-Revision-Date: 2019-05-27 19:07+0900\n"
+"PO-Revision-Date: 2019-06-04 20:18+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -961,155 +961,157 @@ msgstr "カーネルが dm-verity マッピングをサポートしていませ�
 
 #: lib/verity/verity.c:317
 msgid "Verity device detected corruption after activation."
-msgstr ""
+msgstr "アクティベーションされた Verity デバイスが破損が見つかりました。"
 
 #: lib/verity/verity_hash.c:59
 #, c-format
 msgid "Spare area is not zeroed at position %<PRIu64>."
-msgstr ""
+msgstr "ポジション %<PRIu64> にあるスペア領域が 0 埋めされていません。"
 
 #: lib/verity/verity_hash.c:160 lib/verity/verity_hash.c:287
 #: lib/verity/verity_hash.c:300
 msgid "Device offset overflow."
-msgstr ""
+msgstr "デバイスオフセットオーバーフロー。"
 
 #: lib/verity/verity_hash.c:200
 #, c-format
 msgid "Verification failed at position %<PRIu64>."
-msgstr ""
+msgstr "検証がポジション %<PRIu64> で失敗しました。"
 
 #: lib/verity/verity_hash.c:273
 msgid "Invalid size parameters for verity device."
-msgstr ""
+msgstr "verity デバイスのパラメータサイズが不正です。"
 
 #: lib/verity/verity_hash.c:293
 msgid "Hash area overflow."
-msgstr ""
+msgstr "ハッシュ領域がオーバーフロー。"
 
 #: lib/verity/verity_hash.c:370
 msgid "Verification of data area failed."
-msgstr ""
+msgstr "データ領域の検証に失敗しました。"
 
 #: lib/verity/verity_hash.c:375
 msgid "Verification of root hash failed."
-msgstr ""
+msgstr "ルートハッシュの検証に失敗しました。"
 
 #: lib/verity/verity_hash.c:381
 msgid "Input/output error while creating hash area."
-msgstr ""
+msgstr "ハッシュ領域を生成中に I/O エラー。"
 
 #: lib/verity/verity_hash.c:383
 msgid "Creation of hash area failed."
-msgstr ""
+msgstr "ハッシュ領域の作成に失敗しました。"
 
 #: lib/verity/verity_hash.c:430
 #, c-format
 msgid "WARNING: Kernel cannot activate device if data block size exceeds page size (%u)."
-msgstr ""
+msgstr "警告: カーネルはデータブロックサイズがページサイズ (%u) を超えているとアクティベートできません。"
 
 #: lib/verity/verity_fec.c:132
 msgid "Failed to allocate RS context."
-msgstr ""
+msgstr "Reed-Solomon 処理のためのコンテキストが確保できません。"
 
 #: lib/verity/verity_fec.c:147
 msgid "Failed to allocate buffer."
-msgstr ""
+msgstr "バッファを確保できませんでした。"
 
 #: lib/verity/verity_fec.c:157
 #, c-format
 msgid "Failed to read RS block %<PRIu64> byte %d."
-msgstr ""
+msgstr "Reed-Solomon ブロック %<PRIu64> バイト %d を読み込めませんでした。"
 
 #: lib/verity/verity_fec.c:170
 #, c-format
 msgid "Failed to read parity for RS block %<PRIu64>."
-msgstr ""
+msgstr "Reed-Solomon ブロック %<PRIu64> のパリティを読み込めませんでした。"
 
 #: lib/verity/verity_fec.c:178
 #, c-format
 msgid "Failed to repair parity for block %<PRIu64>."
-msgstr ""
+msgstr "ブロック %<PRIu64> のパリティが修復できませんでした。"
 
 #: lib/verity/verity_fec.c:189
 #, c-format
 msgid "Failed to write parity for RS block %<PRIu64>."
-msgstr ""
+msgstr "Reed-Solomon ブロック %<PRIu64> のパリティの書き込みに失敗しました。"
 
 #: lib/verity/verity_fec.c:224
 msgid "Block sizes must match for FEC."
-msgstr ""
+msgstr "ブロックサイズが FEC と合っていません。"
 
 #: lib/verity/verity_fec.c:230
 msgid "Invalid number of parity bytes."
-msgstr ""
+msgstr "パリティのバイト数が不正です。"
 
 #: lib/verity/verity_fec.c:266
 #, c-format
 msgid "Failed to determine size for device %s."
-msgstr ""
+msgstr "デバイス %s のサイズが不明です。"
 
 #: lib/integrity/integrity.c:239 lib/integrity/integrity.c:304
 msgid "Kernel doesn't support dm-integrity mapping."
-msgstr ""
+msgstr "カーネルが dm-integrity マッピングをサポートしていません。"
 
 #: lib/luks2/luks2_disk_metadata.c:413
 msgid "Failed to acquire write device lock."
-msgstr ""
+msgstr "デバイスへの書き込みロックを取得できません。"
 
 #: lib/luks2/luks2_disk_metadata.c:654 lib/luks2/luks2_disk_metadata.c:675
 msgid ""
 "Device contains ambiguous signatures, cannot auto-recover LUKS2.\n"
 "Please run \"cryptsetup repair\" for recovery."
 msgstr ""
+"デバイスのシグネチャが曖昧なので、LUKS2 の自動修復ができません。.\n"
+"修復するには \"cryptsetup repair\" を実行してください。"
 
 #: lib/luks2/luks2_json_format.c:226
 msgid "Requested data offset is too small."
-msgstr ""
+msgstr "要求されたデータオフセットが小さすぎます。"
 
 #: lib/luks2/luks2_json_format.c:265
 #, c-format
 msgid "WARNING: keyslots area (%<PRIu64> bytes) is very small, available LUKS2 keyslot count is very limited.\n"
-msgstr ""
+msgstr "警告: キースロット領域 (%<PRIu64> バイト) がとても小さいため、利用可能な LUKS2 キースロット数が制限されます。\n"
 
 #: lib/luks2/luks2_json_metadata.c:895 lib/luks2/luks2_json_metadata.c:1011
 #: lib/luks2/luks2_json_metadata.c:1084 lib/luks2/luks2_keyslot_luks2.c:105
 #: lib/luks2/luks2_keyslot_luks2.c:128
 #, c-format
 msgid "Failed to acquire read lock on device %s."
-msgstr ""
+msgstr "デバイス %s の読み込みのためのロックを取得できませんでした。"
 
 #: lib/luks2/luks2_json_metadata.c:907 lib/luks2/luks2_json_metadata.c:1178
 #: lib/luks2/luks2_keyslot.c:471 lib/luks2/luks2_keyslot_luks2.c:40
 #: lib/luks2/luks2_keyslot_luks2.c:69 lib/luks2/luks2_keyslot_luks2.c:578
 #, c-format
 msgid "Failed to acquire write lock on device %s."
-msgstr ""
+msgstr "デバイス %s の書き込みのためのロックを取得できませんでした。"
 
 #: lib/luks2/luks2_json_metadata.c:1101
 #, c-format
 msgid "Forbidden LUKS2 requirements detected in backup %s."
-msgstr ""
+msgstr "禁止された LUKS2 要求がバックアップ %s に検出されました。"
 
 #: lib/luks2/luks2_json_metadata.c:1142
 msgid "Data offset differ on device and backup, restore failed."
-msgstr ""
+msgstr "データオフセットがデバイスとバックアップと異なるため修復できません。"
 
 #: lib/luks2/luks2_json_metadata.c:1148
 msgid "Binary header with keyslot areas size differ on device and backup, restore failed."
-msgstr ""
+msgstr "キースロット領域のあるバイナリヘッダのサイズがデバイスとバックアップで異なるため修復できません。"
 
 #: lib/luks2/luks2_json_metadata.c:1155
 #, c-format
 msgid "Device %s %s%s%s%s"
-msgstr ""
+msgstr "デバイス %s %s%s%s%s"
 
 #: lib/luks2/luks2_json_metadata.c:1156
 msgid "does not contain LUKS2 header. Replacing header can destroy data on that device."
-msgstr ""
+msgstr "LUKS2 ヘッダが含まれていません。ヘッダを置き換えるとデータを破壊しかねません。"
 
 #: lib/luks2/luks2_json_metadata.c:1157
 msgid "already contains LUKS2 header. Replacing header will destroy existing keyslots."
-msgstr ""
+msgstr "既に LUKS2 ヘッダがあります。ヘッダを置き換えると既にあるキースロットを破壊します。"
 
 #: lib/luks2/luks2_json_metadata.c:1159
 msgid ""
@@ -1117,6 +1119,9 @@ msgid ""
 "WARNING: unknown LUKS2 requirements detected in real device header!\n"
 "Replacing header with backup may corrupt the data on that device!"
 msgstr ""
+"\n"
+"警告: 不明な LUKS2 への要求がリアルデバイスヘッダにあります！\n"
+"ヘッダをバックアップで置き換えるとデータを破壊する恐れがあります！"
 
 #: lib/luks2/luks2_json_metadata.c:1161
 msgid ""
@@ -1124,94 +1129,97 @@ msgid ""
 "WARNING: Unfinished offline reencryption detected on the device!\n"
 "Replacing header with backup may corrupt data."
 msgstr ""
+"\n"
+"警告: オフラインの再暗号化が終了していません！\n"
+"ヘッダを置き換えるとデータを破壊しかねません。"
 
 #: lib/luks2/luks2_json_metadata.c:1263
 #, c-format
 msgid "Ignored unknown flag %s."
-msgstr ""
+msgstr "不明なフラグ %s を無視しました。"
 
 #: lib/luks2/luks2_json_metadata.c:1886
 msgid "Failed to read LUKS2 requirements."
-msgstr ""
+msgstr "LUKS2 の必要条件を読み込めませんでした。"
 
 #: lib/luks2/luks2_json_metadata.c:1893
 msgid "Unmet LUKS2 requirements detected."
-msgstr ""
+msgstr "満たせない LUKS2 の必要条件があります。"
 
 #: lib/luks2/luks2_json_metadata.c:1901
 msgid "Offline reencryption in progress. Aborting."
-msgstr ""
+msgstr "オフラインでの再暗号化中です。中止します。"
 
 #: lib/luks2/luks2_keyslot_luks2.c:493
 msgid "No space for new keyslot."
-msgstr ""
+msgstr "新しいキースロット用の領域がありません。"
 
 #: lib/luks2/luks2_luks1_convert.c:474
 #, c-format
 msgid "Can not check status of device with uuid: %s."
-msgstr ""
+msgstr "UUID が %s のデバイスの状態が確認できません。"
 
 #: lib/luks2/luks2_luks1_convert.c:500
 msgid "Unable to convert header with LUKSMETA additional metadata."
-msgstr ""
+msgstr "LUKSMETA メタデータ付きのヘッダは変換できません。"
 
 #: lib/luks2/luks2_luks1_convert.c:537
 msgid "Unable to move keyslot area. Not enough space."
-msgstr ""
+msgstr "領域が足りないのでキースロット領域を動かせません。"
 
 #: lib/luks2/luks2_luks1_convert.c:577 lib/luks2/luks2_luks1_convert.c:859
 msgid "Unable to move keyslot area."
-msgstr ""
+msgstr "キースロット領域を動かせません。"
 
 #: lib/luks2/luks2_luks1_convert.c:669
 msgid "Cannot convert to LUKS1 format - default segment encryption sector size is not 512 bytes."
-msgstr ""
+msgstr "LUKS1 形式に変換できません - デフォルトの暗号セクタサイズが 512 バイトではありません。"
 
 #: lib/luks2/luks2_luks1_convert.c:677
 msgid "Cannot convert to LUKS1 format - key slot digests are not LUKS1 compatible."
-msgstr ""
+msgstr "LUKS1 形式に変換できません - キースロットのハッシュ関数が LUKS1 互換ではありません。"
 
 #: lib/luks2/luks2_luks1_convert.c:689
 #, c-format
 msgid "Cannot convert to LUKS1 format - device uses wrapped key cipher %s."
-msgstr ""
+msgstr "LUKS1 形式に変換できません - ラップされたキーの暗号に %s が使われています。"
 
 #: lib/luks2/luks2_luks1_convert.c:697
 #, c-format
 msgid "Cannot convert to LUKS1 format - LUKS2 header contains %u token(s)."
-msgstr ""
+msgstr "LUKS1 形式に変換できません - LUKS2 ヘッダ %u 個のトークンを含んでいます。"
 
 #: lib/luks2/luks2_luks1_convert.c:711
 #, c-format
 msgid "Cannot convert to LUKS1 format - keyslot %u is in invalid state."
-msgstr ""
+msgstr "LUKS1 形式に変換できません - キースロット %u が不正な状態です。"
 
 #: lib/luks2/luks2_luks1_convert.c:716
 #, c-format
 msgid "Cannot convert to LUKS1 format - slot %u (over maximum slots) is still active."
-msgstr ""
+msgstr "LUKS1 形式に変換できません - スロット %u が(最大個数を超過して)有効です。"
 
 #: lib/luks2/luks2_luks1_convert.c:721
 #, c-format
 msgid "Cannot convert to LUKS1 format - keyslot %u is not LUKS1 compatible."
-msgstr ""
+msgstr "LUKS1 形式に変換できません - キースロット %u が LUKS1 と互換ではありません。"
 
 #: lib/luks2/luks2_token.c:262
 msgid "No free token slot."
-msgstr ""
+msgstr "空きトークンスロットがありません。"
 
 #: lib/luks2/luks2_token.c:269
 #, c-format
 msgid "Failed to create builtin token %s."
-msgstr ""
+msgstr "ビルトイントークン %s が作成できません。"
 
 #: src/cryptsetup.c:142
 msgid "Can't do passphrase verification on non-tty inputs."
-msgstr ""
+msgstr "tty 入力以外ではパスフレーズ認証できません。"
 
 #: src/cryptsetup.c:186
 msgid "Keyslot encryption parameters can be set only for LUKS2 device."
-msgstr ""
+msgstr "キースロットの暗号化パラメータは LUKS2 デバイスでしか設定できません。"
 
 #: src/cryptsetup.c:216 src/cryptsetup.c:853 src/cryptsetup.c:1092
 #: src/cryptsetup_reencrypt.c:717 src/cryptsetup_reencrypt.c:787
