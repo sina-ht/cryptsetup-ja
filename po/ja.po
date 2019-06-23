@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: cryptsetup 2.2.0-git\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
 "POT-Creation-Date: 2019-04-09 21:27+0900\n"
-"PO-Revision-Date: 2019-06-15 11:57+0900\n"
+"PO-Revision-Date: 2019-06-23 21:44+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -1458,26 +1458,26 @@ msgstr "isLuks は一つのデバイス引数しかサポートしていませ�
 
 #: src/cryptsetup.c:1928 src/cryptsetup.c:1949
 msgid "Option --header-backup-file is required."
-msgstr ""
+msgstr "オプション --header-backup-file が必要です。"
 
 #: src/cryptsetup.c:1979
 #, c-format
 msgid "%s is not cryptsetup managed device."
-msgstr ""
+msgstr "%s は cryptsetup で管理されているデバイスではありません。"
 
 #: src/cryptsetup.c:1990
 #, c-format
 msgid "Refresh is not supported for device type %s"
-msgstr ""
+msgstr "リフレッシュはデバイスタイプ %s ではサポートされていません。"
 
 #: src/cryptsetup.c:2028
 #, c-format
 msgid "Unrecognized metadata device type %s."
-msgstr ""
+msgstr "%s は認識できないメタデータデータタイプです。"
 
 #: src/cryptsetup.c:2031
 msgid "Command requires device and mapped name as arguments."
-msgstr ""
+msgstr "コマンドはデバイスとマップされた名前を引数として必要とします。"
 
 #: src/cryptsetup.c:2053
 #, c-format
@@ -1485,218 +1485,220 @@ msgid ""
 "This operation will erase all keyslots on device %s.\n"
 "Device will become unusable after this operation."
 msgstr ""
+"この処理はデバイス %s の全てのキースロットを消去します。\n"
+"デバイスのデータは使用できなくなります。"
 
 #: src/cryptsetup.c:2060
 msgid "Operation aborted, keyslots were NOT wiped.\n"
-msgstr ""
+msgstr "処理は中止されました。キースロットは消去されません。\n"
 
 #: src/cryptsetup.c:2097
 msgid "Invalid LUKS type, only luks1 and luks2 are supported."
-msgstr ""
+msgstr "不正な LUKS タイプです。luks1 と luks2 しかサポートしていません。"
 
 #: src/cryptsetup.c:2115
 #, c-format
 msgid "Device is already %s type."
-msgstr ""
+msgstr "デバイスは既にタイプ %s です。"
 
 #: src/cryptsetup.c:2120
 #, c-format
 msgid "This operation will convert %s to %s format.\n"
-msgstr ""
+msgstr "この処理は %s から %s フォーマットに変換します。\n"
 
 #: src/cryptsetup.c:2126
 msgid "Operation aborted, device was NOT converted.\n"
-msgstr ""
+msgstr "処理は中止されました。デバイスは変換されませんでした。\n"
 
 #: src/cryptsetup.c:2166
 msgid "Option --priority, --label or --subsystem is missing."
-msgstr ""
+msgstr "オプション --priority, --label か --subsystem がありません。"
 
 #: src/cryptsetup.c:2200 src/cryptsetup.c:2233 src/cryptsetup.c:2256
 #, c-format
 msgid "Token %d is invalid."
-msgstr ""
+msgstr "トークン %d は不正です。"
 
 #: src/cryptsetup.c:2203 src/cryptsetup.c:2259
 #, c-format
 msgid "Token %d in use."
-msgstr ""
+msgstr "トークン %d は使用中です。"
 
 #: src/cryptsetup.c:2210
 #, c-format
 msgid "Failed to add luks2-keyring token %d."
-msgstr ""
+msgstr "luks2-キーリングトークン %d を追加できませんでした。"
 
 #: src/cryptsetup.c:2219 src/cryptsetup.c:2281
 #, c-format
 msgid "Failed to assign token %d to keyslot %d."
-msgstr ""
+msgstr "トークン %d をキースロット %d に割りあてられませんでした。"
 
 #: src/cryptsetup.c:2236
 #, c-format
 msgid "Token %d is not in use."
-msgstr ""
+msgstr "トークン %d は使われていません。"
 
 #: src/cryptsetup.c:2271
 msgid "Failed to import token from file."
-msgstr ""
+msgstr "ファイルからトークンをインポートできません。"
 
 #: src/cryptsetup.c:2296
 #, c-format
 msgid "Failed to get token %d for export."
-msgstr ""
+msgstr "トークン %d をエクスポートのために取得できませんでした。"
 
 #: src/cryptsetup.c:2311
 msgid "--key-description parameter is mandatory for token add action."
-msgstr ""
+msgstr "--key-description はトークン追加には必須です。"
 
 #: src/cryptsetup.c:2317 src/cryptsetup.c:2325
 msgid "Action requires specific token. Use --token-id parameter."
-msgstr ""
+msgstr "トークンを必要としています。--token-id を使用してください。"
 
 #: src/cryptsetup.c:2330
 #, c-format
 msgid "Invalid token operation %s."
-msgstr ""
+msgstr "%s は不正なトークン処理です。"
 
 #: src/cryptsetup.c:2370
 msgid "<device> [--type <type>] [<name>]"
-msgstr ""
+msgstr "<デバイス> [--type <タイプ>] [<名前>]"
 
 #: src/cryptsetup.c:2370
 msgid "open device as mapping <name>"
-msgstr ""
+msgstr "<name>としてデバイスをオープンします"
 
 #: src/cryptsetup.c:2371 src/cryptsetup.c:2372 src/cryptsetup.c:2373
 #: src/veritysetup.c:363 src/veritysetup.c:364 src/integritysetup.c:464
 #: src/integritysetup.c:465
 msgid "<name>"
-msgstr ""
+msgstr "<名前>"
 
 #: src/cryptsetup.c:2371
 msgid "close device (remove mapping)"
-msgstr ""
+msgstr "デバイスをクローズします (マッピングを削除します)"
 
 #: src/cryptsetup.c:2372
 msgid "resize active device"
-msgstr ""
+msgstr "アクティブデバイスをリサイズ"
 
 #: src/cryptsetup.c:2373
 msgid "show device status"
-msgstr ""
+msgstr "デバイスステータスを表示"
 
 #: src/cryptsetup.c:2374
 msgid "[--cipher <cipher>]"
-msgstr ""
+msgstr "[--cipher <暗号>]"
 
 #: src/cryptsetup.c:2374
 msgid "benchmark cipher"
-msgstr ""
+msgstr "暗号ベンチマーク"
 
 #: src/cryptsetup.c:2375 src/cryptsetup.c:2376 src/cryptsetup.c:2377
 #: src/cryptsetup.c:2378 src/cryptsetup.c:2385 src/cryptsetup.c:2386
 #: src/cryptsetup.c:2387 src/cryptsetup.c:2388 src/cryptsetup.c:2389
 #: src/cryptsetup.c:2390 src/cryptsetup.c:2391 src/cryptsetup.c:2392
 msgid "<device>"
-msgstr ""
+msgstr "<デバイス>"
 
 #: src/cryptsetup.c:2375
 msgid "try to repair on-disk metadata"
-msgstr ""
+msgstr "on-disk メタデータを修復しようとしています"
 
 #: src/cryptsetup.c:2376
 msgid "erase all keyslots (remove encryption key)"
-msgstr ""
+msgstr "全てのキースロットを消去します (暗号鍵も削除します)"
 
 #: src/cryptsetup.c:2377
 msgid "convert LUKS from/to LUKS2 format"
-msgstr ""
+msgstr "LUKS2 から LUKS もしくは LUKS から LUKS2 形式に変換します"
 
 #: src/cryptsetup.c:2378
 msgid "set permanent configuration options for LUKS2"
-msgstr ""
+msgstr "LUKS2 の permanent configuration オプションを設定します"
 
 #: src/cryptsetup.c:2379 src/cryptsetup.c:2380
 msgid "<device> [<new key file>]"
-msgstr ""
+msgstr "<デバイス> [<新しいキーファイル>]"
 
 #: src/cryptsetup.c:2379
 msgid "formats a LUKS device"
-msgstr ""
+msgstr "LUKS デバイスをフォーマットします"
 
 #: src/cryptsetup.c:2380
 msgid "add key to LUKS device"
-msgstr ""
+msgstr "LUKS デバイスにキーを追加します"
 
 #: src/cryptsetup.c:2381 src/cryptsetup.c:2382 src/cryptsetup.c:2383
 msgid "<device> [<key file>]"
-msgstr ""
+msgstr "<デバイス> [<キーファイル>]"
 
 #: src/cryptsetup.c:2381
 msgid "removes supplied key or key file from LUKS device"
-msgstr ""
+msgstr "与えられたキーかキーファイルを LUKS デバイスから削除します。"
 
 #: src/cryptsetup.c:2382
 msgid "changes supplied key or key file of LUKS device"
-msgstr ""
+msgstr "与えられた LUKS デバイスのキーかキーファイルを変更します"
 
 #: src/cryptsetup.c:2383
 msgid "converts a key to new pbkdf parameters"
-msgstr ""
+msgstr "キーを新しい pbkdf パラメータに変換します"
 
 #: src/cryptsetup.c:2384
 msgid "<device> <key slot>"
-msgstr ""
+msgstr "<デバイス> <キースロット>"
 
 #: src/cryptsetup.c:2384
 msgid "wipes key with number <key slot> from LUKS device"
-msgstr ""
+msgstr "<キースロット>のキーを LUKS デバイスから削除します"
 
 #: src/cryptsetup.c:2385
 msgid "print UUID of LUKS device"
-msgstr ""
+msgstr "LUKS デバイスの UUID を表示"
 
 #: src/cryptsetup.c:2386
 msgid "tests <device> for LUKS partition header"
-msgstr ""
+msgstr "<デバイス> の LUKS パーティションヘッダをテストします"
 
 #: src/cryptsetup.c:2387
 msgid "dump LUKS partition information"
-msgstr ""
+msgstr "LUKS パーティション情報をダンプします"
 
 #: src/cryptsetup.c:2388
 msgid "dump TCRYPT device information"
-msgstr ""
+msgstr "TCRYPT デバイス情報をダンプします"
 
 #: src/cryptsetup.c:2389
 msgid "Suspend LUKS device and wipe key (all IOs are frozen)"
-msgstr ""
+msgstr "LUKS デバイスを停止してキーを削除します (全てのI/Oは停止します)"
 
 #: src/cryptsetup.c:2390
 msgid "Resume suspended LUKS device"
-msgstr ""
+msgstr "停止していた LUKS デバイスを再開します"
 
 #: src/cryptsetup.c:2391
 msgid "Backup LUKS device header and keyslots"
-msgstr ""
+msgstr "LUKS デバイスヘッダとキースロットをバックアップします"
 
 #: src/cryptsetup.c:2392
 msgid "Restore LUKS device header and keyslots"
-msgstr ""
+msgstr "LUKS デバイスヘッダとキースロットをリストアします"
 
 #: src/cryptsetup.c:2393
 msgid "<add|remove|import|export> <device>"
-msgstr ""
+msgstr "<add|remove|import|export> <デバイス>"
 
 #: src/cryptsetup.c:2393
 msgid "Manipulate LUKS2 tokens"
-msgstr ""
+msgstr "LUKS2 トークンを操作します"
 
 #: src/cryptsetup.c:2411 src/veritysetup.c:380 src/integritysetup.c:481
 msgid ""
 "\n"
 "<action> is one of:\n"
-msgstr ""
+msgstr "\n<action> は以下のうちの一つです:\n"
 
 #: src/cryptsetup.c:2417
 msgid ""
