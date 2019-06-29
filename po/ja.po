@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: cryptsetup 2.2.0-git\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
 "POT-Creation-Date: 2019-04-09 21:27+0900\n"
-"PO-Revision-Date: 2019-06-23 21:44+0900\n"
+"PO-Revision-Date: 2019-06-29 09:49+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -1707,6 +1707,10 @@ msgid ""
 "\topen: create (plainOpen), luksOpen, loopaesOpen, tcryptOpen\n"
 "\tclose: remove (plainClose), luksClose, loopaesClose, tcryptClose\n"
 msgstr ""
+"\n"
+"古い <アクション> という形式も使えます:\n"
+"\topen: create (plainOpen), luksOpen, loopaesOpen, tcryptOpen\n"
+"\tclose: remove (plainClose), luksClose, loopaesClose, tcryptClose\n"
 
 #: src/cryptsetup.c:2421
 #, c-format
@@ -1717,13 +1721,18 @@ msgid ""
 "<key slot> is the LUKS key slot number to modify\n"
 "<key file> optional key file for the new key for luksAddKey action\n"
 msgstr ""
+"\n"
+"<名前> は %s に作られるデバイス名\n"
+"<デバイス> は暗号化デバイス\n"
+"<キースロット> は変更する LUKS キースロット番号\n"
+"<キーファイル> は luskAddKey でオプションで与えられる新しいキーのキーファイル\n"
 
 #: src/cryptsetup.c:2428
 #, c-format
 msgid ""
 "\n"
 "Default compiled-in metadata format is %s (for luksFormat action).\n"
-msgstr ""
+msgstr "\nデフォルトのコンパイル時に決められたメタデータ形式は %s です(luksFormat で使われます)。\n"
 
 #: src/cryptsetup.c:2433
 #, c-format
@@ -1735,6 +1744,12 @@ msgid ""
 "Default PBKDF for LUKS2: %s\n"
 "\tIteration time: %d, Memory required: %dkB, Parallel threads: %d\n"
 msgstr ""
+"\n"
+"デフォルトのコンパイル時に決められたキーとパスフレーズのパラメータ:\n"
+"\t最大キーファイルサイズ: %dkB, 最大パスフレーズ長 %d (文字数)\n"
+"デフォルト LUKS1 向け PBKDF: %s, 繰り返す時間: %d (ms)\n"
+"デフォルト LUKS2 向け PBKDF: %s\n"
+"\t繰り返す時間: %d, 使うメモリ: %dkB, 並列スレッド: %d\n"
 
 #: src/cryptsetup.c:2444
 #, c-format
@@ -1745,87 +1760,92 @@ msgid ""
 "\tplain: %s, Key: %d bits, Password hashing: %s\n"
 "\tLUKS: %s, Key: %d bits, LUKS header hashing: %s, RNG: %s\n"
 msgstr ""
+"\n"
+"デフォルトのコンパイル時に決められたデバイス暗号化のパラメータ:\n"
+"\tloop-AES: %s, キー %d ビット\n"
+"\tplain: %s, キー: %d ビット, パスワードハッシュ: %s\n"
+"\tLUKS: %s, キー: %d ビット, LUKS ヘッダハッシュ: %s, 乱数生成: %s\n"
 
 #: src/cryptsetup.c:2453
 msgid "\tLUKS: Default keysize with XTS mode (two internal keys) will be doubled.\n"
-msgstr ""
+msgstr "\tLUKS: XTS モードのデフォルトキーサイズは (2つの内部キーがあるため) 倍になります。\n"
 
 #: src/cryptsetup.c:2464 src/veritysetup.c:537 src/integritysetup.c:621
 #, c-format
 msgid "%s: requires %s as arguments"
-msgstr ""
+msgstr "%s: は %s を引数で与える必要があります"
 
 #: src/cryptsetup.c:2502 src/veritysetup.c:420 src/integritysetup.c:515
 #: src/cryptsetup_reencrypt.c:1586
 msgid "Show this help message"
-msgstr ""
+msgstr "このヘルプを表示します"
 
 #: src/cryptsetup.c:2503 src/veritysetup.c:421 src/integritysetup.c:516
 #: src/cryptsetup_reencrypt.c:1587
 msgid "Display brief usage"
-msgstr ""
+msgstr "コンパクトな使用法表示をします"
 
 #: src/cryptsetup.c:2507 src/veritysetup.c:425 src/integritysetup.c:520
 #: src/cryptsetup_reencrypt.c:1591
 msgid "Help options:"
-msgstr ""
+msgstr "ヘルプオプション:"
 
 #: src/cryptsetup.c:2508 src/veritysetup.c:426 src/integritysetup.c:521
 #: src/cryptsetup_reencrypt.c:1592
 msgid "Print package version"
-msgstr ""
+msgstr "パッケージのバージョンを表示"
 
 #: src/cryptsetup.c:2509 src/veritysetup.c:427 src/integritysetup.c:522
 #: src/cryptsetup_reencrypt.c:1593
 msgid "Shows more detailed error messages"
-msgstr ""
+msgstr "より詳細なエラーメッセージを表示"
 
 #: src/cryptsetup.c:2510 src/veritysetup.c:428 src/integritysetup.c:523
 #: src/cryptsetup_reencrypt.c:1594
 msgid "Show debug messages"
-msgstr ""
+msgstr "デバッグメッセージを表示"
 
 #: src/cryptsetup.c:2511
 msgid "Show debug messages including JSON metadata"
-msgstr ""
+msgstr "JSON メタデータを含むデバッグメッセージを表示"
 
 #: src/cryptsetup.c:2512 src/cryptsetup_reencrypt.c:1596
 msgid "The cipher used to encrypt the disk (see /proc/crypto)"
-msgstr ""
+msgstr "ディスクを暗号化するのに用いられる暗号 (/proc/crypto を参照のこと)"
 
 #: src/cryptsetup.c:2513 src/cryptsetup_reencrypt.c:1598
 msgid "The hash used to create the encryption key from the passphrase"
-msgstr ""
+msgstr "パスフレーズから暗号鍵を作るのに使われるハッシュ"
 
 #: src/cryptsetup.c:2514
 msgid "Verifies the passphrase by asking for it twice"
-msgstr ""
+msgstr "パスフレーズは2回入力してもらって検証します"
 
 #: src/cryptsetup.c:2515 src/cryptsetup_reencrypt.c:1600
 msgid "Read the key from a file"
-msgstr ""
+msgstr "ファイルからキーを読む"
 
 #: src/cryptsetup.c:2516
 msgid "Read the volume (master) key from file."
-msgstr ""
+msgstr "ボリューム(マスター)キーをファイルから読む。"
 
 #: src/cryptsetup.c:2517
 msgid "Dump volume (master) key instead of keyslots info"
-msgstr ""
+msgstr "ボリューム(マスター)キーをキースロット情報の代わりにダンプします"
 
 #: src/cryptsetup.c:2518 src/cryptsetup_reencrypt.c:1597
 msgid "The size of the encryption key"
-msgstr ""
+msgstr "暗号鍵のサイズ"
 
 #: src/cryptsetup.c:2518 src/cryptsetup.c:2576 src/integritysetup.c:539
 #: src/integritysetup.c:543 src/integritysetup.c:547
 #: src/cryptsetup_reencrypt.c:1597
 msgid "BITS"
-msgstr ""
+msgstr "ビット"
 
 #: src/cryptsetup.c:2519 src/cryptsetup_reencrypt.c:1613
 msgid "Limits the read from keyfile"
-msgstr ""
+msgstr "キーファイルから読み込みの制限"
 
 #: src/cryptsetup.c:2519 src/cryptsetup.c:2520 src/cryptsetup.c:2521
 #: src/cryptsetup.c:2522 src/cryptsetup.c:2573 src/cryptsetup.c:2574
@@ -1835,32 +1855,32 @@ msgstr ""
 #: src/cryptsetup_reencrypt.c:1612 src/cryptsetup_reencrypt.c:1613
 #: src/cryptsetup_reencrypt.c:1614 src/cryptsetup_reencrypt.c:1615
 msgid "bytes"
-msgstr ""
+msgstr "バイト"
 
 #: src/cryptsetup.c:2520 src/cryptsetup_reencrypt.c:1612
 msgid "Number of bytes to skip in keyfile"
-msgstr ""
+msgstr "キーファイルでスキップするバイト数"
 
 #: src/cryptsetup.c:2521
 msgid "Limits the read from newly added keyfile"
-msgstr ""
+msgstr "新しく追加するキーファイルの読み込みの制限"
 
 #: src/cryptsetup.c:2522
 msgid "Number of bytes to skip in newly added keyfile"
-msgstr ""
+msgstr "新しく追加するキーファイルでスキップするバイト数"
 
 #: src/cryptsetup.c:2523
 msgid "Slot number for new key (default is first free)"
-msgstr ""
+msgstr "新しいキーのスロット番号 (デフォルトは最初の空き)"
 
 #: src/cryptsetup.c:2524
 msgid "The size of the device"
-msgstr ""
+msgstr "デバイスのサイズ"
 
 #: src/cryptsetup.c:2524 src/cryptsetup.c:2525 src/cryptsetup.c:2526
 #: src/cryptsetup.c:2532 src/integritysetup.c:531 src/integritysetup.c:536
 msgid "SECTORS"
-msgstr ""
+msgstr "セクタ"
 
 #: src/cryptsetup.c:2525
 msgid "The start offset in the backend device"
