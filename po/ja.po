@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: cryptsetup 2.2.0-git\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
 "POT-Creation-Date: 2019-04-09 21:27+0900\n"
-"PO-Revision-Date: 2019-06-29 09:49+0900\n"
+"PO-Revision-Date: 2019-06-30 11:22+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -1884,166 +1884,166 @@ msgstr "セクタ"
 
 #: src/cryptsetup.c:2525
 msgid "The start offset in the backend device"
-msgstr ""
+msgstr "バックエンドデバイスの開始オフセット"
 
 #: src/cryptsetup.c:2526
 msgid "How many sectors of the encrypted data to skip at the beginning"
-msgstr ""
+msgstr "最初の暗号化データのセクタを何セクタスキップするか"
 
 #: src/cryptsetup.c:2527
 msgid "Create a readonly mapping"
-msgstr ""
+msgstr "読み込み専用のマッピングを作成"
 
 #: src/cryptsetup.c:2528 src/integritysetup.c:524
 #: src/cryptsetup_reencrypt.c:1603
 msgid "Do not ask for confirmation"
-msgstr ""
+msgstr "確認をしません"
 
 #: src/cryptsetup.c:2529
 msgid "Timeout for interactive passphrase prompt (in seconds)"
-msgstr ""
+msgstr "パスフレーズの対話的入力のタイムアウト (秒単位)"
 
 #: src/cryptsetup.c:2529 src/cryptsetup.c:2530 src/integritysetup.c:525
 #: src/cryptsetup_reencrypt.c:1604
 msgid "secs"
-msgstr ""
+msgstr "秒"
 
 #: src/cryptsetup.c:2530 src/integritysetup.c:525
 #: src/cryptsetup_reencrypt.c:1604
 msgid "Progress line update (in seconds)"
-msgstr ""
+msgstr "進捗線の更新(秒単位)"
 
 #: src/cryptsetup.c:2531 src/cryptsetup_reencrypt.c:1605
 msgid "How often the input of the passphrase can be retried"
-msgstr ""
+msgstr "パスフレーズの再試行の回数"
 
 #: src/cryptsetup.c:2532
 msgid "Align payload at <n> sector boundaries - for luksFormat"
-msgstr ""
+msgstr "luksFormat 向けにペイロードを <n> セクタ境界に合わせます"
 
 #: src/cryptsetup.c:2533
 msgid "File with LUKS header and keyslots backup"
-msgstr ""
+msgstr "LUKS ヘッダとキースロットバックアップのファイル"
 
 #: src/cryptsetup.c:2534 src/cryptsetup_reencrypt.c:1606
 msgid "Use /dev/random for generating volume key"
-msgstr ""
+msgstr "ボリュームキーの生成に /dev/random を使います"
 
 #: src/cryptsetup.c:2535 src/cryptsetup_reencrypt.c:1607
 msgid "Use /dev/urandom for generating volume key"
-msgstr ""
+msgstr "ボリュームキーの生成に /dev/urandom (擬似乱数)を使います"
 
 #: src/cryptsetup.c:2536
 msgid "Share device with another non-overlapping crypt segment"
-msgstr ""
+msgstr "オーバーラップしない暗号セグメントのあるデバイスと共有します"
 
 #: src/cryptsetup.c:2537 src/veritysetup.c:440
 msgid "UUID for device to use"
-msgstr ""
+msgstr "使用するデバイスの UUID"
 
 #: src/cryptsetup.c:2538
 msgid "Allow discards (aka TRIM) requests for device"
-msgstr ""
+msgstr "デバイスに discards (TRIM) 処理を許可します"
 
 #: src/cryptsetup.c:2539 src/cryptsetup_reencrypt.c:1624
 msgid "Device or file with separated LUKS header"
-msgstr ""
+msgstr "デバイスかファイルにある分離された LUKS ヘッダ"
 
 #: src/cryptsetup.c:2540
 msgid "Do not activate device, just check passphrase"
-msgstr ""
+msgstr "デバイスをアクティベートせず、パスフレーズだけ確認する"
 
 #: src/cryptsetup.c:2541
 msgid "Use hidden header (hidden TCRYPT device)"
-msgstr ""
+msgstr "隠されたヘッダを使う (隠された TCRYPT デバイス)"
 
 #: src/cryptsetup.c:2542
 msgid "Device is system TCRYPT drive (with bootloader)"
-msgstr ""
+msgstr "デバイスはシステム TCRYPT ドライブ (ブートローダの対応が必要)"
 
 #: src/cryptsetup.c:2543
 msgid "Use backup (secondary) TCRYPT header"
-msgstr ""
+msgstr "バックアップ (セカンダリ) TCRYPT ヘッダを使います"
 
 #: src/cryptsetup.c:2544
 msgid "Scan also for VeraCrypt compatible device"
-msgstr ""
+msgstr "VeraCrypt 互換デバイスも探します"
 
 #: src/cryptsetup.c:2545
 msgid "Personal Iteration Multiplier for VeraCrypt compatible device"
-msgstr ""
+msgstr "VeraCrypt 互換デバイス向けの Personal Iteration Multiplier"
 
 #: src/cryptsetup.c:2546
 msgid "Query Personal Iteration Multiplier for VeraCrypt compatible device"
-msgstr ""
+msgstr "VeraCrypt互換デバイス向けの Query Personal Iteration Multiplier"
 
 #: src/cryptsetup.c:2547
 msgid "Type of device metadata: luks, plain, loopaes, tcrypt"
-msgstr ""
+msgstr "デバイスメタデータのタイプ: luks, plain, loopaes, tcrypt"
 
 #: src/cryptsetup.c:2548
 msgid "Disable password quality check (if enabled)"
-msgstr ""
+msgstr "パスワードの質の確認を無効にする (もし有効なら)"
 
 #: src/cryptsetup.c:2549
 msgid "Use dm-crypt same_cpu_crypt performance compatibility option"
-msgstr ""
+msgstr "dm-crypt の same_cpu_crypt performance compatibility オプションを使う"
 
 #: src/cryptsetup.c:2550
 msgid "Use dm-crypt submit_from_crypt_cpus performance compatibility option"
-msgstr ""
+msgstr "dm-crypt の submit_from_crypt_cpus performance compatibility オプションを使う"
 
 #: src/cryptsetup.c:2551
 msgid "Device removal is deferred until the last user closes it"
-msgstr ""
+msgstr "デバイスの削除はデバイス上のリソースを使う人がいなくなるまで遅延されます"
 
 #: src/cryptsetup.c:2552
 msgid "Use global lock to serialize memory hard PBKDF (OOM workaround)"
-msgstr ""
+msgstr "OOM Killer を回避するために PBKDF メモリのシリアライズにグローバルロックを使います"
 
 #: src/cryptsetup.c:2553
 msgid "PBKDF iteration time for LUKS (in ms)"
-msgstr ""
+msgstr "LUKS 向けの PBKDF の繰り返し時間 (ms単位)"
 
 #: src/cryptsetup.c:2553 src/cryptsetup_reencrypt.c:1602
 msgid "msecs"
-msgstr ""
+msgstr "ミリ秒"
 
 #: src/cryptsetup.c:2554 src/cryptsetup_reencrypt.c:1620
 msgid "PBKDF algorithm (for LUKS2): argon2i, argon2id, pbkdf2"
-msgstr ""
+msgstr "LUKS2 向けの PBKDF アルゴリズム: argon2i, argon2id, pbkdf2"
 
 #: src/cryptsetup.c:2555 src/cryptsetup_reencrypt.c:1621
 msgid "PBKDF memory cost limit"
-msgstr ""
+msgstr "PBKDF メモリコスト制限"
 
 #: src/cryptsetup.c:2555 src/cryptsetup_reencrypt.c:1621
 msgid "kilobytes"
-msgstr ""
+msgstr "キロバイト"
 
 #: src/cryptsetup.c:2556 src/cryptsetup_reencrypt.c:1622
 msgid "PBKDF parallel cost"
-msgstr ""
+msgstr "PBKDF 並列コスト"
 
 #: src/cryptsetup.c:2556 src/cryptsetup_reencrypt.c:1622
 msgid "threads"
-msgstr ""
+msgstr "スレッド"
 
 #: src/cryptsetup.c:2557 src/cryptsetup_reencrypt.c:1623
 msgid "PBKDF iterations cost (forced, disables benchmark)"
-msgstr ""
+msgstr "PBKDF 繰り返しコスト (強制する, ベンチマークしない)"
 
 #: src/cryptsetup.c:2558
 msgid "Keyslot priority: ignore, normal, prefer"
-msgstr ""
+msgstr "キースロット優先度: ignore, normal, prefer"
 
 #: src/cryptsetup.c:2559
 msgid "Disable locking of on-disk metadata"
-msgstr ""
+msgstr "ディスク上のメタデータのロックをしない"
 
 #: src/cryptsetup.c:2560
 msgid "Disable loading volume keys via kernel keyring"
-msgstr ""
+msgstr "ボリュームキーの読み込みをカーネルキーリング経由で行わない"
 
 #: src/cryptsetup.c:2561
 msgid "Data integrity algorithm (LUKS2 only)"
