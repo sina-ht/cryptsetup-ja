@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: cryptsetup 2.2.0-git\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
 "POT-Creation-Date: 2019-04-09 21:27+0900\n"
-"PO-Revision-Date: 2019-06-30 11:22+0900\n"
+"PO-Revision-Date: 2019-07-05 16:24+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -2047,125 +2047,127 @@ msgstr "ボリュームキーの読み込みをカーネルキーリング経由
 
 #: src/cryptsetup.c:2561
 msgid "Data integrity algorithm (LUKS2 only)"
-msgstr ""
+msgstr "データ改ざん検出アルゴリズム (LUKS2 のみ)"
 
 #: src/cryptsetup.c:2562 src/integritysetup.c:550
 msgid "Disable journal for integrity device"
-msgstr ""
+msgstr "データ改ざん検出が有効なデバイスのジャーナリングを禁止します"
 
 #: src/cryptsetup.c:2563 src/integritysetup.c:526
 msgid "Do not wipe device after format"
-msgstr ""
+msgstr "フォーマット後にデバイスのデータを消去しない"
 
 #: src/cryptsetup.c:2564
 msgid "Do not ask for passphrase if activation by token fails"
-msgstr ""
+msgstr "トークンによるアクティベーションが失敗したらパスフレーズを入力させません"
 
 #: src/cryptsetup.c:2565
 msgid "Token number (default: any)"
-msgstr ""
+msgstr "トークンナンバー (デフォルト: 任意)"
 
 #: src/cryptsetup.c:2566
 msgid "Key description"
-msgstr ""
+msgstr "キーデスクリプション"
 
 #: src/cryptsetup.c:2567
 msgid "Encryption sector size (default: 512 bytes)"
-msgstr ""
+msgstr "暗号化セクタサイズ (デフォルト: 512 バイト)"
 
 #: src/cryptsetup.c:2568
 msgid "Set activation flags persistent for device"
-msgstr ""
+msgstr "デバイスのアクティベーションフラグを持続的にします"
 
 #: src/cryptsetup.c:2569
 msgid "Set label for the LUKS2 device"
-msgstr ""
+msgstr "LUKS2 デバイスのラベルを設定"
 
 #: src/cryptsetup.c:2570
 msgid "Set subsystem label for the LUKS2 device"
-msgstr ""
+msgstr "LUKS2 デバイスにサブシステムレベルを設定します"
 
 #: src/cryptsetup.c:2571
 msgid "Create unbound (no assigned data segment) LUKS2 keyslot"
-msgstr ""
+msgstr "場所の束縛のない LUKS2 キースロットを作成します"
 
 #: src/cryptsetup.c:2572
 msgid "Read or write the json from or to a file"
-msgstr ""
+msgstr "json をファイルに読み書きする"
 
 #: src/cryptsetup.c:2573
 msgid "LUKS2 header metadata area size"
-msgstr ""
+msgstr "LUKS2 ヘッダメタデータ領域サイズ"
 
 #: src/cryptsetup.c:2574
 msgid "LUKS2 header keyslots area size"
-msgstr ""
+msgstr "LUKS2 ヘッダキースロット領域サイズ"
 
 #: src/cryptsetup.c:2575
 msgid "Refresh (reactivate) device with new parameters"
-msgstr ""
+msgstr "デバイスを新しいパラメータデリフレッシュ(再アクティベート)する"
 
 #: src/cryptsetup.c:2576
 msgid "LUKS2 keyslot: The size of the encryption key"
-msgstr ""
+msgstr "LUKS2 キースロット: 暗号鍵のサイズ"
 
 #: src/cryptsetup.c:2577
 msgid "LUKS2 keyslot: The cipher used for keyslot encryption"
-msgstr ""
+msgstr "LUKS2 キースロット: キースロットの暗号化に使う暗号"
 
 #: src/cryptsetup.c:2593 src/veritysetup.c:461 src/integritysetup.c:568
 msgid "[OPTION...] <action> <action-specific>"
-msgstr ""
+msgstr "[オプション...] <アクション> <アクション特有>"
 
 #: src/cryptsetup.c:2650 src/veritysetup.c:501 src/integritysetup.c:585
 msgid "Argument <action> missing."
-msgstr ""
+msgstr "<アクション> がありません。"
 
 #: src/cryptsetup.c:2713 src/veritysetup.c:532 src/integritysetup.c:616
 msgid "Unknown action."
-msgstr ""
+msgstr "未知のアクションです。"
 
 #: src/cryptsetup.c:2723
 msgid "Parameter --refresh is only allowed with open or refresh commands.\n"
-msgstr ""
+msgstr "--refresh は open か refresh の時にしか使えません。\n"
 
 #: src/cryptsetup.c:2728
 msgid "Options --refresh and --test-passphrase are mutually exclusive.\n"
-msgstr ""
+msgstr "--refresh と --test-passphrase は同時には使えません。\n"
 
 #: src/cryptsetup.c:2733
 msgid "Option --deferred is allowed only for close command.\n"
-msgstr ""
+msgstr "--deferred は close でしか使えません。\n"
 
 #: src/cryptsetup.c:2738
 msgid "Option --shared is allowed only for open of plain device.\n"
-msgstr ""
+msgstr "--shared は open の plain デバイスにしか使えません。\n"
 
 #: src/cryptsetup.c:2743
 msgid "Option --allow-discards is allowed only for open operation.\n"
-msgstr ""
+msgstr "--allow-discards は open でしか使えません。\n"
 
 #: src/cryptsetup.c:2748
 msgid "Option --persistent is allowed only for open operation.\n"
-msgstr ""
+msgstr "--persistent は open でしか使えません。\n"
 
 #: src/cryptsetup.c:2753
 msgid "Option --serialize-memory-hard-pbkdf is allowed only for open operation.\n"
-msgstr ""
+msgstr "--serialize-memory-hard-pbkdf は open でしか使えません。\n"
 
 #: src/cryptsetup.c:2758
 msgid "Option --persistent is not allowed with --test-passphrase.\n"
-msgstr ""
+msgstr "--persistent は --test-passphrase と一緒には使えません。\n"
 
 #: src/cryptsetup.c:2767
 msgid ""
 "Option --key-size is allowed only for luksFormat, luksAddKey (with --unbound),\n"
 "open and benchmark actions. To limit read from keyfile use --keyfile-size=(bytes)."
 msgstr ""
+"--key-size は luksFormat か luksAddKey で --unbound をつけた場合か、\n"
+"open, benchmark の時しか使えません。キーファイルについて制限をつけたい場合は --keyfile-size=(バイト) を使ってください。"
 
 #: src/cryptsetup.c:2773
 msgid "Option --integrity is allowed only for luksFormat (LUKS2).\n"
-msgstr ""
+msgstr "--integrity は luksFormat (LUKS2) でしか使えません。\n"
 
 #: src/cryptsetup.c:2778
 msgid "Option --integrity-no-wipe can be used only for format action with integrity extension.\n"
