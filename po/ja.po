@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: cryptsetup 2.2.0-git\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
 "POT-Creation-Date: 2019-04-09 21:27+0900\n"
-"PO-Revision-Date: 2019-07-05 16:24+0900\n"
+"PO-Revision-Date: 2019-07-21 14:02+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -2171,86 +2171,86 @@ msgstr "--integrity は luksFormat (LUKS2) でしか使えません。\n"
 
 #: src/cryptsetup.c:2778
 msgid "Option --integrity-no-wipe can be used only for format action with integrity extension.\n"
-msgstr ""
+msgstr "--integrity-no-wipe は format で integrity extension 付きの時しか使えません。\n"
 
 #: src/cryptsetup.c:2784
 msgid "Options --label and --subsystem are allowed only for luksFormat and config LUKS2 operations.\n"
-msgstr ""
+msgstr "--label と --subsystem は luksFormat で config LUKS2 operations にしか使えません。\n"
 
 #: src/cryptsetup.c:2790
 msgid "Option --test-passphrase is allowed only for open of LUKS and TCRYPT devices.\n"
-msgstr ""
+msgstr "--test-passphrase は LUKS か TCRYPT デバイスの open にしか使えません。.\n"
 
 #: src/cryptsetup.c:2795 src/cryptsetup_reencrypt.c:1693
 msgid "Key size must be a multiple of 8 bits"
-msgstr ""
+msgstr "キーサイズは 8bit の倍数でなければなりません"
 
 #: src/cryptsetup.c:2801 src/cryptsetup_reencrypt.c:1378
 #: src/cryptsetup_reencrypt.c:1698
 msgid "Key slot is invalid."
-msgstr ""
+msgstr "キースロットは不正です。"
 
 #: src/cryptsetup.c:2808
 msgid "Option --key-file takes precedence over specified key file argument."
-msgstr ""
+msgstr "--key-file は他で指定されたキーファイルを上書きします。"
 
 #: src/cryptsetup.c:2815 src/veritysetup.c:544 src/integritysetup.c:640
 #: src/cryptsetup_reencrypt.c:1672
 msgid "Negative number for option not permitted."
-msgstr ""
+msgstr "オプションに負の数を与えられません。"
 
 #: src/cryptsetup.c:2819
 msgid "Only one --key-file argument is allowed."
-msgstr ""
+msgstr "--key-file は一つしか使えません。"
 
 #: src/cryptsetup.c:2823 src/cryptsetup_reencrypt.c:1664
 #: src/cryptsetup_reencrypt.c:1702
 msgid "Only one of --use-[u]random options is allowed."
-msgstr ""
+msgstr "--use-[u]random は一つしか使えません。"
 
 #: src/cryptsetup.c:2827
 msgid "Option --use-[u]random is allowed only for luksFormat."
-msgstr ""
+msgstr "--use-[u]random は luksFormat にしか使えません。"
 
 #: src/cryptsetup.c:2831
 msgid "Option --uuid is allowed only for luksFormat and luksUUID."
-msgstr ""
+msgstr "--uuid は luksFormat か luksUUID でしか使えません。"
 
 #: src/cryptsetup.c:2835
 msgid "Option --align-payload is allowed only for luksFormat."
-msgstr ""
+msgstr "--align-payload は luksFormat でしか使えません。"
 
 #: src/cryptsetup.c:2839
 msgid "Options --luks2-metadata-size and --opt-luks2-keyslots-size are allowed only for luksFormat with LUKS2."
-msgstr ""
+msgstr "--luks2-metadata-size と --opt-luks2-keyslots-size は LUKS2 で luksFormat でしか使えません。"
 
 #: src/cryptsetup.c:2844
 msgid "Invalid LUKS2 metadata size specification."
-msgstr ""
+msgstr "不正なLUKS2 メタデータサイズです。"
 
 #: src/cryptsetup.c:2848
 msgid "Invalid LUKS2 keyslots size specification."
-msgstr ""
+msgstr "不正な LUKS2 キースロットサイズです。"
 
 #: src/cryptsetup.c:2852
 msgid "Options --align-payload and --offset cannot be combined."
-msgstr ""
+msgstr "--align-payload と --offset は一緒に使えません。"
 
 #: src/cryptsetup.c:2858
 msgid "Option --skip is supported only for open of plain and loopaes devices.\n"
-msgstr ""
+msgstr "--skip は plain の open か loopaes デバイスにしか使えません。\n"
 
 #: src/cryptsetup.c:2865
 msgid "Option --offset is supported only for open of plain and loopaes devices and for luksFormat.\n"
-msgstr ""
+msgstr "--offset は plain の open か loopaes デバイスで luksFormat にしか使えません。\n"
 
 #: src/cryptsetup.c:2871
 msgid "Option --tcrypt-hidden, --tcrypt-system or --tcrypt-backup is supported only for TCRYPT device.\n"
-msgstr ""
+msgstr "--tcrypt-hidden と --tcrypt-system と --tcrypt-backup は TCRYPT デバイスしか使えません。\n"
 
 #: src/cryptsetup.c:2876
 msgid "Option --tcrypt-hidden cannot be combined with --allow-discards.\n"
-msgstr ""
+msgstr "--tcrypt-hidden は --allow-discards と一緒に使えません。\n"
 
 #: src/cryptsetup.c:2881
 msgid "Option --veracrypt is supported only for TCRYPT device type.\n"
