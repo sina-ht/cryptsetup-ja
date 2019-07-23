@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: cryptsetup 2.2.0-git\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
 "POT-Creation-Date: 2019-04-09 21:27+0900\n"
-"PO-Revision-Date: 2019-07-21 14:02+0900\n"
+"PO-Revision-Date: 2019-07-23 19:56+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -2254,105 +2254,105 @@ msgstr "--tcrypt-hidden は --allow-discards と一緒に使えません。\n"
 
 #: src/cryptsetup.c:2881
 msgid "Option --veracrypt is supported only for TCRYPT device type.\n"
-msgstr ""
+msgstr "--veracrypt は TCRYPT デバイスでしか使えません。\n"
 
 #: src/cryptsetup.c:2887
 msgid "Invalid argument for parameter --veracrypt-pim supplied.\n"
-msgstr ""
+msgstr "--veracrypt-pim の引数が不正です。\n"
 
 #: src/cryptsetup.c:2891
 msgid "Option --veracrypt-pim is supported only for VeraCrypt compatible devices.\n"
-msgstr ""
+msgstr "--veracrypt-pim は VeraCrypt 互換デバイスにしか使えません。\n"
 
 #: src/cryptsetup.c:2899
 msgid "Option --veracrypt-query-pim is supported only for VeraCrypt compatible devices.\n"
-msgstr ""
+msgstr "--veracrypt-query-pim は VeraCrypt 互換デバイスにしか使えません。\n"
 
 #: src/cryptsetup.c:2903
 msgid "The options --veracrypt-pim and --veracrypt-query-pim are mutually exclusive.\n"
-msgstr ""
+msgstr "--veracrypt-pim と --veracrypt-query-pim はどちらかしか使えません。\n"
 
 #: src/cryptsetup.c:2910
 msgid "Option --priority can be only ignore/normal/prefer.\n"
-msgstr ""
+msgstr "--priority の引数は ignore/normal/prefer のいずれかのみです。\n"
 
 #: src/cryptsetup.c:2915
 msgid "Keyslot specification is required.\n"
-msgstr ""
+msgstr "キースロットの指定が必要です。\n"
 
 #: src/cryptsetup.c:2920 src/cryptsetup_reencrypt.c:1678
 msgid "Password-based key derivation function (PBKDF) can be only pbkdf2 or argon2i/argon2id.\n"
-msgstr ""
+msgstr "パスワードからキーを作る関数 (PBKDF) は pbkdf2 argon2i argon2id のいずれかのみです。\n"
 
 #: src/cryptsetup.c:2925 src/cryptsetup_reencrypt.c:1683
 msgid "PBKDF forced iterations cannot be combined with iteration time option.\n"
-msgstr ""
+msgstr "PBKDF の繰り返し回数の強制と回数指定オプションは共存できません。\n"
 
 #: src/cryptsetup.c:2931
 msgid "Sector size option is not supported for this command.\n"
-msgstr ""
+msgstr "このコマンドではセクタサイズオプションはサポートされていません。\n"
 
 #: src/cryptsetup.c:2937
 msgid "Unsupported encryption sector size.\n"
-msgstr ""
+msgstr "サポートしていない暗号化セクタサイズです。\n"
 
 #: src/cryptsetup.c:2942
 msgid "Key size is required with --unbound option.\n"
-msgstr ""
+msgstr "--unbound にはキーサイズが必要です。\n"
 
 #: src/cryptsetup.c:2947
 msgid "Option --unbound may be used only with luksAddKey action.\n"
-msgstr ""
+msgstr "--unbound は luksAddKey でしか使えません。\n"
 
 #: src/cryptsetup.c:2952
 msgid "Option --refresh may be used only with open action.\n"
-msgstr ""
+msgstr "--refresh は open でしか使えません。\n"
 
 #: src/cryptsetup.c:2963
 msgid "Cannot disable metadata locking.\n"
-msgstr ""
+msgstr "メタデータロックを禁止できません。\n"
 
 #: src/veritysetup.c:67
 msgid "Invalid salt string specified."
-msgstr ""
+msgstr "不正なソルト文字列が指定されました。"
 
 #: src/veritysetup.c:98
 #, c-format
 msgid "Cannot create hash image %s for writing."
-msgstr ""
+msgstr "ハッシュイメージ %s を書けるように作成できませんでした。"
 
 #: src/veritysetup.c:108
 #, c-format
 msgid "Cannot create FEC image %s for writing."
-msgstr ""
+msgstr "FEC イメージ %s を書けるように作成できませんでした。"
 
 #: src/veritysetup.c:178
 msgid "Invalid root hash string specified."
-msgstr ""
+msgstr "不正なルートハッシュ文字列が指定されました。"
 
 #: src/veritysetup.c:360
 msgid "<data_device> <hash_device>"
-msgstr ""
+msgstr "<データデバイス> <ハッシュデバイス>"
 
 #: src/veritysetup.c:360 src/integritysetup.c:462
 msgid "format device"
-msgstr ""
+msgstr "デバイスをフォーマット"
 
 #: src/veritysetup.c:361
 msgid "<data_device> <hash_device> <root_hash>"
-msgstr ""
+msgstr "<データデバイス> <ハッシュデバイス> <ルートハッシュ>"
 
 #: src/veritysetup.c:361
 msgid "verify device"
-msgstr ""
+msgstr "デバイスを検証"
 
 #: src/veritysetup.c:362
 msgid "<data_device> <name> <hash_device> <root_hash>"
-msgstr ""
+msgstr "<データデバイス> <名前> <ハッシュデバイス> <ルートハッシュ>"
 
 #: src/veritysetup.c:362 src/integritysetup.c:463
 msgid "open device as <name>"
-msgstr ""
+msgstr "デバイスを <名前> としてオープン"
 
 #: src/veritysetup.c:363 src/integritysetup.c:464
 msgid "close device (deactivate and remove mapping)"
