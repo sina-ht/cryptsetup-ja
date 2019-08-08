@@ -1,13 +1,13 @@
 # Japanese messages for cryptsetup.
-# This file is put in the public domain.
-# Hiroshi Takekawa <sian@big.or.jp>, 2019
+# This file is put in the public domain, to the extent permitted under applicable law.
+# Hiroshi Takekawa <sian.ht@gmail.com>, 2019
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: cryptsetup 2.2.0-git\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
 "POT-Creation-Date: 2019-04-09 21:27+0900\n"
-"PO-Revision-Date: 2019-07-23 19:56+0900\n"
+"PO-Revision-Date: 2019-08-08 21:07+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -2356,19 +2356,19 @@ msgstr "デバイスを <名前> としてオープン"
 
 #: src/veritysetup.c:363 src/integritysetup.c:464
 msgid "close device (deactivate and remove mapping)"
-msgstr ""
+msgstr "デバイスをクローズ (デアクティベートしてマッピングを削除)"
 
 #: src/veritysetup.c:364 src/integritysetup.c:465
 msgid "show active device status"
-msgstr ""
+msgstr "アクティブデバイスのステータスを表示"
 
 #: src/veritysetup.c:365
 msgid "<hash_device>"
-msgstr ""
+msgstr "<ハッシュデバイス>"
 
 #: src/veritysetup.c:365 src/integritysetup.c:466
 msgid "show on-disk information"
-msgstr ""
+msgstr "ディスク上の情報を表示"
 
 #: src/veritysetup.c:384
 #, c-format
@@ -2379,6 +2379,11 @@ msgid ""
 "<hash_device> is the device containing verification data\n"
 "<root_hash> hash of the root node on <hash_device>\n"
 msgstr ""
+"\n"
+"<名前> は %s に作られるデバイス\n"
+"<データデバイス> はデータが入るデバイス\n"
+"<ハッシュデバイス> は検証用データが入るデバイス\n"
+"<ルートハッシュ> は <ハッシュデバイス> のルートノードのハッシュ\n"
 
 #: src/veritysetup.c:391
 #, c-format
@@ -2387,104 +2392,107 @@ msgid ""
 "Default compiled-in dm-verity parameters:\n"
 "\tHash: %s, Data block (bytes): %u, Hash block (bytes): %u, Salt size: %u, Hash format: %u\n"
 msgstr ""
+"\n"
+"コンパイル時に決めた dm-verity のデフォルトパラメータ:\n"
+"\tハッシュ: %s, データブロック (バイト): %u, ハッシュブロック (バイト): %u, ソルトサイズ: %u, ハッシュフォーマット: %u\n"
 
 #: src/veritysetup.c:429
 msgid "Do not use verity superblock"
-msgstr ""
+msgstr "verity スーパーブロックを使いません"
 
 #: src/veritysetup.c:430
 msgid "Format type (1 - normal, 0 - original Chrome OS)"
-msgstr ""
+msgstr "フォーマットタイプ (1 - ノーマル, 0 - Chrome OS 形式)"
 
 #: src/veritysetup.c:430
 msgid "number"
-msgstr ""
+msgstr "数字"
 
 #: src/veritysetup.c:431
 msgid "Block size on the data device"
-msgstr ""
+msgstr "データデバイスのブロックサイズ"
 
 #: src/veritysetup.c:432
 msgid "Block size on the hash device"
-msgstr ""
+msgstr "ハッシュデバイスのブロックサイズ"
 
 #: src/veritysetup.c:433
 msgid "FEC parity bytes"
-msgstr ""
+msgstr "FEC パリティバイト"
 
 #: src/veritysetup.c:434
 msgid "The number of blocks in the data file"
-msgstr ""
+msgstr "データファイルのブロック数"
 
 #: src/veritysetup.c:434
 msgid "blocks"
-msgstr ""
+msgstr "ブロック"
 
 #: src/veritysetup.c:435
 msgid "Path to device with error correction data"
-msgstr ""
+msgstr "誤り訂正用データが格納されるデバイスのパス"
 
 #: src/veritysetup.c:435 src/integritysetup.c:528
 msgid "path"
-msgstr ""
+msgstr "パス"
 
 #: src/veritysetup.c:436
 msgid "Starting offset on the hash device"
-msgstr ""
+msgstr "ハッシュデバイスの開始オフセット"
 
 #: src/veritysetup.c:437
 msgid "Starting offset on the FEC device"
-msgstr ""
+msgstr "FEC デバイスの開始オフセット"
 
 #: src/veritysetup.c:438
 msgid "Hash algorithm"
-msgstr ""
+msgstr "ハッシュアルゴリズム"
 
 #: src/veritysetup.c:438
 msgid "string"
-msgstr ""
+msgstr "文字列"
 
 #: src/veritysetup.c:439
 msgid "Salt"
-msgstr ""
+msgstr "ソルト"
 
 #: src/veritysetup.c:439
 msgid "hex string"
-msgstr ""
+msgstr "16進数文字列"
 
 #: src/veritysetup.c:441
 msgid "Restart kernel if corruption is detected"
-msgstr ""
+msgstr "破損が検出されたらカーネルを再起動する"
 
 #: src/veritysetup.c:442
 msgid "Ignore corruption, log it only"
-msgstr ""
+msgstr "破損はログするだけで再起動まではしない"
 
 #: src/veritysetup.c:443
 msgid "Do not verify zeroed blocks"
-msgstr ""
+msgstr "0 埋めされたブロックは検証しない"
 
 #: src/veritysetup.c:444
 msgid "Verify data block only the first time it is read"
-msgstr ""
+msgstr "最初に読む時一度だけデータブロックを検証する"
 
 #: src/veritysetup.c:550
 msgid "Option --ignore-corruption, --restart-on-corruption or --ignore-zero-blocks is allowed only for open operation.\n"
-msgstr ""
+msgstr "--ignore-corruption, --restart-on-corruption, --ignore-zero-blocks は open 時にか使えません。\n"
 
 #: src/veritysetup.c:555
 msgid "Option --ignore-corruption and --restart-on-corruption cannot be used together.\n"
-msgstr ""
+msgstr "--ignore-corruption と --restart-on-corruption は同時に使えません。\n"
 
 #: src/integritysetup.c:82 src/utils_password.c:300
 #, c-format
 msgid "Cannot read keyfile %s."
-msgstr ""
+msgstr "キーファイル %s を読みこめませんでした。"
 
 #: src/integritysetup.c:86 src/utils_password.c:304
 #, c-format
 msgid "Cannot read %d bytes from keyfile %s."
-msgstr ""
+msgstr "%d バイトをキーファイル %s から読みこめませんでした。"
 
 #: src/integritysetup.c:248
 #, c-format
