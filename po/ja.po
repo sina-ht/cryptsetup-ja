@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: cryptsetup 2.2.0-git\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
 "POT-Creation-Date: 2019-04-09 21:27+0900\n"
-"PO-Revision-Date: 2019-08-08 21:07+0900\n"
+"PO-Revision-Date: 2019-08-13 22:45+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -2497,15 +2497,15 @@ msgstr "%d バイトをキーファイル %s から読みこめませんでし�
 #: src/integritysetup.c:248
 #, c-format
 msgid "Formatted with tag size %u, internal integrity %s.\n"
-msgstr ""
+msgstr "タグサイズ %u、内部整合性は %s でフォーマットされました。\n"
 
 #: src/integritysetup.c:462 src/integritysetup.c:466
 msgid "<integrity_device>"
-msgstr ""
+msgstr "<整合性デバイス>"
 
 #: src/integritysetup.c:463
 msgid "<integrity_device> <name>"
-msgstr ""
+msgstr "<整合性デバイス> <名前>"
 
 #: src/integritysetup.c:485
 #, c-format
@@ -2514,6 +2514,9 @@ msgid ""
 "<name> is the device to create under %s\n"
 "<integrity_device> is the device containing data with integrity tags\n"
 msgstr ""
+"\n"
+"<名前> は %s に作られるデバイス\n"
+"<整合性デバイス> は整合性タグを格納するデバイス\n"
 
 #: src/integritysetup.c:490
 #, c-format
@@ -2522,236 +2525,239 @@ msgid ""
 "Default compiled-in dm-integrity parameters:\n"
 "\tTag size: %u bytes, Checksum algorithm: %s\n"
 msgstr ""
+"\n"
+"コンパイル時に決められたデフォルトの dm-integrity のパラメータ:\n"
+"\tタグサイズ: %u バイト, チェックサムアルゴリズム: %s\n"
 
 #: src/integritysetup.c:528
 msgid "Path to data device (if separated)"
-msgstr ""
+msgstr "データデバイスのパス (分離されている場合)"
 
 #: src/integritysetup.c:530
 msgid "Journal size"
-msgstr ""
+msgstr "ジャーナルサイズ"
 
 #: src/integritysetup.c:531
 msgid "Interleave sectors"
-msgstr ""
+msgstr "インターリーブするセクタ数"
 
 #: src/integritysetup.c:532
 msgid "Journal watermark"
-msgstr ""
+msgstr "ジャーナルをフラッシュする閾値"
 
 #: src/integritysetup.c:532
 msgid "percent"
-msgstr ""
+msgstr "パーセント"
 
 #: src/integritysetup.c:533
 msgid "Journal commit time"
-msgstr ""
+msgstr "ジャーナルがコミットされるまでの時間"
 
 #: src/integritysetup.c:533
 msgid "ms"
-msgstr ""
+msgstr "ミリ秒"
 
 #: src/integritysetup.c:534
 msgid "Tag size (per-sector)"
-msgstr ""
+msgstr "タグサイズ (セクタ毎)"
 
 #: src/integritysetup.c:535
 msgid "Sector size"
-msgstr ""
+msgstr "セクタサイズ"
 
 #: src/integritysetup.c:536
 msgid "Buffers size"
-msgstr ""
+msgstr "バッファサイズ"
 
 #: src/integritysetup.c:538
 msgid "Data integrity algorithm"
-msgstr ""
+msgstr "データ整合性アルゴリズム"
 
 #: src/integritysetup.c:539
 msgid "The size of the data integrity key"
-msgstr ""
+msgstr "データ整合性キーのサイズ"
 
 #: src/integritysetup.c:540
 msgid "Read the integrity key from a file"
-msgstr ""
+msgstr "整合性キーをファイルから読み込む"
 
 #: src/integritysetup.c:542
 msgid "Journal integrity algorithm"
-msgstr ""
+msgstr "ジャーナル整合性アルゴリズム"
 
 #: src/integritysetup.c:543
 msgid "The size of the journal integrity key"
-msgstr ""
+msgstr "ジャーナル整合性キーのサイズ"
 
 #: src/integritysetup.c:544
 msgid "Read the journal integrity key from a file"
-msgstr ""
+msgstr "ジャーナル整合性キーをファイルから読み込む"
 
 #: src/integritysetup.c:546
 msgid "Journal encryption algorithm"
-msgstr ""
+msgstr "ジャーナル暗号化アルゴリズム"
 
 #: src/integritysetup.c:547
 msgid "The size of the journal encryption key"
-msgstr ""
+msgstr "ジャーナル暗号化キーのサイズ"
 
 #: src/integritysetup.c:548
 msgid "Read the journal encryption key from a file"
-msgstr ""
+msgstr "ジャーナル暗号化キーをファイルから読み込む"
 
 #: src/integritysetup.c:551
 msgid "Recovery mode (no journal, no tag checking)"
-msgstr ""
+msgstr "リカバリモード (ジャーナル不使用、タグ確認なし)"
 
 #: src/integritysetup.c:552
 msgid "Recalculate initial tags automatically."
-msgstr ""
+msgstr "初期タグを自動で再計算する。"
 
 #: src/integritysetup.c:631
 msgid "Option --integrity-recalculate can be used only for open action."
-msgstr ""
+msgstr "--integrity-recalculate は open でしか使えません。"
 
 #: src/integritysetup.c:646
 msgid "Options --journal-size, --interleave-sectors, --sector-size, --tag-size and --no-wipe can be used only for format action.\n"
-msgstr ""
+msgstr "--journal-size, --interleave-sectors, --sector-size, --tag-size, --no-wipe format でしか使えません。\n"
 
 #: src/integritysetup.c:652
 msgid "Invalid journal size specification."
-msgstr ""
+msgstr "不正なジャーナルサイズの指定です。"
 
 #: src/integritysetup.c:657
 msgid "Both key file and key size options must be specified."
-msgstr ""
+msgstr "キーファイルとキーサイズの両方の指定が必要です。"
 
 #: src/integritysetup.c:660
 msgid "Integrity algorithm must be specified if integrity key is used."
-msgstr ""
+msgstr "整合性キーを使う場合はアルゴリズムの指定が必要です。"
 
 #: src/integritysetup.c:665
 msgid "Both journal integrity key file and key size options must be specified."
-msgstr ""
+msgstr "ジャーナル整合性キーファイルとキーサイズの両方の指定が必要です。"
 
 #: src/integritysetup.c:668
 msgid "Journal integrity algorithm must be specified if journal integrity key is used."
-msgstr ""
+msgstr "ジャーナル整合性キーを使う場合はアルゴリズムの指定が必要です。"
 
 #: src/integritysetup.c:673
 msgid "Both journal encryption key file and key size options must be specified."
-msgstr ""
+msgstr "ジャーナル暗号キーファイルとキーサイズの両方の指定が必要です。"
 
 #: src/integritysetup.c:676
 msgid "Journal encryption algorithm must be specified if journal encryption key is used."
-msgstr ""
+msgstr "ジャーナル暗号キーを使う場合はアルゴリズムの指定が必要です。"
 
 #: src/cryptsetup_reencrypt.c:174
 msgid "Reencryption already in-progress."
-msgstr ""
+msgstr "既に再暗号化中です。"
 
 #: src/cryptsetup_reencrypt.c:180
 msgid "Reencryption of device with integrity profile is not supported."
-msgstr ""
+msgstr "整合性プロファイルつきのデバイスの再暗号化はサポートされていません。"
 
 #: src/cryptsetup_reencrypt.c:203
 #, c-format
 msgid "Cannot exclusively open %s, device in use."
-msgstr ""
+msgstr "デバイスが使用中のため %s を排他的にオープンできません。"
 
 #: src/cryptsetup_reencrypt.c:217 src/cryptsetup_reencrypt.c:1123
 msgid "Allocation of aligned memory failed."
-msgstr ""
+msgstr "アライメントつきメモリの確保ができませんでした。"
 
 #: src/cryptsetup_reencrypt.c:224
 #, c-format
 msgid "Cannot read device %s."
-msgstr ""
+msgstr "デバイス %s を読めません。"
 
 #: src/cryptsetup_reencrypt.c:235
 #, c-format
 msgid "Marking LUKS1 device %s unusable."
-msgstr ""
+msgstr "LUKS1 デバイス %s を使用不可としてマークします。"
 
 #: src/cryptsetup_reencrypt.c:239
 #, c-format
 msgid "Setting LUKS2 offline reencrypt flag on device %s."
-msgstr ""
+msgstr "LUKS2 offline reencrypt フラグをデバイス %s に設定します。"
 
 #: src/cryptsetup_reencrypt.c:256
 #, c-format
 msgid "Cannot write device %s."
-msgstr ""
+msgstr "デバイス %s に書き込めません。"
 
 #: src/cryptsetup_reencrypt.c:304
 msgid "Cannot write reencryption log file."
-msgstr ""
+msgstr "再暗号化ログファイルに書きこめません。"
 
 #: src/cryptsetup_reencrypt.c:360
 msgid "Cannot read reencryption log file."
-msgstr ""
+msgstr "再暗号化ログファイルを読み込めません。"
 
 #: src/cryptsetup_reencrypt.c:398
 #, c-format
 msgid "Log file %s exists, resuming reencryption.\n"
-msgstr ""
+msgstr "ログファイル %s が既にあるので再暗号化を再開します。\n"
 
 #: src/cryptsetup_reencrypt.c:447
 msgid "Activating temporary device using old LUKS header."
-msgstr ""
+msgstr "古い LUKS ヘッダを使っているテンポラリデバイスを有効にします。"
 
 #: src/cryptsetup_reencrypt.c:457
 msgid "Activating temporary device using new LUKS header."
-msgstr ""
+msgstr "新しい LUKS ヘッダを使っているテンポラリデバイスを有効にします。"
 
 #: src/cryptsetup_reencrypt.c:467
 msgid "Activation of temporary devices failed."
-msgstr ""
+msgstr "テンポラリデバイスの有効化に失敗しました。"
 
 #: src/cryptsetup_reencrypt.c:547
 msgid "Failed to set PBKDF parameters."
-msgstr ""
+msgstr "PBKDF パラメータの設定に失敗しました。"
 
 #: src/cryptsetup_reencrypt.c:553
 msgid "Failed to set data offset."
-msgstr ""
+msgstr "データオフセットの設定に失敗しました。"
 
 #: src/cryptsetup_reencrypt.c:559
 msgid "Failed to set metadata size."
-msgstr ""
+msgstr "メタデータサイズの設定に失敗しました。"
 
 #: src/cryptsetup_reencrypt.c:567
 #, c-format
 msgid "New LUKS header for device %s created."
-msgstr ""
+msgstr "デバイス %s の新しい LUKS ヘッダを作成しました。"
 
 #: src/cryptsetup_reencrypt.c:627
 #, c-format
 msgid "This version of cryptsetup-reencrypt can't handle new internal token type %s."
-msgstr ""
+msgstr "このバージョンの cryptsetup-reencrypt は新しい内部トークンタイプ %s を扱えません。"
 
 #: src/cryptsetup_reencrypt.c:649
 msgid "Failed to read activation flags from backup header."
-msgstr ""
+msgstr "アクティベーションフラグをバックアップヘッダから読み込めません。"
 
 #: src/cryptsetup_reencrypt.c:653
 msgid "Failed to write activation flags to new header."
-msgstr ""
+msgstr "アクティベーションフラグを新しいヘッダに書き込めません。"
 
 #: src/cryptsetup_reencrypt.c:657 src/cryptsetup_reencrypt.c:661
 msgid "Failed to read requirements from backup header."
-msgstr ""
+msgstr "バックアップヘッダから要求(requirements)を読み込めません。"
 
 #: src/cryptsetup_reencrypt.c:699
 #, c-format
 msgid "%s header backup of device %s created."
-msgstr ""
+msgstr "%s ヘッダバックアップデバイス %s が作成されました。"
 
 #: src/cryptsetup_reencrypt.c:762
 msgid "Creation of LUKS backup headers failed."
-msgstr ""
+msgstr "LUKS バックアップヘッダが作成できません。"
 
 #: src/cryptsetup_reencrypt.c:893
 #, c-format
 msgid "Cannot restore %s header on device %s."
-msgstr ""
+msgstr "デバイス %2s の %1s ヘッダ が復元できません。"
 
 #: src/cryptsetup_reencrypt.c:895
 #, c-format
