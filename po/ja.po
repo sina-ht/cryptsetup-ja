@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: cryptsetup 2.2.0-git\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
 "POT-Creation-Date: 2019-04-09 21:27+0900\n"
-"PO-Revision-Date: 2019-08-13 22:45+0900\n"
+"PO-Revision-Date: 2019-08-14 21:02+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -2757,292 +2757,292 @@ msgstr "LUKS バックアップヘッダが作成できません。"
 #: src/cryptsetup_reencrypt.c:893
 #, c-format
 msgid "Cannot restore %s header on device %s."
-msgstr "デバイス %2s の %1s ヘッダ が復元できません。"
+msgstr "デバイス %2s の %1s ヘッダが復元できません。"
 
 #: src/cryptsetup_reencrypt.c:895
 #, c-format
 msgid "%s header on device %s restored."
-msgstr ""
+msgstr "デバイス %2s の %1s ヘッダを復元しました。"
 
 #: src/cryptsetup_reencrypt.c:933 src/cryptsetup_reencrypt.c:1013
 msgid "Cannot seek to device offset."
-msgstr ""
+msgstr "デバイスオフセットまで seek できません。"
 
 #: src/cryptsetup_reencrypt.c:1056
 msgid "Cannot seek to device offset.\n"
-msgstr ""
+msgstr "デバイスオフセットまで seek できません。\n"
 
 #: src/cryptsetup_reencrypt.c:1095 src/cryptsetup_reencrypt.c:1101
 msgid "Cannot open temporary LUKS device."
-msgstr ""
+msgstr "テンポラリ LUKS デバイスをオープンできません。"
 
 #: src/cryptsetup_reencrypt.c:1106 src/cryptsetup_reencrypt.c:1111
 msgid "Cannot get device size."
-msgstr ""
+msgstr "デバイスサイズを取得できません。"
 
 #: src/cryptsetup_reencrypt.c:1148
 msgid "Interrupted by a signal."
-msgstr ""
+msgstr "シグナルで中断されました。"
 
 #: src/cryptsetup_reencrypt.c:1150
 msgid "IO error during reencryption."
-msgstr ""
+msgstr "再暗号化中に I/O エラーが発生しました。"
 
 #: src/cryptsetup_reencrypt.c:1181
 msgid "Provided UUID is invalid."
-msgstr ""
+msgstr "与えられた UUID が不正です。"
 
 #: src/cryptsetup_reencrypt.c:1284
 msgid "Key file can be used only with --key-slot or with exactly one key slot active."
-msgstr ""
+msgstr "キーファイルは --key-slot と使うか、1 つのキースロットだけアクティブの時にしか使えません。"
 
 #: src/cryptsetup_reencrypt.c:1325 src/cryptsetup_reencrypt.c:1336
 #, c-format
 msgid "Enter passphrase for key slot %u: "
-msgstr ""
+msgstr "キースロット %u のパスフレーズを入力してください: "
 
 #: src/cryptsetup_reencrypt.c:1407
 msgid "Cannot open reencryption log file."
-msgstr ""
+msgstr "再暗号化ログファイルを開けません。"
 
 #: src/cryptsetup_reencrypt.c:1413
 msgid "No decryption in progress, provided UUID can be used only to resume suspended decryption process."
-msgstr ""
+msgstr "復号を実行中ではありません。与えられた UUID は中止された復号を再開するためだけに使えます。"
 
 #: src/cryptsetup_reencrypt.c:1488
 #, c-format
 msgid "Changed pbkdf parameters in keyslot %i."
-msgstr ""
+msgstr "キースロット %i の pbkdf パラメータを変更しました。"
 
 #: src/cryptsetup_reencrypt.c:1595
 msgid "Reencryption block size"
-msgstr ""
+msgstr "再暗号化のブロックサイズ"
 
 #: src/cryptsetup_reencrypt.c:1595
 msgid "MiB"
-msgstr ""
+msgstr "MiB"
 
 #: src/cryptsetup_reencrypt.c:1599
 msgid "Do not change key, no data area reencryption"
-msgstr ""
+msgstr "キーを変えず、データ領域の再暗号化を行わない"
 
 #: src/cryptsetup_reencrypt.c:1601
 msgid "Read new volume (master) key from file"
-msgstr ""
+msgstr "新しいボリューム(マスター)キーをファイルから読み込む"
 
 #: src/cryptsetup_reencrypt.c:1602
 msgid "PBKDF2 iteration time for LUKS (in ms)"
-msgstr ""
+msgstr "LUKS 向け PBKDF2 の繰り返し時間 (ミリ秒単位)"
 
 #: src/cryptsetup_reencrypt.c:1608
 msgid "Use direct-io when accessing devices"
-msgstr ""
+msgstr "デバイスアクセス時に direct-io を使う"
 
 #: src/cryptsetup_reencrypt.c:1609
 msgid "Use fsync after each block"
-msgstr ""
+msgstr "ブロック毎に fsync() する"
 
 #: src/cryptsetup_reencrypt.c:1610
 msgid "Update log file after every block"
-msgstr ""
+msgstr "ログファイルをブロック毎に更新する"
 
 #: src/cryptsetup_reencrypt.c:1611
 msgid "Use only this slot (others will be disabled)"
-msgstr ""
+msgstr "このスロットだけ使う (残りは無効化されます)"
 
 #: src/cryptsetup_reencrypt.c:1614
 msgid "Reduce data device size (move data offset). DANGEROUS!"
-msgstr ""
+msgstr "データデバイスサイズを減らす (データオフセットを移動する). 危険！"
 
 #: src/cryptsetup_reencrypt.c:1615
 msgid "Use only specified device size (ignore rest of device). DANGEROUS!"
-msgstr ""
+msgstr "指定されたデバイスサイズ分だけ使います (デバイスの残りは無視します). 危険！"
 
 #: src/cryptsetup_reencrypt.c:1616
 msgid "Create new header on not encrypted device"
-msgstr ""
+msgstr "暗号化されていないデバイスに新しいヘッダを作成する"
 
 #: src/cryptsetup_reencrypt.c:1617
 msgid "Permanently decrypt device (remove encryption)"
-msgstr ""
+msgstr "デバイスを恒久的に復号状態にする (つまり暗号化をやめる)"
 
 #: src/cryptsetup_reencrypt.c:1618
 msgid "The UUID used to resume decryption"
-msgstr ""
+msgstr "復号の再開に使う UUID"
 
 #: src/cryptsetup_reencrypt.c:1619
 msgid "Type of LUKS metadata: luks1, luks2"
-msgstr ""
+msgstr "メタデータタイプ: luks1, luks2"
 
 #: src/cryptsetup_reencrypt.c:1638
 msgid "[OPTION...] <device>"
-msgstr ""
+msgstr "[オプション...] <デバイス>"
 
 #: src/cryptsetup_reencrypt.c:1652
 #, c-format
 msgid "Reencryption will change: %s%s%s%s%s%s."
-msgstr ""
+msgstr "再暗号化で以下が変わります: %s%s%s%s%s%s."
 
 #: src/cryptsetup_reencrypt.c:1653
 msgid "volume key"
-msgstr ""
+msgstr "ボリュームキー"
 
 #: src/cryptsetup_reencrypt.c:1655
 msgid "set hash to "
-msgstr ""
+msgstr "ハッシュ"
 
 #: src/cryptsetup_reencrypt.c:1656
 msgid ", set cipher to "
-msgstr ""
+msgstr "暗号(cipher)"
 
 #: src/cryptsetup_reencrypt.c:1660
 msgid "Argument required."
-msgstr ""
+msgstr "引数が必要です。"
 
 #: src/cryptsetup_reencrypt.c:1688
 msgid "Only values between 1 MiB and 64 MiB allowed for reencryption block size."
-msgstr ""
+msgstr "再暗号化のブロックサイズは 1 MiB から 64 MiB までの値しか使えません。"
 
 #: src/cryptsetup_reencrypt.c:1707 src/cryptsetup_reencrypt.c:1712
 msgid "Invalid device size specification."
-msgstr ""
+msgstr "デバイスサイズの指定が不正です。"
 
 #: src/cryptsetup_reencrypt.c:1715
 msgid "Maximum device reduce size is 64 MiB."
-msgstr ""
+msgstr "デバイスを減らせる最大値は 64 MiB です。"
 
 #: src/cryptsetup_reencrypt.c:1718
 msgid "Reduce size must be multiple of 512 bytes sector."
-msgstr ""
+msgstr "減らすサイズは 512 バイトセクタの倍数である必要があります。"
 
 #: src/cryptsetup_reencrypt.c:1722
 msgid "Option --new must be used together with --reduce-device-size or --header."
-msgstr ""
+msgstr "--new は --reduce-device-size か --header と一緒に使う必要があります"
 
 #: src/cryptsetup_reencrypt.c:1726
 msgid "Option --keep-key can be used only with --hash, --iter-time or --pbkdf-force-iterations."
-msgstr ""
+msgstr "--keep-key は --hash か --iter-time か --pbkdf-force-iterations と使う必要があります。"
 
 #: src/cryptsetup_reencrypt.c:1730
 msgid "Option --new cannot be used together with --decrypt."
-msgstr ""
+msgstr "--new は --decrypt と一緒に使えません。"
 
 #: src/cryptsetup_reencrypt.c:1734
 msgid "Option --decrypt is incompatible with specified parameters."
-msgstr ""
+msgstr "--decrypt は指定されたパラメータと互換性がありません。"
 
 #: src/cryptsetup_reencrypt.c:1738
 msgid "Option --uuid is allowed only together with --decrypt."
-msgstr ""
+msgstr "--uuid は --decrypt と一緒にしか使えません。"
 
 #: src/cryptsetup_reencrypt.c:1742
 msgid "Invalid luks type. Use one of these: 'luks', 'luks1' or 'luks2'."
-msgstr ""
+msgstr "不正な luks タイプです。'luks', 'luks1', 'luks2' のいずれかを使ってください。"
 
 #: src/utils_tools.c:150
 msgid "Error reading response from terminal."
-msgstr ""
+msgstr "端末から応答を読み込み中にエラー。"
 
 #: src/utils_tools.c:175
 msgid "Command successful.\n"
-msgstr ""
+msgstr "コマンド成功。\n"
 
 #: src/utils_tools.c:183
 msgid "wrong or missing parameters"
-msgstr ""
+msgstr "パラメータが間違っているか指定されていません"
 
 #: src/utils_tools.c:185
 msgid "no permission or bad passphrase"
-msgstr ""
+msgstr "権限がないかパスフレーズが間違っています"
 
 #: src/utils_tools.c:187
 msgid "out of memory"
-msgstr ""
+msgstr "メモリ不足"
 
 #: src/utils_tools.c:189
 msgid "wrong device or file specified"
-msgstr ""
+msgstr "間違ったデバイスかファイルが指定されました"
 
 #: src/utils_tools.c:191
 msgid "device already exists or device is busy"
-msgstr ""
+msgstr "デバイスが既にあるかビジーです"
 
 #: src/utils_tools.c:193
 msgid "unknown error"
-msgstr ""
+msgstr "不明なエラー"
 
 #: src/utils_tools.c:195
 #, c-format
 msgid "Command failed with code %i (%s).\n"
-msgstr ""
+msgstr "コマンド失敗：コード %i (%s)\n"
 
 #: src/utils_tools.c:272
 #, c-format
 msgid "Key slot %i created."
-msgstr ""
+msgstr "キースロット %i が作成されました。"
 
 #: src/utils_tools.c:274
 #, c-format
 msgid "Key slot %i unlocked."
-msgstr ""
+msgstr "キースロット %i がアンロックされました。"
 
 #: src/utils_tools.c:276
 #, c-format
 msgid "Key slot %i removed."
-msgstr ""
+msgstr "キースロット %i が削除されました。"
 
 #: src/utils_tools.c:285
 #, c-format
 msgid "Token %i created."
-msgstr ""
+msgstr "トークン %i が作成されました。"
 
 #: src/utils_tools.c:287
 #, c-format
 msgid "Token %i removed."
-msgstr ""
+msgstr "トークン %i が削除されました。"
 
 #: src/utils_tools.c:453
 #, c-format
 msgid "WARNING: Device %s already contains a '%s' partition signature.\n"
-msgstr ""
+msgstr "警告: デバイス %s が既に '%s' パーティションシグネチャを含んでいます。\n"
 
 #: src/utils_tools.c:461
 #, c-format
 msgid "WARNING: Device %s already contains a '%s' superblock signature.\n"
-msgstr ""
+msgstr "警告: デバイス %s が既に '%s' のスーパーブロックシグネチャを含んでいます。\n"
 
 #: src/utils_tools.c:482 src/utils_tools.c:546
 msgid "Failed to initialize device signature probes."
-msgstr ""
+msgstr "デバイスシグネチャ検出の初期化に失敗しました。"
 
 #: src/utils_tools.c:526
 #, c-format
 msgid "Failed to stat device %s."
-msgstr ""
+msgstr "デバイス %s の stat() に失敗しました。"
 
 #: src/utils_tools.c:539
 #, c-format
 msgid "Device %s is in use. Can not proceed with format operation."
-msgstr ""
+msgstr "デバイス %s は使用中です。フォーマットを始められません。"
 
 #: src/utils_tools.c:541
 #, c-format
 msgid "Failed to open file %s in read/write mode."
-msgstr ""
+msgstr "ファイル %s を読み書き可能なモードでオープンできません。"
 
 #: src/utils_tools.c:561
 msgid "Failed to wipe device signature."
-msgstr ""
+msgstr "デバイスシグネチャを消せません。"
 
 #: src/utils_tools.c:568
 #, c-format
 msgid "Failed to probe device %s for a signature."
-msgstr ""
+msgstr "デバイス %s のシグネチャが検出できません。"
 
 #: src/utils_password.c:43 src/utils_password.c:75
 #, c-format
 msgid "Cannot check password quality: %s"
-msgstr ""
+msgstr "パスワードの質を確認できません: %s"
 
 #: src/utils_password.c:51
 #, c-format
@@ -3050,86 +3050,88 @@ msgid ""
 "Password quality check failed:\n"
 " %s"
 msgstr ""
+"パスワードの質の確認に失敗:\n"
+" %s"
 
 #: src/utils_password.c:83
 #, c-format
 msgid "Password quality check failed: Bad passphrase (%s)"
-msgstr ""
+msgstr "パスワードの質が確認できません: 質の悪いパスフレーズ (%s)"
 
 #: src/utils_password.c:193 src/utils_password.c:208
 msgid "Error reading passphrase from terminal."
-msgstr ""
+msgstr "端末からパスフレーズを読み込めません。"
 
 #: src/utils_password.c:206
 msgid "Verify passphrase: "
-msgstr ""
+msgstr "同じパスフレーズを入力してください: "
 
 #: src/utils_password.c:213
 msgid "Passphrases do not match."
-msgstr ""
+msgstr "パスフレーズが一致しません。"
 
 #: src/utils_password.c:250
 msgid "Cannot use offset with terminal input."
-msgstr ""
+msgstr "端末からの入力でオフセットは使用できません。"
 
 #: src/utils_password.c:253
 #, c-format
 msgid "Enter passphrase: "
-msgstr ""
+msgstr "パスフレーズを入力してください: "
 
 #: src/utils_password.c:255
 #, c-format
 msgid "Enter passphrase for %s: "
-msgstr ""
+msgstr "%s のパスフレーズを入力してください: "
 
 #: src/utils_password.c:285
 msgid "No key available with this passphrase."
-msgstr ""
+msgstr "このパスフレーズで使用可能なキーはありません。"
 
 #: src/utils_password.c:287
 msgid "No usable keyslot is available."
-msgstr ""
+msgstr "使用可能なキースロットがありません。"
 
 #: src/utils_password.c:322
 #, c-format
 msgid "Cannot open keyfile %s for write."
-msgstr ""
+msgstr "キーファイル %s を書き込み用にオープンできません。"
 
 #: src/utils_password.c:329
 #, c-format
 msgid "Cannot write to keyfile %s."
-msgstr ""
+msgstr "キーファイル %s に書き込めません。"
 
 #: src/utils_luks2.c:47
 #, c-format
 msgid "Failed to open file %s in read-only mode."
-msgstr ""
+msgstr "ファイル %s を読み込み専用モードでオープンできません。"
 
 #: src/utils_luks2.c:60
 msgid "Provide valid LUKS2 token JSON:\n"
-msgstr ""
+msgstr "妥当な LUKS2 トークンを JSON で与えてください:\n"
 
 #: src/utils_luks2.c:67
 msgid "Failed to read JSON file."
-msgstr ""
+msgstr "JSON ファイルを読み込めません。"
 
 #: src/utils_luks2.c:72
 msgid ""
 "\n"
 "Read interrupted."
-msgstr ""
+msgstr "\n読み込みが中断されました。"
 
 #: src/utils_luks2.c:113
 #, c-format
 msgid "Failed to open file %s in write mode."
-msgstr ""
+msgstr "ファイル %s を書き込みモードでオープンできません。"
 
 #: src/utils_luks2.c:122
 msgid ""
 "\n"
 "Write interrupted."
-msgstr ""
+msgstr "\n書き込みが中断されました。"
 
 #: src/utils_luks2.c:126
 msgid "Failed to write JSON file."
-msgstr ""
+msgstr "JSON ファイルに書き込めません。"
