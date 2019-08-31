@@ -751,15 +751,17 @@ fi
 which expect >/dev/null 2>&1 || skip "WARNING: expect tool missing, interactive test will be skipped." 0
 
 prepare "[32] Interactive password retry from terminal." new
+EXPECT_DEV=$(losetup $LOOPDEV | sed -e "s/.*(\(.*\))/\1/")
+
 expect - >/dev/null <<EOF
 proc abort {} { send_error "Timeout. "; exit 2 }
 set timeout 10
 eval spawn $CRYPTSETUP luksOpen -v -T 2 $LOOPDEV $DEV_NAME
-expect timeout abort "Enter passphrase for $LOOPDEV:"
+expect timeout abort "Enter passphrase for $EXPECT_DEV:"
 sleep 0.1
 send "$PWD0 x\n"
 expect timeout abort "No key available with this passphrase."
-expect timeout abort "Enter passphrase for $LOOPDEV:"
+expect timeout abort "Enter passphrase for $EXPECT_DEV:"
 sleep 0.1
 send "$PWD0\n"
 expect timeout abort "Key slot 0 unlocked."
@@ -776,11 +778,11 @@ expect - >/dev/null <<EOF
 proc abort {} { send_error "Timeout. "; exit 2 }
 set timeout 10
 eval spawn $CRYPTSETUP luksOpen -v -T 2 $LOOPDEV $DEV_NAME
-expect timeout abort "Enter passphrase for $LOOPDEV:"
+expect timeout abort "Enter passphrase for $EXPECT_DEV:"
 sleep 0.1
 send "$PWD0 x\n"
 expect timeout abort "No key available with this passphrase."
-expect timeout abort "Enter passphrase for $LOOPDEV:"
+expect timeout abort "Enter passphrase for $EXPECT_DEV:"
 sleep 0.1
 send "$PWD0 y\n"
 expect timeout abort "No key available with this passphrase."
@@ -815,7 +817,7 @@ set timeout 10
 eval spawn $CRYPTSETUP luksFormat --type luks1 $FAST_PBKDF_OPT -v $LOOPDEV
 expect timeout abort "Are you sure? (Type uppercase yes):"
 send "YES\n"
-expect timeout abort "Enter passphrase for $LOOPDEV:"
+expect timeout abort "Enter passphrase for $EXPECT_DEV:"
 sleep 0.1
 send "$PWD0\n"
 expect timeout abort "Verify passphrase:"
@@ -824,7 +826,7 @@ send "$PWD0\n"
 expect timeout abort "Command successful."
 expect timeout abort eof
 eval spawn $CRYPTSETUP luksOpen -v $LOOPDEV --test-passphrase
-expect timeout abort "Enter passphrase for $LOOPDEV:"
+expect timeout abort "Enter passphrase for $EXPECT_DEV:"
 sleep 0.1
 send "$PWD0\n"
 expect timeout abort "Command successful."
@@ -845,7 +847,7 @@ expect timeout abort eof
 eval spawn $CRYPTSETUP luksFormat --type luks1 $FAST_PBKDF_OPT -v $LOOPDEV
 expect timeout abort "Are you sure? (Type uppercase yes):"
 send "YES\n"
-expect timeout abort "Enter passphrase for $LOOPDEV:"
+expect timeout abort "Enter passphrase for $EXPECT_DEV:"
 sleep 0.1
 send "$PWD0\n"
 expect timeout abort "Verify passphrase:"
@@ -854,7 +856,7 @@ send "$PWD0 x\n"
 expect timeout abort "Passphrases do not match."
 expect timeout abort eof
 eval spawn $CRYPTSETUP luksOpen -v $LOOPDEV -T 1 --test-passphrase
-expect timeout abort "Enter passphrase for $LOOPDEV:"
+expect timeout abort "Enter passphrase for $EXPECT_DEV:"
 sleep 0.1
 send "$PWD0\n"
 expect timeout abort "No usable keyslot is available."
@@ -915,7 +917,7 @@ send "$PWD1\n"
 expect timeout abort "Command successful."
 expect timeout abort eof
 eval spawn $CRYPTSETUP luksOpen -v $LOOPDEV --test-passphrase
-expect timeout abort "Enter passphrase for $LOOPDEV:"
+expect timeout abort "Enter passphrase for $EXPECT_DEV:"
 sleep 0.1
 send "$PWD1\n"
 expect timeout abort "Command successful."
@@ -933,21 +935,21 @@ eval spawn $CRYPTSETUP luksSuspend -v $DEV_NAME
 expect timeout abort "Command successful."
 expect timeout abort eof
 eval spawn $CRYPTSETUP luksResume -v -T 3  $DEV_NAME
-expect timeout abort "Enter passphrase for $LOOPDEV:"
+expect timeout abort "Enter passphrase for $EXPECT_DEV:"
 sleep 0.1
 send "$PWD0 x\n"
 expect timeout abort "No key available with this passphrase."
-expect timeout abort "Enter passphrase for $LOOPDEV:"
+expect timeout abort "Enter passphrase for $EXPECT_DEV:"
 sleep 0.1
 send "$PWD1\n"
 expect timeout abort "No key available with this passphrase."
-expect timeout abort "Enter passphrase for $LOOPDEV:"
+expect timeout abort "Enter passphrase for $EXPECT_DEV:"
 sleep 0.1
 send "$PWD0 y\n"
 expect timeout abort "No key available with this passphrase."
 expect timeout abort eof
 eval spawn $CRYPTSETUP luksResume -v $DEV_NAME
-expect timeout abort "Enter passphrase for $LOOPDEV:"
+expect timeout abort "Enter passphrase for $EXPECT_DEV:"
 sleep 0.1
 send "$PWD0\n"
 expect timeout abort "Command successful."
