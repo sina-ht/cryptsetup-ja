@@ -380,14 +380,14 @@ void tools_clear_line(void)
 	log_std("\33[2K\r");
 }
 
-void tools_time_progress(uint64_t device_size, uint64_t bytes,
+static void tools_time_progress(uint64_t device_size, uint64_t bytes, uint64_t *start_bytes,
 			 struct timeval *start_time, struct timeval *end_time)
 {
 	struct timeval now_time;
 	unsigned long long mbytes, eta;
-	double tdiff, mib, frequency;
+	double tdiff, uib, frequency;
 	int final = (bytes == device_size);
-	const char *eol;
+	const char *eol, *ustr = "";
 
 	if (opt_batch_mode)
 		return;
@@ -396,6 +396,7 @@ void tools_time_progress(uint64_t device_size, uint64_t bytes,
 	if (start_time->tv_sec == 0 && start_time->tv_usec == 0) {
 		*start_time = now_time;
 		*end_time = now_time;
+		*start_bytes = bytes;
 		return;
 	}
 
@@ -417,40 +418,50 @@ void tools_time_progress(uint64_t device_size, uint64_t bytes,
 		return;
 
 	mbytes = bytes  / 1024 / 1024;
-	mib = (double)(mbytes) / tdiff;
-	if (!mib)
-		return;
+	uib = (double)(bytes - *start_bytes) / tdiff;
 
-	/* FIXME: calculate this from last minute only and remaining space */
-	eta = (unsigned long long)(device_size / 1024 / 1024 / mib - tdiff);
+	/* FIXME: calculate this from last minute only. */
+	eta = (unsigned long long)(device_size / uib - tdiff);
+
+	if (uib > 1073741824.0f) {
+		uib /= 1073741824.0f;
+		ustr = "Gi";
+	} else if (uib > 1048576.0f) {
+		uib /= 1048576.0f;
+		ustr = "Mi";
+	} else if (uib > 1024.0f) {
+		uib /= 1024.0f;
+		ustr = "Ki";
+	}
 
 	tools_clear_line();
 	if (final)
 		log_std("Finished, time %02llu:%02llu.%03llu, "
-			"%4llu MiB written, speed %5.1f MiB/s\n",
+			"%4llu MiB written, speed %5.1f %sB/s\n",
 			(unsigned long long)tdiff / 60,
 			(unsigned long long)tdiff % 60,
 			(unsigned long long)((tdiff - floor(tdiff)) * 1000.0),
-			mbytes, mib);
+			mbytes, uib, ustr);
 	else
 		log_std("Progress: %5.1f%%, ETA %02llu:%02llu, "
-			"%4llu MiB written, speed %5.1f MiB/s%s",
+			"%4llu MiB written, speed %5.1f %sB/s%s",
 			(double)bytes / device_size * 100,
-			eta / 60, eta % 60, mbytes, mib, eol);
+			eta / 60, eta % 60, mbytes, uib, ustr, eol);
 	fflush(stdout);
 }
 
 int tools_wipe_progress(uint64_t size, uint64_t offset, void *usrptr)
 {
 	static struct timeval start_time = {}, end_time = {};
+	static uint64_t start_offset = 0;
 	int r = 0;
 
-	tools_time_progress(size, offset, &start_time, &end_time);
+	tools_time_progress(size, offset, &start_offset, &start_time, &end_time);
 
 	check_signal(&r);
 	if (r) {
 		tools_clear_line();
-		log_err("\nWipe interrupted.");
+		log_err(_("\nWipe interrupted."));
 	}
 
 	return r;
@@ -563,11 +574,11 @@ int tools_wipe_all_signatures(const char *path)
 
 	while ((pr = blk_probe(h)) < PRB_EMPTY) {
 		if (blk_is_partition(h))
-			log_verbose("Existing '%s' partition signature on device %s will be wiped.",
-				    blk_get_partition_type(h), path);
+			log_verbose(_("Existing '%s' partition signature (offset: %" PRIi64 " bytes) on device %s will be wiped."),
+				    blk_get_partition_type(h), blk_get_offset(h), path);
 		if (blk_is_superblock(h))
-			log_verbose("Existing '%s' superblock signature on device %s will be wiped.",
-				    blk_get_superblock_type(h), path);
+			log_verbose(_("Existing '%s' superblock signature (offset: %" PRIi64 " bytes) on device %s will be wiped."),
+				    blk_get_superblock_type(h), blk_get_offset(h), path);
 		if (blk_do_wipe(h)) {
 			log_err(_("Failed to wipe device signature."));
 			r = -EINVAL;
@@ -607,14 +618,15 @@ int tools_is_stdin(const char *key_file)
 int tools_reencrypt_progress(uint64_t size, uint64_t offset, void *usrptr)
 {
 	static struct timeval start_time = {}, end_time = {};
+	static uint64_t start_offset = 0;
 	int r = 0;
 
-	tools_time_progress(size, offset, &start_time, &end_time);
+	tools_time_progress(size, offset, &start_offset, &start_time, &end_time);
 
 	check_signal(&r);
 	if (r) {
 		tools_clear_line();
-		log_err("\nReencrypt interrupted.");
+		log_err(_("\nReencryption interrupted."));
 	}
 
 	return r;

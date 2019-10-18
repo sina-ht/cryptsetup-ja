@@ -824,7 +824,7 @@ static uint64_t reencrypt_length(struct crypt_device *cd,
 		uint64_t length_max)
 {
 	unsigned long dummy, optimal_alignment;
-	uint64_t length;
+	uint64_t length, soft_mem_limit;
 
 	if (rh->rp.type == REENC_PROTECTION_NONE)
 		length = length_max ?: LUKS2_DEFAULT_NONE_REENCRYPTION_LENGTH;
@@ -834,6 +834,16 @@ static uint64_t reencrypt_length(struct crypt_device *cd,
 		return reencrypt_data_shift(hdr);
 	else
 		length = keyslot_area_length;
+
+	/* hard limit */
+	if (length > LUKS2_REENCRYPT_MAX_HOTZONE_LENGTH)
+		length = LUKS2_REENCRYPT_MAX_HOTZONE_LENGTH;
+
+	/* soft limit is 1/4 of system memory */
+	soft_mem_limit = crypt_getphysmemory_kb() << 8; /* multiply by (1024/4) */
+
+	if (soft_mem_limit && length > soft_mem_limit)
+		length = soft_mem_limit;
 
 	if (length_max && length > length_max)
 		length = length_max;
@@ -891,14 +901,14 @@ static int reencrypt_context_init(struct crypt_device *cd, struct luks2_hdr *hdr
 	rh->direction = reencrypt_direction(hdr);
 
 	if (!strcmp(params->resilience, "datashift")) {
-		log_dbg(cd, "Initializaing reencryption context with data_shift resilience.");
+		log_dbg(cd, "Initializing reencryption context with data_shift resilience.");
 		rh->rp.type = REENC_PROTECTION_DATASHIFT;
 		rh->data_shift = reencrypt_data_shift(hdr);
 	} else if (!strcmp(params->resilience, "journal")) {
-		log_dbg(cd, "Initializaing reencryption context with journal resilience.");
+		log_dbg(cd, "Initializing reencryption context with journal resilience.");
 		rh->rp.type = REENC_PROTECTION_JOURNAL;
 	} else if (!strcmp(params->resilience, "checksum")) {
-		log_dbg(cd, "Initializaing reencryption context with checksum resilience.");
+		log_dbg(cd, "Initializing reencryption context with checksum resilience.");
 		rh->rp.type = REENC_PROTECTION_CHECKSUM;
 
 		r = snprintf(rh->rp.p.csum.hash,
@@ -925,7 +935,7 @@ static int reencrypt_context_init(struct crypt_device *cd, struct luks2_hdr *hdr
 				   rh->rp.p.csum.checksums_len))
 			return -ENOMEM;
 	} else if (!strcmp(params->resilience, "none")) {
-		log_dbg(cd, "Initializaing reencryption context with none resilience.");
+		log_dbg(cd, "Initializing reencryption context with none resilience.");
 		rh->rp.type = REENC_PROTECTION_NONE;
 	} else {
 		log_err(cd, _("Unsupported resilience mode %s"), params->resilience);
@@ -940,6 +950,11 @@ static int reencrypt_context_init(struct crypt_device *cd, struct luks2_hdr *hdr
 		rh->fixed_length = false;
 
 	rh->length = reencrypt_length(cd, hdr, rh, area_length, params->max_hotzone_size << SECTOR_SHIFT);
+	if (!rh->length) {
+		log_dbg(cd, "Invalid reencryption length.");
+		return -EINVAL;
+	}
+
 	if (reencrypt_offset(hdr, rh->direction, device_size, &rh->length, &rh->offset)) {
 		log_dbg(cd, "Failed to get reencryption offset.");
 		return -EINVAL;
@@ -1777,14 +1792,15 @@ out:
  * 	2) can't we derive hotzone device name from crypt context? (unlocked name, device uuid, etc?)
  */
 static int reencrypt_load_overlay_device(struct crypt_device *cd, struct luks2_hdr *hdr,
-	const char *overlay, const char *hotzone, struct volume_key *vks, uint64_t size)
+	const char *overlay, const char *hotzone, struct volume_key *vks, uint64_t size,
+	uint32_t flags)
 {
 	char hz_path[PATH_MAX];
 	int r;
 
 	struct device *hz_dev = NULL;
 	struct crypt_dm_active_device dmd = {
-		.flags = CRYPT_ACTIVATE_KEYRING_KEY,
+		.flags = flags,
 	};
 
 	log_dbg(cd, "Loading new table for overlay device %s.", overlay);
@@ -1868,15 +1884,12 @@ err:
 }
 
 static int reencrypt_swap_backing_device(struct crypt_device *cd, const char *name,
-			      const char *new_backend_name, uint32_t flags)
+			      const char *new_backend_name)
 {
 	int r;
 	struct device *overlay_dev = NULL;
 	char overlay_path[PATH_MAX] = { 0 };
-
-	struct crypt_dm_active_device dmd = {
-		.flags = flags,
-	};
+	struct crypt_dm_active_device dmd = {};
 
 	log_dbg(cd, "Redirecting %s mapping to new backing device: %s.", name, new_backend_name);
 
@@ -1902,7 +1915,7 @@ static int reencrypt_swap_backing_device(struct crypt_device *cd, const char *na
 	r = dm_reload_device(cd, name, &dmd, 0, 0);
 	if (!r) {
 		log_dbg(cd, "Resuming device %s", name);
-		r = dm_resume_device(cd, name, dmd.flags);
+		r = dm_resume_device(cd, name, DM_SUSPEND_SKIP_LOCKFS | DM_SUSPEND_NOFLUSH);
 	}
 
 out:
@@ -1971,7 +1984,7 @@ static int reencrypt_init_device_stack(struct crypt_device *cd,
 	}
 
 	/* swap origin mapping to overlay device */
-	r = reencrypt_swap_backing_device(cd, rh->device_name, rh->overlay_name, CRYPT_ACTIVATE_KEYRING_KEY);
+	r = reencrypt_swap_backing_device(cd, rh->device_name, rh->overlay_name);
 	if (r) {
 		log_err(cd, _("Failed to load new mapping for device %s."), rh->device_name);
 		goto err;
@@ -2033,9 +2046,10 @@ static int reencrypt_refresh_overlay_devices(struct crypt_device *cd,
 		const char *overlay,
 		const char *hotzone,
 		struct volume_key *vks,
-		uint64_t device_size)
+		uint64_t device_size,
+		uint32_t flags)
 {
-	int r = reencrypt_load_overlay_device(cd, hdr, overlay, hotzone, vks, device_size);
+	int r = reencrypt_load_overlay_device(cd, hdr, overlay, hotzone, vks, device_size, flags);
 	if (r) {
 		log_err(cd, _("Failed to reload device %s."), overlay);
 		return REENC_ERR;
@@ -2223,8 +2237,9 @@ static int reencrypt_verify_and_upload_keys(struct crypt_device *cd, struct luks
 		else {
 			if (LUKS2_digest_verify_by_digest(cd, hdr, digest_new, vk) != digest_new)
 				return -EINVAL;
-			r = LUKS2_volume_key_load_in_keyring_by_digest(cd, hdr, vk, crypt_volume_key_get_id(vk));
-			if (r)
+
+			if (crypt_use_keyring_for_vk(cd) &&
+			    (r = LUKS2_volume_key_load_in_keyring_by_digest(cd, hdr, vk, crypt_volume_key_get_id(vk))))
 				return r;
 		}
 	}
@@ -2239,8 +2254,8 @@ static int reencrypt_verify_and_upload_keys(struct crypt_device *cd, struct luks
 				r = -EINVAL;
 				goto err;
 			}
-			r = LUKS2_volume_key_load_in_keyring_by_digest(cd, hdr, vk, crypt_volume_key_get_id(vk));
-			if (r)
+			if (crypt_use_keyring_for_vk(cd) &&
+			    (r = LUKS2_volume_key_load_in_keyring_by_digest(cd, hdr, vk, crypt_volume_key_get_id(vk))))
 				goto err;
 		}
 	}
@@ -2637,6 +2652,7 @@ static int reencrypt_load_by_passphrase(struct crypt_device *cd,
 	uint64_t minimal_size, device_size, mapping_size = 0, required_size = 0;
 	bool dynamic;
 	struct crypt_params_reencrypt rparams = {};
+	uint32_t flags = 0;
 
 	if (params) {
 		rparams = *params;
@@ -2693,6 +2709,7 @@ static int reencrypt_load_by_passphrase(struct crypt_device *cd,
 				    DM_ACTIVE_CRYPT_CIPHER, &dmd_target);
 		if (r < 0)
 			goto err;
+		flags = dmd_target.flags;
 
 		r = LUKS2_assembly_multisegment_dmd(cd, hdr, *vks, LUKS2_get_segments_jobj(hdr), &dmd_source);
 		if (!r) {
@@ -2719,7 +2736,7 @@ static int reencrypt_load_by_passphrase(struct crypt_device *cd,
 		required_size = mapping_size;
 
 	if (required_size) {
-		/* TODO: Add support for chaning fixed minimal size in reencryption mda where possible */
+		/* TODO: Add support for changing fixed minimal size in reencryption mda where possible */
 		if ((minimal_size && (required_size < minimal_size)) ||
 		    (required_size > (device_size >> SECTOR_SHIFT)) ||
 		    (!dynamic && (required_size != minimal_size)) ||
@@ -2766,6 +2783,8 @@ static int reencrypt_load_by_passphrase(struct crypt_device *cd,
 			goto err;
 		}
 	}
+
+	rh->flags = flags;
 
 	MOVE_REF(rh->vks, *vks);
 	MOVE_REF(rh->reenc_lock, reencrypt_lock);
@@ -2968,7 +2987,7 @@ static reenc_status_t reencrypt_step(struct crypt_device *cd,
 	}
 
 	if (online) {
-		r = reencrypt_refresh_overlay_devices(cd, hdr, rh->overlay_name, rh->hotzone_name, rh->vks, rh->device_size);
+		r = reencrypt_refresh_overlay_devices(cd, hdr, rh->overlay_name, rh->hotzone_name, rh->vks, rh->device_size, rh->flags);
 		/* Teardown overlay devices with dm-error. None bio shall pass! */
 		if (r != REENC_OK)
 			return r;
@@ -3092,6 +3111,7 @@ static int reencrypt_wipe_moved_segment(struct crypt_device *cd, struct luks2_hd
 static int reencrypt_teardown_ok(struct crypt_device *cd, struct luks2_hdr *hdr, struct luks2_reenc_context *rh)
 {
 	int i, r;
+	uint32_t dmt_flags;
 	bool finished = !(rh->device_size > rh->progress);
 
 	if (rh->rp.type == REENC_PROTECTION_NONE &&
@@ -3101,16 +3121,20 @@ static int reencrypt_teardown_ok(struct crypt_device *cd, struct luks2_hdr *hdr,
 	}
 
 	if (rh->online) {
-		r = LUKS2_reload(cd, rh->device_name, rh->vks, rh->device_size, CRYPT_ACTIVATE_KEYRING_KEY | CRYPT_ACTIVATE_SHARED);
+		r = LUKS2_reload(cd, rh->device_name, rh->vks, rh->device_size, rh->flags);
 		if (r)
 			log_err(cd, _("Failed to reload device %s."), rh->device_name);
 		if (!r) {
-			r = dm_resume_device(cd, rh->device_name, 0);
+			r = dm_resume_device(cd, rh->device_name, DM_SUSPEND_SKIP_LOCKFS | DM_SUSPEND_NOFLUSH);
 			if (r)
 				log_err(cd, _("Failed to resume device %s."), rh->device_name);
 		}
 		dm_remove_device(cd, rh->overlay_name, 0);
 		dm_remove_device(cd, rh->hotzone_name, 0);
+
+		if (!r && finished && rh->mode == CRYPT_REENCRYPT_DECRYPT &&
+		    !dm_flags(cd, DM_LINEAR, &dmt_flags) && (dmt_flags & DM_DEFERRED_SUPPORTED))
+		    dm_remove_device(cd, rh->device_name, CRYPT_DEACTIVATE_DEFERRED);
 	}
 
 	if (finished) {
@@ -3342,7 +3366,7 @@ int LUKS2_reencrypt_locked_recovery_by_passphrase(struct crypt_device *cd,
 	uint64_t minimal_size, device_size;
 	int keyslot, r = -EINVAL;
 	struct luks2_hdr *hdr = crypt_get_hdr(cd, CRYPT_LUKS2);
-	struct volume_key *vk, *_vks = NULL;
+	struct volume_key *vk = NULL, *_vks = NULL;
 
 	log_dbg(cd, "Entering reencryption crash recovery.");
 
@@ -3355,7 +3379,9 @@ int LUKS2_reencrypt_locked_recovery_by_passphrase(struct crypt_device *cd,
 		goto err;
 	keyslot = r;
 
-	vk = _vks;
+	if (crypt_use_keyring_for_vk(cd))
+		vk = _vks;
+
 	while (vk) {
 		r = LUKS2_volume_key_load_in_keyring_by_digest(cd, hdr, vk, crypt_volume_key_get_id(vk));
 		if (r < 0)

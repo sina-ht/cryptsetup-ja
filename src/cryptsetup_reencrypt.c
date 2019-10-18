@@ -42,7 +42,6 @@ static const char *opt_pbkdf = NULL;
 static long opt_pbkdf_memory = DEFAULT_LUKS2_MEMORY_KB;
 static long opt_pbkdf_parallel = DEFAULT_LUKS2_PARALLEL_THREADS;
 static long opt_pbkdf_iterations = 0;
-static int opt_version_mode = 0;
 static int opt_random = 0;
 static int opt_urandom = 0;
 static int opt_bsize = 4;
@@ -100,7 +99,6 @@ struct reenc_ctx {
 	} p[MAX_SLOT];
 	int keyslot;
 
-	struct timeval start_time, end_time;
 	uint64_t resume_bytes;
 };
 
@@ -938,6 +936,8 @@ static int copy_data_forward(struct reenc_ctx *rc, int fd_old, int fd_new,
 
 	rc->resume_bytes = *bytes = rc->device_offset;
 
+	tools_reencrypt_progress(rc->device_size, *bytes, NULL);
+
 	if (write_log(rc) < 0)
 		return -EIO;
 
@@ -971,8 +971,8 @@ static int copy_data_forward(struct reenc_ctx *rc, int fd_old, int fd_new,
 		}
 
 		*bytes += (uint64_t)s2;
-		tools_time_progress(rc->device_size, *bytes,
-				    &rc->start_time, &rc->end_time);
+
+		tools_reencrypt_progress(rc->device_size, *bytes, NULL);
 	}
 
 	return quit ? -EAGAIN : 0;
@@ -994,6 +994,8 @@ static int copy_data_backward(struct reenc_ctx *rc, int fd_old, int fd_new,
 		rc->resume_bytes = rc->device_size - rc->device_offset;
 		*bytes = rc->resume_bytes;
 	}
+
+	tools_reencrypt_progress(rc->device_size, *bytes, NULL);
 
 	if (write_log(rc) < 0)
 		return -EIO;
@@ -1040,8 +1042,8 @@ static int copy_data_backward(struct reenc_ctx *rc, int fd_old, int fd_new,
 		}
 
 		*bytes += (uint64_t)s2;
-		tools_time_progress(rc->device_size, *bytes,
-				    &rc->start_time, &rc->end_time);
+
+		tools_reencrypt_progress(rc->device_size, *bytes, NULL);
 	}
 
 	return quit ? -EAGAIN : 0;
@@ -1128,8 +1130,6 @@ static int copy_data(struct reenc_ctx *rc)
 	}
 
 	set_int_handler(0);
-	tools_time_progress(rc->device_size, bytes,
-			    &rc->start_time, &rc->end_time);
 
 	if (rc->reencrypt_direction == FORWARD)
 		r = copy_data_forward(rc, fd_old, fd_new, block_size, buf, &bytes);
@@ -1146,9 +1146,7 @@ static int copy_data(struct reenc_ctx *rc)
 
 	set_int_block(1);
 
-	if (r == -EAGAIN)
-		 log_err(_("Interrupted by a signal."));
-	else if (r < 0)
+	if (r < 0 && r != -EAGAIN)
 		log_err(_("IO error during reencryption."));
 
 	(void)write_log(rc);
@@ -1576,6 +1574,11 @@ static void help(poptContext popt_context,
 	if (key->shortName == '?') {
 		log_std("%s %s\n", PACKAGE_REENC, PACKAGE_VERSION);
 		poptPrintHelp(popt_context, stdout, 0);
+		poptFreeContext(popt_context);
+		exit(EXIT_SUCCESS);
+	} else if (key->shortName == 'V') {
+		log_std("%s %s\n", PACKAGE_REENC, PACKAGE_VERSION);
+		poptFreeContext(popt_context);
 		exit(EXIT_SUCCESS);
 	} else
 		usage(popt_context, EXIT_SUCCESS, NULL, NULL);
@@ -1587,11 +1590,11 @@ int main(int argc, const char **argv)
 		{ NULL,    '\0', POPT_ARG_CALLBACK, help, 0, NULL,                         NULL },
 		{ "help",  '?',  POPT_ARG_NONE,     NULL, 0, N_("Show this help message"), NULL },
 		{ "usage", '\0', POPT_ARG_NONE,     NULL, 0, N_("Display brief usage"),    NULL },
+		{ "version",'V', POPT_ARG_NONE,     NULL, 0, N_("Print package version"),  NULL },
 		POPT_TABLEEND
 	};
 	static struct poptOption popt_options[] = {
 		{ NULL,                '\0', POPT_ARG_INCLUDE_TABLE, popt_help_options, 0, N_("Help options:"), NULL },
-		{ "version",           '\0', POPT_ARG_NONE, &opt_version_mode,          0, N_("Print package version"), NULL },
 		{ "verbose",           'v',  POPT_ARG_NONE, &opt_verbose,               0, N_("Shows more detailed error messages"), NULL },
 		{ "debug",             '\0', POPT_ARG_NONE, &opt_debug,                 0, N_("Show debug messages"), NULL },
 		{ "block-size",        'B',  POPT_ARG_INT, &opt_bsize,                  0, N_("Reencryption block size"), N_("MiB") },
@@ -1643,12 +1646,6 @@ int main(int argc, const char **argv)
 	if (r < -1)
 		usage(popt_context, EXIT_FAILURE, poptStrerror(r),
 		      poptBadOption(popt_context, POPT_BADOPTION_NOALIAS));
-
-	if (opt_version_mode) {
-		log_std("%s %s\n", PACKAGE_REENC, PACKAGE_VERSION);
-		poptFreeContext(popt_context);
-		exit(EXIT_SUCCESS);
-	}
 
 	if (!opt_batch_mode)
 		log_verbose(_("Reencryption will change: %s%s%s%s%s%s."),

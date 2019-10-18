@@ -227,10 +227,20 @@ function error_writes() { # $1 dmdev, $2 data dev, $3 offset, $4 size
 	local _offset=$(($3+$4))
 	local _size=$((_dev_size-_offset))
 	local _err=$1-err
+	local _table=
 	dmsetup create $_err --table "0 $_dev_size error" || fail
-echo -e "0 $3 linear $2 0\n
-$3 $4 delay $2 $3 0 /dev/mapper/$_err $3 0\n
-$_offset $_size linear $2 $_offset" | dmsetup load $1 || fail
+
+	if [ $3 -ne 0 ]; then
+		_table="0 $3 linear $2 0\n"
+	fi
+
+	_table=$_table"$3 $4 delay $2 $3 0 /dev/mapper/$_err $3 0"
+
+	if [ $_size -ne 0 ]; then
+		_table="$_table\n$_offset $_size linear $2 $_offset"
+	fi
+
+	echo -e "$_table" | dmsetup load $1 || fail
 	dmsetup resume $1 || fail
 	blockdev --setra 0 /dev/mapper/$1
 	blockdev --setra 0 /dev/mapper/$_err
@@ -475,7 +485,7 @@ function decrypt_recover_detached_online() { # $1 sector size, $2 resilience, $3
 		echo $PWD1 | $CRYPTSETUP reencrypt $DEV --header $4 --resilience $2 -q || fail
 	fi
 
-	$CRYPTSETUP close $DEV_NAME || fail
+	$CRYPTSETUP status $DEV_NAME >/dev/null 2>&1 && fail
 	check_hash_dev $DEV $3
 
 	echo "[OK]"
@@ -649,18 +659,6 @@ function valgrind_run()
 	INFOSTRING="$(basename ${BASH_SOURCE[1]})-line-${BASH_LINENO[0]}" ./valg.sh ${CRYPTSETUP_VALGRIND} "$@"
 }
 
-function setup_luks2_env() {
-	echo $PWD1 | $CRYPTSETUP luksFormat --type luks2 $FAST_PBKDF_ARGON $DEV || fail
-	echo $PWD1 | $CRYPTSETUP open $DEV $DEV_NAME || fail
-	HAVE_KEYRING=$($CRYPTSETUP status $DEV_NAME | grep "keyring")
-	if [ -n "$HAVE_KEYRING" ]; then
-		HAVE_KEYRING=1
-	else
-		HAVE_KEYRING=0
-	fi
-	$CRYPTSETUP close $DEV_NAME || fail
-}
-
 [ $(id -u) != 0 ] && skip "WARNING: You must be root to run this test, test skipped."
 [ ! -x "$CRYPTSETUP" ] && skip "Cannot find $CRYPTSETUP, test skipped."
 fips_mode && skip "This test cannot be run in FIPS mode."
@@ -669,10 +667,13 @@ modprobe dm-crypt || fail "dm-crypt failed to load"
 modprobe dm-delay > /dev/null 2>&1
 dm_crypt_features
 
-prepare dev_size_mb=32
-setup_luks2_env
+if [ -n "$DM_SECTOR_SIZE" ]; then
+	TEST_SECTORS="512 4096"
+else
+	TEST_SECTORS="512"
+fi
 
-[ "$HAVE_KEYRING" -eq 1 ] || skip "cryptsetup compiled without kernel keyring support."
+modinfo scsi_debug -p | grep -q opt_xferlen_exp && OPT_XFERLEN_EXP="opt_xferlen_exp=6"
 
 export LANG=C
 
@@ -813,6 +814,26 @@ check_hash $PWD1 $HASH6 $IMG_HDR
 $CRYPTSETUP luksHeaderRestore --header-backup-file $IMG_HDR $DEV -q || fail
 check_hash $PWD1 $HASH6
 
+# Device activation after encryption initialization
+wipe_dev $DEV
+echo $PWD1 | $CRYPTSETUP reencrypt $DEV --encrypt --init-only -c aes-cbc-essiv:sha256 -s 128 --reduce-device-size 8M -q $FAST_PBKDF_ARGON $DEV_NAME >/dev/null || fail
+$CRYPTSETUP status $DEV_NAME >/dev/null 2>&1 || fail
+check_hash_dev /dev/mapper/$DEV_NAME $HASH5
+echo $PWD1 | $CRYPTSETUP reencrypt --resume-only $DEV -q || fail
+check_hash_dev /dev/mapper/$DEV_NAME $HASH5
+
+echo $PWD1 | $CRYPTSETUP reencrypt $DEV --encrypt -c aes-cbc-essiv:sha256 -s 128 --reduce-device-size 8M -q $FAST_PBKDF_ARGON $DEV_NAME 2>/dev/null && fail
+$CRYPTSETUP close $DEV_NAME
+check_hash_head $PWD1 $((56*1024*2)) $HASH5
+
+# Device activation using key file
+wipe_dev $DEV
+echo -n $PWD1 > $KEY1
+$CRYPTSETUP reencrypt $DEV --encrypt --init-only -c aes-cbc-essiv:sha256 -s 128 --reduce-device-size 8M --key-file $KEY1 -q $FAST_PBKDF_ARGON $DEV_NAME >/dev/null || fail
+$CRYPTSETUP status $DEV_NAME >/dev/null 2>&1 || fail
+$CRYPTSETUP close $DEV_NAME
+echo $PWD1 | $CRYPTSETUP open $DEV --test-passphrase || fail
+
 echo "[3] Encryption with detached header"
 preparebig 256
 wipe_dev $DEV
@@ -827,6 +848,25 @@ check_hash $PWD1 $HASH3 $IMG_HDR
 wipe_dev $DEV
 echo $PWD1 | $CRYPTSETUP reencrypt --encrypt -c serpent-xts-plain --resilience checksum --header $IMG_HDR -q $FAST_PBKDF_ARGON $DEV || fail
 check_hash $PWD1 $HASH3 $IMG_HDR
+
+# Device activation after encryption initialization
+wipe_dev $DEV
+echo $PWD1 | $CRYPTSETUP reencrypt --encrypt --init-only -c aes-cbc-essiv:sha256 -s 128 --header $IMG_HDR -q $FAST_PBKDF_ARGON $DEV $DEV_NAME >/dev/null || fail
+$CRYPTSETUP status $DEV_NAME >/dev/null 2>&1 || fail
+check_hash_dev /dev/mapper/$DEV_NAME $HASH3
+echo $PWD1 | $CRYPTSETUP reencrypt --resume-only --header $IMG_HDR --active-name $DEV_NAME -q || fail
+check_hash_dev /dev/mapper/$DEV_NAME $HASH3
+echo $PWD1 | $CRYPTSETUP reencrypt $DEV --encrypt -c aes-cbc-essiv:sha256 -s 128 --reduce-device-size 8M -q $FAST_PBKDF_ARGON $DEV_NAME 2>/dev/null && fail
+$CRYPTSETUP close $DEV_NAME
+check_hash $PWD1 $HASH3 $IMG_HDR
+
+# Device activation using key file
+wipe_dev $DEV
+echo -n $PWD1 > $KEY1
+$CRYPTSETUP reencrypt $DEV --encrypt --init-only -c aes-cbc-essiv:sha256 -s 128 --header $IMG_HDR --key-file $KEY1 -q $FAST_PBKDF_ARGON $DEV_NAME >/dev/null || fail
+$CRYPTSETUP status $DEV_NAME >/dev/null 2>&1 || fail
+$CRYPTSETUP close $DEV_NAME
+echo $PWD1 | $CRYPTSETUP open --header $IMG_HDR $DEV --test-passphrase || fail
 
 echo "[4] Reencryption with detached header"
 wipe $PWD1 $IMG_HDR
@@ -869,6 +909,15 @@ wipe $PWD1 $IMG_HDR
 echo $PWD1 | $CRYPTSETUP reencrypt -q --decrypt --resilience checksum --header $IMG_HDR $DEV || fail
 check_hash_dev $DEV $HASH3
 
+# check deferred remove works as expected after decryption
+echo $PWD1 | $CRYPTSETUP luksFormat --type luks2 -c serpent-xts-plain --header $IMG_HDR -q $FAST_PBKDF_ARGON $DEV || fail
+open_crypt $PWD1 $IMG_HDR
+dmsetup create $DEV_NAME2 --table "0 1 linear /dev/mapper/$DEV_NAME 0" || fail
+echo $PWD1 | $CRYPTSETUP reencrypt -q --decrypt --resilience checksum --header $IMG_HDR --active-name $DEV_NAME || fail
+$CRYPTSETUP status $DEV_NAME >/dev/null || fail
+dmsetup remove --retry $DEV_NAME2
+$CRYPTSETUP status $DEV_NAME >/dev/null 2>&1 && fail
+
 if ! dm_delay_features; then
 	echo "dm-delay target is missing, skipping recovery tests."
 	remove_mapping
@@ -878,7 +927,7 @@ fi
 echo "[6] Reencryption recovery"
 # (check opt-io size optimization in reencryption code does not affect recovery)
 # device with opt-io size 32k
-prepare_linear_dev 32 opt_blks=64 opt_xferlen_exp=6
+prepare_linear_dev 32 opt_blks=64 $OPT_XFERLEN_EXP
 OFFSET=8192
 
 echo "sector size 512->512"
@@ -960,7 +1009,7 @@ if [ -n "$DM_SECTOR_SIZE" ]; then
 fi
 
 echo "[8] Reencryption with detached header recovery"
-prepare_linear_dev 31 opt_blks=64 opt_xferlen_exp=6
+prepare_linear_dev 31 opt_blks=64 $OPT_XFERLEN_EXP
 
 echo "sector size 512->512"
 
@@ -1079,7 +1128,7 @@ if [ -n "$DM_SECTOR_SIZE" ]; then
 fi
 
 echo "[12] Encryption with detached header recovery"
-prepare_linear_dev 31 opt_blks=64 opt_xferlen_exp=6
+prepare_linear_dev 31 opt_blks=64 $OPT_XFERLEN_EXP
 
 get_error_offsets 31 0
 
@@ -1169,7 +1218,7 @@ echo $PWD1 | $CRYPTSETUP -q luksFormat --type luks2 --offset 16384 $FAST_PBKDF_A
 wipe $PWD1
 check_hash $PWD1 $HASH8
 
-for test_ss in 512 4096; do
+for test_ss in $TEST_SECTORS; do
 printf "sector size %4s: " $test_ss
 for test_res in checksum journal none; do
 	echo -n "[$test_res]"
@@ -1182,7 +1231,7 @@ echo ""
 done
 
 echo "[17] Online reencryption with fixed device size."
-for test_ss in 512 4096; do
+for test_ss in $TEST_SECTORS; do
 printf "sector size %4s: " $test_ss
 for test_res in checksum journal none; do
 	echo -n "[$test_res]"
@@ -1200,7 +1249,7 @@ echo $PWD1 | $CRYPTSETUP -q luksFormat --type luks2 --header $IMG_HDR $FAST_PBKD
 wipe $PWD1 $IMG_HDR
 check_hash $PWD1 $HASH8 $IMG_HDR
 
-for test_ss in 512 4096; do
+for test_ss in $TEST_SECTORS; do
 printf "sector size %4s: " $test_ss
 for test_res in checksum journal none; do
 	echo -n "[$test_res]"
@@ -1213,7 +1262,7 @@ echo ""
 done
 
 echo "[19] Online reencryption with fixed device size (detached header)."
-for test_ss in 512 4096; do
+for test_ss in $TEST_SECTORS; do
 printf "sector size %4s: " $test_ss
 for test_res in checksum journal none; do
 	echo -n "[$test_res]"
@@ -1226,7 +1275,7 @@ echo ""
 done
 
 echo "[20] Offline encryption with fixed device size (detached header)."
-for test_ss in 512 4096; do
+for test_ss in $TEST_SECTORS; do
 printf "sector size %4s: " $test_ss
 for test_res in checksum journal none; do
 	echo -n "[$test_res]"
@@ -1240,7 +1289,7 @@ done
 
 echo "[21] Offline decryption with fixed device size (detached header)."
 prepare_linear_dev 60
-for test_ss in 512 4096; do
+for test_ss in $TEST_SECTORS; do
 printf "sector size %4s: " $test_ss
 for test_res in checksum journal none; do
 	echo -n "[$test_res]"

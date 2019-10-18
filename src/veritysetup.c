@@ -41,8 +41,6 @@ static int opt_ignore_corruption = 0;
 static int opt_ignore_zero_blocks = 0;
 static int opt_check_at_most_once = 0;
 
-static int opt_version_mode = 0;
-
 static const char **action_argv;
 static int action_argc;
 
@@ -287,8 +285,7 @@ static int action_status(int arg)
 		log_std("\n");
 
 		log_std("  data device: %s\n", vp.data_device);
-		if (crypt_loop_device(vp.data_device)) {
-			backing_file = crypt_loop_backing_file(vp.data_device);
+		if ((backing_file = crypt_loop_backing_file(vp.data_device))) {
 			log_std("  data loop:   %s\n", backing_file);
 			free(backing_file);
 		}
@@ -297,8 +294,7 @@ static int action_status(int arg)
 					   "readonly" : "read/write");
 
 		log_std("  hash device: %s\n", vp.hash_device);
-		if (crypt_loop_device(vp.hash_device)) {
-			backing_file = crypt_loop_backing_file(vp.hash_device);
+		if ((backing_file = crypt_loop_backing_file(vp.hash_device))) {
 			log_std("  hash loop:   %s\n", backing_file);
 			free(backing_file);
 		}
@@ -307,8 +303,7 @@ static int action_status(int arg)
 
 		if (vp.fec_device) {
 			log_std("  FEC device:  %s\n", vp.fec_device);
-			if (crypt_loop_device(vp.fec_device)) {
-				backing_file = crypt_loop_backing_file(vp.fec_device);
+			if ((backing_file = crypt_loop_backing_file(vp.fec_device))) {
 				log_std("  FEC loop:    %s\n", backing_file);
 				free(backing_file);
 			}
@@ -395,6 +390,11 @@ static void help(poptContext popt_context,
 			DEFAULT_VERITY_HASH, DEFAULT_VERITY_DATA_BLOCK,
 			DEFAULT_VERITY_HASH_BLOCK, DEFAULT_VERITY_SALT_SIZE,
 			1);
+		poptFreeContext(popt_context);
+		exit(EXIT_SUCCESS);
+	} else if (key->shortName == 'V') {
+		log_std("%s %s\n", PACKAGE_VERITY, PACKAGE_VERSION);
+		poptFreeContext(popt_context);
 		exit(EXIT_SUCCESS);
 	} else
 		usage(popt_context, EXIT_SUCCESS, NULL, NULL);
@@ -420,11 +420,11 @@ int main(int argc, const char **argv)
 		{ NULL,    '\0', POPT_ARG_CALLBACK, help, 0, NULL,                         NULL },
 		{ "help",  '?',  POPT_ARG_NONE,     NULL, 0, N_("Show this help message"), NULL },
 		{ "usage", '\0', POPT_ARG_NONE,     NULL, 0, N_("Display brief usage"),    NULL },
+		{ "version",'V', POPT_ARG_NONE,     NULL, 0, N_("Print package version"),  NULL },
 		POPT_TABLEEND
 	};
 	static struct poptOption popt_options[] = {
 		{ NULL,              '\0', POPT_ARG_INCLUDE_TABLE, popt_help_options, 0, N_("Help options:"), NULL },
-		{ "version",         '\0', POPT_ARG_NONE, &opt_version_mode, 0, N_("Print package version"), NULL },
 		{ "verbose",         'v',  POPT_ARG_NONE, &opt_verbose,      0, N_("Shows more detailed error messages"), NULL },
 		{ "debug",           '\0', POPT_ARG_NONE, &opt_debug,        0, N_("Show debug messages"), NULL },
 		{ "no-superblock",   0,    POPT_ARG_VAL,  &use_superblock,   0, N_("Do not use verity superblock"), NULL },
@@ -491,12 +491,6 @@ int main(int argc, const char **argv)
 	if (r < -1)
 		usage(popt_context, EXIT_FAILURE, poptStrerror(r),
 		      poptBadOption(popt_context, POPT_BADOPTION_NOALIAS));
-
-	if (opt_version_mode) {
-		log_std("%s %s\n", PACKAGE_VERITY, PACKAGE_VERSION);
-		poptFreeContext(popt_context);
-		exit(EXIT_SUCCESS);
-	}
 
 	if (!(aname = poptGetArg(popt_context)))
 		usage(popt_context, EXIT_FAILURE, _("Argument <action> missing."),

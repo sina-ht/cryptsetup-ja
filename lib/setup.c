@@ -510,6 +510,11 @@ int PLAIN_activate(struct crypt_device *cd,
 	log_dbg(cd, "Trying to activate PLAIN device %s using cipher %s.",
 		name, crypt_get_cipher_spec(cd));
 
+	if (MISALIGNED(size, device_block_size(cd, crypt_data_device(cd)) >> SECTOR_SHIFT)) {
+		log_err(cd, _("Device size is not aligned to device logical block size."));
+		return -EINVAL;
+	}
+
 	r = dm_crypt_target_set(&dmd.segment, 0, dmd.size, crypt_data_device(cd),
 			vk, crypt_get_cipher_spec(cd), crypt_get_iv_offset(cd),
 			crypt_get_data_offset(cd), crypt_get_integrity(cd),
@@ -659,10 +664,10 @@ int crypt_init_data_device(struct crypt_device **cd, const char *device, const c
 		return -EINVAL;
 
 	r = crypt_init(cd, device);
-	if (r || !data_device)
+	if (r || !data_device || !strcmp(device, data_device))
 		return r;
 
-	log_dbg(NULL, "Setting ciphertext data device to %s.", data_device ?: "(none)");
+	log_dbg(NULL, "Setting ciphertext data device to %s.", data_device);
 	r = _crypt_set_data_device(*cd, data_device);
 	if (r) {
 		crypt_free(*cd);
@@ -2746,6 +2751,12 @@ int crypt_resize(struct crypt_device *cd, const char *name, uint64_t new_size)
 
 	if (MISALIGNED(new_size, tgt->u.crypt.sector_size >> SECTOR_SHIFT)) {
 		log_err(cd, _("Device size is not aligned to requested sector size."));
+		r = -EINVAL;
+		goto out;
+	}
+
+	if (MISALIGNED(new_size, device_block_size(cd, crypt_data_device(cd)) >> SECTOR_SHIFT)) {
+		log_err(cd, _("Device size is not aligned to device logical block size."));
 		r = -EINVAL;
 		goto out;
 	}

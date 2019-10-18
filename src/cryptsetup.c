@@ -54,7 +54,6 @@ static uint64_t opt_offset = 0;
 static uint64_t opt_skip = 0;
 static int opt_skip_valid = 0;
 static int opt_readonly = 0;
-static int opt_version_mode = 0;
 static int opt_timeout = 0;
 static int opt_tries = 3;
 static int opt_align_payload = 0;
@@ -736,8 +735,7 @@ static int action_status(void)
 			log_std("  integrity keysize: %d bits\n", ip.integrity_key_size * 8);
 		device = crypt_get_device_name(cd);
 		log_std("  device:  %s\n", device);
-		if (crypt_loop_device(device)) {
-			backing_file = crypt_loop_backing_file(device);
+		if ((backing_file = crypt_loop_backing_file(device))) {
 			log_std("  loop:    %s\n", backing_file);
 			free(backing_file);
 		}
@@ -1388,7 +1386,7 @@ static int action_open_luks(void)
 	if (opt_master_key_file) {
 		keysize = crypt_get_volume_key_size(cd);
 		if (!keysize && !opt_key_size) {
-			log_err(_("Cannot dermine volume key size for LUKS without keyslots, please use --key-size option."));
+			log_err(_("Cannot determine volume key size for LUKS without keyslots, please use --key-size option."));
 			r = -EINVAL;
 			goto out;
 		} else if (!keysize)
@@ -1699,7 +1697,7 @@ static int action_luksAddKey(void)
 
 	if (opt_master_key_file) {
 		if (!keysize && !opt_key_size) {
-			log_err(_("Cannot dermine volume key size for LUKS without keyslots, please use --key-size option."));
+			log_err(_("Cannot determine volume key size for LUKS without keyslots, please use --key-size option."));
 			r = -EINVAL;
 			goto out;
 		} else if (!keysize)
@@ -2591,11 +2589,12 @@ static int action_reencrypt_load(struct crypt_device *cd)
 
 static int action_encrypt_luks2(struct crypt_device **cd)
 {
-	const char *type;
+	const char *type, *activated_name = NULL;
 	int keyslot, r, fd;
 	uuid_t uuid;
 	size_t passwordLen;
 	char *msg, uuid_str[37], header_file[PATH_MAX] = { 0 }, *password = NULL;
+	uint32_t activate_flags = 0;
 	const struct crypt_params_luks2 luks2_params = {
 		.sector_size = opt_sector_size ?: SECTOR_SIZE
 	};
@@ -2729,6 +2728,7 @@ static int action_encrypt_luks2(struct crypt_device **cd)
 		goto err;
 	}
 
+	/* Restore temporary header in head of data device */
 	if (*header_file) {
 		crypt_free(*cd);
 		*cd = NULL;
@@ -2743,10 +2743,22 @@ static int action_encrypt_luks2(struct crypt_device **cd)
 		}
 	}
 
+	/* activate device */
+	if (action_argc > 1) {
+		activated_name = action_argv[1];
+		_set_activation_flags(&activate_flags);
+		r = crypt_activate_by_passphrase(*cd, activated_name, opt_key_slot, password, passwordLen, activate_flags);
+		if (r >= 0)
+			log_std(_("%s/%s is now active and ready for online encryption."), crypt_get_dir(), activated_name);
+	}
+
+	if (r < 0)
+		goto err;
+
 	/* just load reencryption context to continue reencryption */
-	if (r >= 0 && !opt_reencrypt_init_only) {
+	if (!opt_reencrypt_init_only) {
 		params.flags &= ~CRYPT_REENCRYPT_INITIALIZE_ONLY;
-		r = crypt_reencrypt_init_by_passphrase(*cd, NULL, password, passwordLen,
+		r = crypt_reencrypt_init_by_passphrase(*cd, activated_name, password, passwordLen,
 				CRYPT_ANY_SLOT, keyslot, NULL, NULL, &params);
 	}
 err:
@@ -3280,6 +3292,11 @@ static void help(poptContext popt_context,
 #if defined(ENABLE_LUKS_ADJUST_XTS_KEYSIZE) && DEFAULT_LUKS1_KEYBITS != 512
 		log_std(_("\tLUKS: Default keysize with XTS mode (two internal keys) will be doubled.\n"));
 #endif
+		poptFreeContext(popt_context);
+		exit(EXIT_SUCCESS);
+	} else if (key->shortName == 'V') {
+		log_std("%s %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+		poptFreeContext(popt_context);
 		exit(EXIT_SUCCESS);
 	} else
 		usage(popt_context, EXIT_SUCCESS, NULL, NULL);
@@ -3329,11 +3346,11 @@ int main(int argc, const char **argv)
 		{ NULL,    '\0', POPT_ARG_CALLBACK, help, 0, NULL,                         NULL },
 		{ "help",  '?',  POPT_ARG_NONE,     NULL, 0, N_("Show this help message"), NULL },
 		{ "usage", '\0', POPT_ARG_NONE,     NULL, 0, N_("Display brief usage"),    NULL },
+		{ "version",'V', POPT_ARG_NONE,     NULL, 0, N_("Print package version"),  NULL },
 		POPT_TABLEEND
 	};
 	static struct poptOption popt_options[] = {
 		{ NULL,                '\0', POPT_ARG_INCLUDE_TABLE, popt_help_options, 0, N_("Help options:"), NULL },
-		{ "version",           '\0', POPT_ARG_NONE, &opt_version_mode,          0, N_("Print package version"), NULL },
 		{ "verbose",           'v',  POPT_ARG_NONE, &opt_verbose,               0, N_("Shows more detailed error messages"), NULL },
 		{ "debug",             '\0', POPT_ARG_NONE, &opt_debug,                 0, N_("Show debug messages"), NULL },
 		{ "debug-json",        '\0', POPT_ARG_NONE, &opt_debug_json,            0, N_("Show debug messages including JSON metadata"), NULL },
@@ -3477,12 +3494,6 @@ int main(int argc, const char **argv)
 	if (r < -1)
 		usage(popt_context, EXIT_FAILURE, poptStrerror(r),
 		      poptBadOption(popt_context, POPT_BADOPTION_NOALIAS));
-
-	if (opt_version_mode) {
-		log_std("%s %s\n", PACKAGE_NAME, PACKAGE_VERSION);
-		poptFreeContext(popt_context);
-		exit(EXIT_SUCCESS);
-	}
 
 	if (!(aname = poptGetArg(popt_context)))
 		usage(popt_context, EXIT_FAILURE, _("Argument <action> missing."),
