@@ -3,8 +3,8 @@
  *
  * Copyright (C) 2004 Jana Saout <jana@saout.de>
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2019 Milan Broz
+ * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2020 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -64,8 +64,12 @@ static inline uint32_t act2dmflags(uint32_t act_flags)
 #define DM_INTEGRITY_RECALC_SUPPORTED (1 << 16) /* dm-integrity automatic recalculation supported */
 #define DM_INTEGRITY_BITMAP_SUPPORTED (1 << 17) /* dm-integrity bitmap mode supported */
 #define DM_GET_TARGET_VERSION_SUPPORTED (1 << 18) /* dm DM_GET_TARGET version ioctl supported */
+#define DM_INTEGRITY_FIX_PADDING_SUPPORTED (1 << 19) /* supports the parameter fix_padding that fixes a bug that caused excessive padding */
+#define DM_BITLK_EBOIV_SUPPORTED (1 << 20) /* EBOIV for BITLK supported */
+#define DM_BITLK_ELEPHANT_SUPPORTED (1 << 21) /* Elephant diffuser for BITLK supported */
+#define DM_VERITY_SIGNATURE_SUPPORTED (1 << 22) /* Verity option root_hash_sig_key_desc supported */
 
-typedef enum { DM_CRYPT = 0, DM_VERITY, DM_INTEGRITY, DM_LINEAR, DM_ERROR, DM_UNKNOWN } dm_target_type;
+typedef enum { DM_CRYPT = 0, DM_VERITY, DM_INTEGRITY, DM_LINEAR, DM_ERROR, DM_ZERO, DM_UNKNOWN } dm_target_type;
 enum tdirection { TARGET_SET = 1, TARGET_QUERY };
 
 int dm_flags(struct crypt_device *cd, dm_target_type target, uint32_t *flags);
@@ -110,6 +114,7 @@ struct dm_target {
 
 		const char *root_hash;
 		uint32_t root_hash_size;
+		const char *root_hash_sig_key_desc;
 
 		uint64_t hash_offset;	/* hash offset in blocks (not header) */
 		uint64_t hash_blocks;	/* size of hash device (in hash blocks) */
@@ -138,10 +143,14 @@ struct dm_target {
 		struct volume_key *journal_crypt_key;
 
 		struct device *meta_device;
+
+		bool fix_padding;
 	} integrity;
 	struct {
 		uint64_t offset;
 	} linear;
+	struct {
+	} zero;
 	} u;
 
 	char *params;
@@ -175,9 +184,10 @@ int dm_crypt_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t seg
 	uint32_t tag_size, uint32_t sector_size);
 int dm_verity_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t seg_size,
 	struct device *data_device, struct device *hash_device, struct device *fec_device,
-	const char *root_hash, uint32_t root_hash_size, uint64_t hash_offset_block,
-	uint64_t hash_blocks, struct crypt_params_verity *vp);
-int dm_integrity_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t seg_size,
+	const char *root_hash, uint32_t root_hash_size, const char *root_hash_sig_key_desc,
+	uint64_t hash_offset_block, uint64_t hash_blocks, struct crypt_params_verity *vp);
+int dm_integrity_target_set(struct crypt_device *cd,
+	struct dm_target *tgt, uint64_t seg_offset, uint64_t seg_size,
 	struct device *meta_device,
 	struct device *data_device, uint64_t tag_size, uint64_t offset, uint32_t sector_size,
 	struct volume_key *vk,
@@ -185,6 +195,7 @@ int dm_integrity_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t
 	const struct crypt_params_integrity *ip);
 int dm_linear_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t seg_size,
 	struct device *data_device, uint64_t data_offset);
+int dm_zero_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t seg_size);
 
 int dm_remove_device(struct crypt_device *cd, const char *name, uint32_t flags);
 int dm_status_device(struct crypt_device *cd, const char *name);

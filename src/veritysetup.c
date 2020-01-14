@@ -1,8 +1,8 @@
 /*
  * veritysetup - setup cryptographic volumes for dm-verity
  *
- * Copyright (C) 2012-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2012-2019 Milan Broz
+ * Copyright (C) 2012-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2012-2020 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -40,6 +40,7 @@ static int opt_restart_on_corruption = 0;
 static int opt_ignore_corruption = 0;
 static int opt_ignore_zero_blocks = 0;
 static int opt_check_at_most_once = 0;
+static const char *opt_root_hash_signature = NULL;
 
 static const char **action_argv;
 static int action_argc;
@@ -141,7 +142,9 @@ static int _activate(const char *dm_device,
 	uint32_t activate_flags = CRYPT_ACTIVATE_READONLY;
 	char *root_hash_bytes = NULL;
 	ssize_t hash_size;
-	int r;
+	struct stat st;
+	char *signature = NULL;
+	int signature_size = 0, r;
 
 	if ((r = crypt_init_data_device(&cd, hash_device, data_device)))
 		goto out;
@@ -177,11 +180,28 @@ static int _activate(const char *dm_device,
 		r = -EINVAL;
 		goto out;
 	}
-	r = crypt_activate_by_volume_key(cd, dm_device,
+
+	if (opt_root_hash_signature) {
+		// FIXME: check max file size
+		if (stat(opt_root_hash_signature, &st) || !S_ISREG(st.st_mode) || !st.st_size) {
+			log_err(_("Invalid signature file %s."), opt_root_hash_signature);
+			r = -EINVAL;
+			goto out;
+		}
+		signature_size = st.st_size;
+		r = tools_read_mk(opt_root_hash_signature, &signature, signature_size);
+		if (r < 0) {
+			log_err(_("Cannot read signature file %s."), opt_root_hash_signature);
+			goto out;
+		}
+	}
+	r = crypt_activate_by_signed_key(cd, dm_device,
 					 root_hash_bytes,
 					 hash_size,
+					 signature, signature_size,
 					 activate_flags);
 out:
+	crypt_safe_free(signature);
 	crypt_free(cd);
 	free(root_hash_bytes);
 	free(CONST_CAST(char*)params.salt);
@@ -193,7 +213,8 @@ static int action_open(int arg)
 	return _activate(action_argv[1],
 			 action_argv[0],
 			 action_argv[2],
-			 action_argv[3], 0);
+			 action_argv[3],
+			 opt_root_hash_signature ? CRYPT_VERITY_ROOT_HASH_SIGNATURE : 0);
 }
 
 static int action_verify(int arg)
@@ -225,7 +246,8 @@ static int action_status(int arg)
 	struct crypt_params_verity vp = {};
 	struct crypt_device *cd = NULL;
 	struct stat st;
-	char *backing_file;
+	char *backing_file, *root_hash;
+	size_t root_hash_size;
 	unsigned i, path = 0;
 	int r = 0;
 
@@ -269,8 +291,9 @@ static int action_status(int arg)
 		if (r < 0)
 			goto out;
 
-		log_std("  status:      %s\n",
-			cad.flags & CRYPT_ACTIVATE_CORRUPTED ? "corrupted" : "verified");
+		log_std("  status:      %s%s\n",
+			cad.flags & CRYPT_ACTIVATE_CORRUPTED ? "corrupted" : "verified",
+			vp.flags & CRYPT_VERITY_ROOT_HASH_SIGNATURE ? " (with signature)" : "");
 
 		log_std("  hash type:   %u\n", vp.hash_type);
 		log_std("  data block:  %u\n", vp.data_block_size);
@@ -311,6 +334,19 @@ static int action_status(int arg)
 				vp.fec_area_offset * vp.hash_block_size / 512);
 			log_std("  FEC roots:   %u\n", vp.fec_roots);
 		}
+
+		root_hash_size = crypt_get_volume_key_size(cd);
+		if (root_hash_size > 0 && (root_hash = malloc(root_hash_size))) {
+			r = crypt_volume_key_get(cd, CRYPT_ANY_SLOT, root_hash, &root_hash_size, NULL, 0);
+			if (!r) {
+				log_std("  root hash:   ");
+				for (i = 0; i < root_hash_size; i++)
+					log_std("%02hhx", (const char)root_hash[i]);
+				log_std("\n");
+			}
+			free(root_hash);
+		}
+
 		if (cad.flags & (CRYPT_ACTIVATE_IGNORE_CORRUPTION|
 				 CRYPT_ACTIVATE_RESTART_ON_CORRUPTION|
 				 CRYPT_ACTIVATE_IGNORE_ZERO_BLOCKS|
@@ -439,6 +475,7 @@ int main(int argc, const char **argv)
 		{ "hash",            'h',  POPT_ARG_STRING, &hash_algorithm, 0, N_("Hash algorithm"), N_("string") },
 		{ "salt",            's',  POPT_ARG_STRING, &salt_string,    0, N_("Salt"), N_("hex string") },
 		{ "uuid",            '\0', POPT_ARG_STRING, &opt_uuid,       0, N_("UUID for device to use"), NULL },
+		{ "root-hash-signature",'\0', POPT_ARG_STRING, &opt_root_hash_signature,  0, N_("Path to root hash signature file"), NULL },
 		{ "restart-on-corruption", 0,POPT_ARG_NONE,&opt_restart_on_corruption, 0, N_("Restart kernel if corruption is detected"), NULL },
 		{ "ignore-corruption", 0,  POPT_ARG_NONE, &opt_ignore_corruption,  0, N_("Ignore corruption, log it only"), NULL },
 		{ "ignore-zero-blocks", 0, POPT_ARG_NONE, &opt_ignore_zero_blocks, 0, N_("Do not verify zeroed blocks"), NULL },
@@ -543,6 +580,11 @@ int main(int argc, const char **argv)
 	if ((opt_ignore_corruption || opt_restart_on_corruption || opt_ignore_zero_blocks) && strcmp(aname, "open"))
 		usage(popt_context, EXIT_FAILURE,
 		_("Option --ignore-corruption, --restart-on-corruption or --ignore-zero-blocks is allowed only for open operation.\n"),
+		poptGetInvocationName(popt_context));
+
+	if (opt_root_hash_signature && strcmp(aname, "open"))
+		usage(popt_context, EXIT_FAILURE,
+		_("Option --root-hash-signature can be used only for open operation.\n"),
 		poptGetInvocationName(popt_context));
 
 	if (opt_ignore_corruption && opt_restart_on_corruption)

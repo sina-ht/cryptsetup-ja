@@ -1,9 +1,9 @@
 /*
  * cryptsetup library LUKS2 API check functions
  *
- * Copyright (C) 2009-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2019 Milan Broz
- * Copyright (C) 2016-2019 Ondrej Kozina
+ * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2020 Milan Broz
+ * Copyright (C) 2016-2020 Ondrej Kozina
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -537,6 +537,9 @@ static void UseLuks2Device(void)
 
 static void SuspendDevice(void)
 {
+	struct crypt_active_device cad;
+	char key[128];
+	size_t key_size;
 	int suspend_status;
 
 	OK_(crypt_init(&cd, DEVICE_1));
@@ -552,6 +555,8 @@ static void SuspendDevice(void)
 	}
 
 	OK_(suspend_status);
+	OK_(crypt_get_active_device(cd, CDEVICE_1, &cad));
+	EQ_(CRYPT_ACTIVATE_SUSPENDED, cad.flags & CRYPT_ACTIVATE_SUSPENDED);
 #ifdef KERNEL_KEYRING
 	FAIL_(_volume_key_in_keyring(cd, 0), "");
 #endif
@@ -560,6 +565,9 @@ static void SuspendDevice(void)
 	FAIL_(crypt_resume_by_passphrase(cd, CDEVICE_1, CRYPT_ANY_SLOT, KEY1, strlen(KEY1)-1), "wrong key");
 	OK_(crypt_resume_by_passphrase(cd, CDEVICE_1, CRYPT_ANY_SLOT, KEY1, strlen(KEY1)));
 	FAIL_(crypt_resume_by_passphrase(cd, CDEVICE_1, CRYPT_ANY_SLOT, KEY1, strlen(KEY1)), "not suspended");
+
+	OK_(crypt_get_active_device(cd, CDEVICE_1, &cad));
+	EQ_(0, cad.flags & CRYPT_ACTIVATE_SUSPENDED);
 
 	OK_(prepare_keyfile(KEYFILE1, KEY1, strlen(KEY1)));
 	OK_(crypt_suspend(cd, CDEVICE_1));
@@ -586,6 +594,14 @@ static void SuspendDevice(void)
 
 	OK_(crypt_init_by_name_and_header(&cd, CDEVICE_1, DEVICE_1));
 	OK_(crypt_resume_by_passphrase(cd, CDEVICE_1, CRYPT_ANY_SLOT, KEY1, strlen(KEY1)));
+
+	/* Resume by volume key */
+	OK_(crypt_suspend(cd, CDEVICE_1));
+	key_size = sizeof(key);
+	memset(key, 0, key_size);
+	FAIL_(crypt_resume_by_volume_key(cd, CDEVICE_1, key, key_size), "wrong key");
+	OK_(crypt_volume_key_get(cd, CRYPT_ANY_SLOT, key, &key_size, KEY1, strlen(KEY1)));
+	OK_(crypt_resume_by_volume_key(cd, CDEVICE_1, key, key_size));
 
 	OK_(crypt_deactivate(cd, CDEVICE_1));
 	CRYPT_FREE(cd);

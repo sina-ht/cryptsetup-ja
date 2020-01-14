@@ -1,8 +1,8 @@
 /*
  * cryptsetup-reencrypt - crypt utility for offline re-encryption
  *
- * Copyright (C) 2012-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2012-2019 Milan Broz All rights reserved.
+ * Copyright (C) 2012-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2012-2020 Milan Broz All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -485,6 +485,7 @@ static int set_pbkdf_params(struct crypt_device *cd, const char *dev_type)
 
 	if (opt_pbkdf_iterations) {
 		pbkdf.iterations = opt_pbkdf_iterations;
+		pbkdf.time_ms = 0;
 		pbkdf.flags |= CRYPT_PBKDF_NO_BENCHMARK;
 	}
 
@@ -1272,18 +1273,23 @@ static int init_keyfile(struct reenc_ctx *rc, struct crypt_device *cd, int slot_
 	if (r < 0)
 		return r;
 
-	r = crypt_activate_by_passphrase(cd, NULL, slot_check, password,
-					 passwordLen, 0);
+	/* mode ENCRYPT call this without header */
+	if (cd) {
+		r = crypt_activate_by_passphrase(cd, NULL, slot_check, password,
+						 passwordLen, 0);
 
-	/*
-	 * Allow keyslot only if it is last slot or if user explicitly
-	 * specify which slot to use (IOW others will be disabled).
-	 */
-	if (r >= 0 && opt_key_slot == CRYPT_ANY_SLOT &&
-	    crypt_keyslot_status(cd, r) != CRYPT_SLOT_ACTIVE_LAST) {
-		log_err(_("Key file can be used only with --key-slot or with "
-			  "exactly one key slot active."));
-		r = -EINVAL;
+		/*
+		 * Allow keyslot only if it is last slot or if user explicitly
+		 * specify which slot to use (IOW others will be disabled).
+		 */
+		if (r >= 0 && opt_key_slot == CRYPT_ANY_SLOT &&
+		    crypt_keyslot_status(cd, r) != CRYPT_SLOT_ACTIVE_LAST) {
+			log_err(_("Key file can be used only with --key-slot or with "
+				  "exactly one key slot active."));
+			r = -EINVAL;
+		}
+	} else {
+		r = slot_check == CRYPT_ANY_SLOT ? 0 : slot_check;
 	}
 
 	if (r < 0) {
@@ -1310,7 +1316,10 @@ static int initialize_passphrase(struct reenc_ctx *rc, const char *device)
 	log_dbg("Passphrases initialization.");
 
 	if (rc->reencrypt_mode == ENCRYPT && !rc->in_progress) {
-		r = init_passphrase1(rc, cd, _("Enter new passphrase: "), opt_key_slot, 0, 1);
+		if (opt_key_file)
+			r = init_keyfile(rc, NULL, opt_key_slot);
+		else
+			r = init_passphrase1(rc, NULL, _("Enter new passphrase: "), opt_key_slot, 0, 1);
 		return r > 0 ? 0 : r;
 	}
 

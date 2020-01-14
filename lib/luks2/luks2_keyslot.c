@@ -1,8 +1,8 @@
 /*
  * LUKS - Linux Unified Key Setup v2, keyslot handling
  *
- * Copyright (C) 2015-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2015-2019 Milan Broz
+ * Copyright (C) 2015-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2015-2020 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -79,19 +79,18 @@ int LUKS2_keyslot_find_empty(struct luks2_hdr *hdr)
 /* Check if a keyslot is assigned to specific segment */
 static int _keyslot_for_segment(struct luks2_hdr *hdr, int keyslot, int segment)
 {
-	int keyslot_digest, segment_digest, s, count = 0;
+	int keyslot_digest, count = 0;
+	unsigned s;
 
 	keyslot_digest = LUKS2_digest_by_keyslot(hdr, keyslot);
 	if (keyslot_digest < 0)
 		return keyslot_digest;
 
-	if (segment >= 0) {
-		segment_digest = LUKS2_digest_by_segment(hdr, segment);
-		return segment_digest == keyslot_digest;
-	}
-	for (s = 0; s < 3; s++) {
-		segment_digest = LUKS2_digest_by_segment(hdr, s);
-		if (segment_digest == keyslot_digest)
+	if (segment >= 0)
+		return keyslot_digest == LUKS2_digest_by_segment(hdr, segment);
+
+	for (s = 0; s < json_segments_count(LUKS2_get_segments_jobj(hdr)); s++) {
+		if (keyslot_digest == LUKS2_digest_by_segment(hdr, s))
 			count++;
 	}
 
@@ -310,28 +309,16 @@ int LUKS2_keyslot_area(struct luks2_hdr *hdr,
 	return 0;
 }
 
-static int LUKS2_open_and_verify_by_digest(struct crypt_device *cd,
+static int _open_and_verify(struct crypt_device *cd,
 	struct luks2_hdr *hdr,
+	const keyslot_handler *h,
 	int keyslot,
-	int digest,
 	const char *password,
 	size_t password_len,
 	struct volume_key **vk)
 {
-	const keyslot_handler *h;
-	int key_size, r;
+	int r, key_size = LUKS2_get_keyslot_stored_key_size(hdr, keyslot);
 
-	if (!(h = LUKS2_keyslot_handler(cd, keyslot)))
-		return -ENOENT;
-
-	r = _keyslot_for_digest(hdr, keyslot, digest);
-	if (r) {
-		if (r == -ENOENT)
-			log_dbg(cd, "Keyslot %d unusable for digest %d.", keyslot, digest);
-		return r;
-	}
-
-	key_size = LUKS2_get_keyslot_stored_key_size(hdr, keyslot);
 	if (key_size < 0)
 		return -EINVAL;
 
@@ -350,7 +337,39 @@ static int LUKS2_open_and_verify_by_digest(struct crypt_device *cd,
 		*vk = NULL;
 	}
 
+	crypt_volume_key_set_id(*vk, r);
+
 	return r < 0 ? r : keyslot;
+}
+
+static int LUKS2_open_and_verify_by_digest(struct crypt_device *cd,
+	struct luks2_hdr *hdr,
+	int keyslot,
+	int digest,
+	const char *password,
+	size_t password_len,
+	struct volume_key **vk)
+{
+	const keyslot_handler *h;
+	int r;
+
+	if (!(h = LUKS2_keyslot_handler(cd, keyslot)))
+		return -ENOENT;
+
+	r = h->validate(cd, LUKS2_get_keyslot_jobj(hdr, keyslot));
+	if (r) {
+		log_dbg(cd, "Keyslot %d validation failed.", keyslot);
+		return r;
+	}
+
+	r = _keyslot_for_digest(hdr, keyslot, digest);
+	if (r) {
+		if (r == -ENOENT)
+			log_dbg(cd, "Keyslot %d unusable for digest %d.", keyslot, digest);
+		return r;
+	}
+
+	return _open_and_verify(cd, hdr, h, keyslot, password, password_len, vk);
 }
 
 static int LUKS2_open_and_verify(struct crypt_device *cd,
@@ -362,7 +381,7 @@ static int LUKS2_open_and_verify(struct crypt_device *cd,
 	struct volume_key **vk)
 {
 	const keyslot_handler *h;
-	int key_size, r;
+	int r;
 
 	if (!(h = LUKS2_keyslot_handler(cd, keyslot)))
 		return -ENOENT;
@@ -380,29 +399,7 @@ static int LUKS2_open_and_verify(struct crypt_device *cd,
 		return r;
 	}
 
-	key_size = LUKS2_get_volume_key_size(hdr, segment);
-	if (key_size < 0)
-		key_size = LUKS2_get_keyslot_stored_key_size(hdr, keyslot);
-	if (key_size < 0)
-		return -EINVAL;
-
-	*vk = crypt_alloc_volume_key(key_size, NULL);
-	if (!*vk)
-		return -ENOMEM;
-
-	r = h->open(cd, keyslot, password, password_len, (*vk)->key, (*vk)->keylength);
-	if (r < 0)
-		log_dbg(cd, "Keyslot %d (%s) open failed with %d.", keyslot, h->name, r);
-	else
-		r = LUKS2_digest_verify(cd, hdr, *vk, keyslot);
-
-	if (r < 0) {
-		crypt_free_volume_key(*vk);
-		*vk = NULL;
-	} else
-		crypt_volume_key_set_id(*vk, r);
-
-	return r < 0 ? r : keyslot;
+	return _open_and_verify(cd, hdr, h, keyslot, password, password_len, vk);
 }
 
 static int LUKS2_keyslot_open_priority_digest(struct crypt_device *cd,
@@ -520,7 +517,7 @@ int LUKS2_keyslot_open_all_segments(struct crypt_device *cd,
 	size_t password_len,
 	struct volume_key **vks)
 {
-	struct volume_key *vk;
+	struct volume_key *vk = NULL;
 	int digest_old, digest_new, r = -EINVAL;
 	struct luks2_hdr *hdr = crypt_get_hdr(cd, CRYPT_LUKS2);
 
@@ -530,7 +527,6 @@ int LUKS2_keyslot_open_all_segments(struct crypt_device *cd,
 		r = LUKS2_keyslot_open_by_digest(cd, hdr, keyslot_old, digest_old, password, password_len, &vk);
 		if (r < 0)
 			goto out;
-		crypt_volume_key_set_id(vk, digest_old);
 		crypt_volume_key_add_next(vks, vk);
 	}
 
@@ -540,7 +536,6 @@ int LUKS2_keyslot_open_all_segments(struct crypt_device *cd,
 		r = LUKS2_keyslot_open_by_digest(cd, hdr, keyslot_new, digest_new, password, password_len, &vk);
 		if (r < 0)
 			goto out;
-		crypt_volume_key_set_id(vk, digest_new);
 		crypt_volume_key_add_next(vks, vk);
 	}
 out:

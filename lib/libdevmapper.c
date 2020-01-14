@@ -3,8 +3,8 @@
  *
  * Copyright (C) 2004 Jana Saout <jana@saout.de>
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2019 Milan Broz
+ * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2020 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -47,6 +47,7 @@
 #define DM_INTEGRITY_TARGET	"integrity"
 #define DM_LINEAR_TARGET	"linear"
 #define DM_ERROR_TARGET         "error"
+#define DM_ZERO_TARGET		"zero"
 #define RETRY_COUNT		5
 
 /* Set if DM target versions were probed */
@@ -168,6 +169,12 @@ static void _dm_set_crypt_compat(struct crypt_device *cd,
 		_dm_flags |= DM_CAPI_STRING_SUPPORTED;
 	}
 
+	if (_dm_satisfies_version(1, 19, 0, crypt_maj, crypt_min, crypt_patch))
+		_dm_flags |= DM_BITLK_EBOIV_SUPPORTED;
+
+	if (_dm_satisfies_version(1, 20, 0, crypt_maj, crypt_min, crypt_patch))
+		_dm_flags |= DM_BITLK_ELEPHANT_SUPPORTED;
+
 	_dm_crypt_checked = true;
 }
 
@@ -196,6 +203,9 @@ static void _dm_set_verity_compat(struct crypt_device *cd,
 		_dm_flags |= DM_VERITY_FEC_SUPPORTED;
 	}
 
+	if (_dm_satisfies_version(1, 5, 0, verity_maj, verity_min, verity_patch))
+		_dm_flags |= DM_VERITY_SIGNATURE_SUPPORTED;
+
 	_dm_verity_checked = true;
 }
 
@@ -218,13 +228,16 @@ static void _dm_set_integrity_compat(struct crypt_device *cd,
 	if (_dm_satisfies_version(1, 3, 0, integrity_maj, integrity_min, integrity_patch))
 		_dm_flags |= DM_INTEGRITY_BITMAP_SUPPORTED;
 
+	if (_dm_satisfies_version(1, 4, 0, integrity_maj, integrity_min, integrity_patch))
+		_dm_flags |= DM_INTEGRITY_FIX_PADDING_SUPPORTED;
+
 	_dm_integrity_checked = true;
 }
 
 /* We use this for loading target module */
 static void _dm_check_target(dm_target_type target_type)
 {
-#if HAVE_DECL_DM_GET_TARGET_VERSION
+#if HAVE_DECL_DM_DEVICE_GET_TARGET_VERSION
 	struct dm_task *dmt;
 	const char *target_name = NULL;
 
@@ -240,7 +253,7 @@ static void _dm_check_target(dm_target_type target_type)
 	else
 		return;
 
-	if (!(dmt = dm_task_create(DM_GET_TARGET_VERSION)))
+	if (!(dmt = dm_task_create(DM_DEVICE_GET_TARGET_VERSION)))
 		goto out;
 
 	if (!dm_task_set_name(dmt, target_name))
@@ -265,7 +278,7 @@ static int _dm_check_versions(struct crypt_device *cd, dm_target_type target_typ
 	if ((target_type == DM_CRYPT	 && _dm_crypt_checked) ||
 	    (target_type == DM_VERITY    && _dm_verity_checked) ||
 	    (target_type == DM_INTEGRITY && _dm_integrity_checked) ||
-	    (target_type == DM_LINEAR) ||
+	    (target_type == DM_LINEAR) || (target_type == DM_ZERO) ||
 	    (_dm_crypt_checked && _dm_verity_checked && _dm_integrity_checked))
 		return 1;
 
@@ -295,7 +308,7 @@ static int _dm_check_versions(struct crypt_device *cd, dm_target_type target_typ
 		if (_dm_satisfies_version(4, 27, 0, dm_maj, dm_min, dm_patch))
 			_dm_flags |= DM_DEFERRED_SUPPORTED;
 #endif
-#if HAVE_DECL_DM_GET_TARGET_VERSION
+#if HAVE_DECL_DM_DEVICE_GET_TARGET_VERSION
 		if (_dm_satisfies_version(4, 41, 0, dm_maj, dm_min, dm_patch))
 			_dm_flags |= DM_GET_TARGET_VERSION_SUPPORTED;
 #endif
@@ -346,7 +359,7 @@ int dm_flags(struct crypt_device *cd, dm_target_type target, uint32_t *flags)
 	if ((target == DM_CRYPT	    && _dm_crypt_checked) ||
 	    (target == DM_VERITY    && _dm_verity_checked) ||
 	    (target == DM_INTEGRITY && _dm_integrity_checked) ||
-	    (target == DM_LINEAR)) /* nothing to check with linear */
+	    (target == DM_LINEAR) || (target == DM_ZERO)) /* nothing to check */
 		return 0;
 
 	return -ENODEV;
@@ -667,7 +680,7 @@ static char *get_dm_verity_params(const struct dm_target *tgt, uint32_t flags)
 	int max_size, r, num_options = 0;
 	struct crypt_params_verity *vp;
 	char *params = NULL, *hexroot = NULL, *hexsalt = NULL;
-	char features[256], fec_features[256];
+	char features[256], fec_features[256], verity_verify_args[512+32];
 
 	if (!tgt || !tgt->u.verity.vp)
 		return NULL;
@@ -697,6 +710,13 @@ static char *get_dm_verity_params(const struct dm_target *tgt, uint32_t flags)
 	} else
 		*fec_features = '\0';
 
+	if (tgt->u.verity.root_hash_sig_key_desc) {
+		num_options += 2;
+		snprintf(verity_verify_args, sizeof(verity_verify_args)-1,
+				" root_hash_sig_key_desc %s", tgt->u.verity.root_hash_sig_key_desc);
+	} else
+		*verity_verify_args = '\0';
+
 	if (num_options)
 		snprintf(features, sizeof(features)-1, " %d%s%s%s%s", num_options,
 		(flags & CRYPT_ACTIVATE_IGNORE_CORRUPTION) ? " ignore_corruption" : "",
@@ -722,19 +742,22 @@ static char *get_dm_verity_params(const struct dm_target *tgt, uint32_t flags)
 	max_size = strlen(hexroot) + strlen(hexsalt) +
 		   strlen(device_block_path(tgt->data_device)) +
 		   strlen(device_block_path(tgt->u.verity.hash_device)) +
-		   strlen(vp->hash_name) + strlen(features) + strlen(fec_features) + 128;
+		   strlen(vp->hash_name) + strlen(features) + strlen(fec_features) + 128 +
+		   strlen(verity_verify_args);
 
 	params = crypt_safe_alloc(max_size);
 	if (!params)
 		goto out;
 
 	r = snprintf(params, max_size,
-		     "%u %s %s %u %u %" PRIu64 " %" PRIu64 " %s %s %s%s%s",
+		     "%u %s %s %u %u %" PRIu64 " %" PRIu64 " %s %s %s%s%s%s",
 		     vp->hash_type, device_block_path(tgt->data_device),
 		     device_block_path(tgt->u.verity.hash_device),
 		     vp->data_block_size, vp->hash_block_size,
 		     vp->data_size, tgt->u.verity.hash_offset,
-		     vp->hash_name, hexroot, hexsalt, features, fec_features);
+		     vp->hash_name, hexroot, hexsalt, features, fec_features,
+		     verity_verify_args);
+
 	if (r < 0 || r >= max_size) {
 		crypt_safe_free(params);
 		params = NULL;
@@ -866,6 +889,11 @@ static char *get_dm_integrity_params(const struct dm_target *tgt, uint32_t flags
 		strncat(features, feature, sizeof(features) - strlen(features) - 1);
 		crypt_safe_free(hexkey);
 	}
+	if (tgt->u.integrity.fix_padding) {
+		num_options++;
+		snprintf(feature, sizeof(feature), "fix_padding ");
+		strncat(features, feature, sizeof(features) - strlen(features) - 1);
+	}
 
 	if (flags & CRYPT_ACTIVATE_RECALCULATE) {
 		num_options++;
@@ -919,6 +947,16 @@ static char *get_dm_linear_params(const struct dm_target *tgt, uint32_t flags)
 		params = NULL;
 	}
 
+	return params;
+}
+
+static char *get_dm_zero_params(const struct dm_target *tgt, uint32_t flags)
+{
+	char *params = crypt_safe_alloc(1);
+	if (!params)
+		return NULL;
+
+	params[0] = 0;
 	return params;
 }
 
@@ -1195,6 +1233,9 @@ static int _add_dm_targets(struct dm_task *dmt, struct crypt_dm_active_device *d
 		case DM_LINEAR:
 			target = DM_LINEAR_TARGET;
 			break;
+		case DM_ZERO:
+			target = DM_ZERO_TARGET;
+			break;
 		default:
 			return -ENOTSUP;
 		}
@@ -1233,6 +1274,8 @@ static int _create_dm_targets_params(struct crypt_dm_active_device *dmd)
 			tgt->params = get_dm_integrity_params(tgt, dmd->flags);
 		else if (tgt->type == DM_LINEAR)
 			tgt->params = get_dm_linear_params(tgt, dmd->flags);
+		else if (tgt->type == DM_ZERO)
+			tgt->params = get_dm_zero_params(tgt, dmd->flags);
 		else {
 			r = -ENOTSUP;
 			goto err;
@@ -1454,10 +1497,13 @@ static void _dm_target_free_query_path(struct crypt_device *cd, struct dm_target
 		crypt_free_verity_params(tgt->u.verity.vp);
 		device_free(cd, tgt->u.verity.hash_device);
 		free(CONST_CAST(void*)tgt->u.verity.root_hash);
+		free(CONST_CAST(void*)tgt->u.verity.root_hash_sig_key_desc);
 		/* fall through */
 	case DM_LINEAR:
 		/* fall through */
 	case DM_ERROR:
+		/* fall through */
+	case DM_ZERO:
 		break;
 	default:
 		log_err(cd, _("Unknown dm target type."));
@@ -1522,7 +1568,7 @@ static int check_retry(struct crypt_device *cd, uint32_t *dmd_flags, uint32_t dm
 	/* If kernel keyring is not supported load key directly in dm-crypt */
 	if ((*dmd_flags & CRYPT_ACTIVATE_KEYRING_KEY) &&
 	    !(dmt_flags & DM_KERNEL_KEYRING_SUPPORTED)) {
-		log_dbg(cd, "dm-crypt doesn't support kernel keyring");
+		log_dbg(cd, "dm-crypt does not support kernel keyring");
 		*dmd_flags = *dmd_flags & ~CRYPT_ACTIVATE_KEYRING_KEY;
 		ret = 1;
 	}
@@ -1530,7 +1576,7 @@ static int check_retry(struct crypt_device *cd, uint32_t *dmd_flags, uint32_t dm
 	/* Drop performance options if not supported */
 	if ((*dmd_flags & (CRYPT_ACTIVATE_SAME_CPU_CRYPT | CRYPT_ACTIVATE_SUBMIT_FROM_CRYPT_CPUS)) &&
 	    !(dmt_flags & (DM_SAME_CPU_CRYPT_SUPPORTED | DM_SUBMIT_FROM_CRYPT_CPUS_SUPPORTED))) {
-		log_dbg(cd, "dm-crypt doesn't support performance options");
+		log_dbg(cd, "dm-crypt does not support performance options");
 		*dmd_flags = *dmd_flags & ~(CRYPT_ACTIVATE_SAME_CPU_CRYPT | CRYPT_ACTIVATE_SUBMIT_FROM_CRYPT_CPUS);
 		ret = 1;
 	}
@@ -1556,7 +1602,8 @@ int dm_create_device(struct crypt_device *cd, const char *name,
 	if (r < 0 && dm_flags(cd, dmd->segment.type, &dmt_flags))
 		goto out;
 
-	if (r && (dmd->segment.type == DM_CRYPT || dmd->segment.type == DM_LINEAR) && check_retry(cd, &dmd->flags, dmt_flags))
+	if (r && (dmd->segment.type == DM_CRYPT || dmd->segment.type == DM_LINEAR || dmd->segment.type == DM_ZERO) &&
+		check_retry(cd, &dmd->flags, dmt_flags))
 		r = _dm_create_device(cd, name, type, dmd->uuid, dmd);
 
 	if (r == -EINVAL &&
@@ -1669,6 +1716,7 @@ static int dm_status_dmi(const char *name, struct dm_info *dmi,
 			strcmp(target_type, DM_VERITY_TARGET) &&
 			strcmp(target_type, DM_INTEGRITY_TARGET) &&
 			strcmp(target_type, DM_LINEAR_TARGET) &&
+			strcmp(target_type, DM_ZERO_TARGET) &&
 			strcmp(target_type, DM_ERROR_TARGET)))
 		goto out;
 	r = 0;
@@ -1957,6 +2005,7 @@ static int _dm_target_query_verity(struct crypt_device *cd,
 	int r;
 	struct device *data_device = NULL, *hash_device = NULL, *fec_device = NULL;
 	char *hash_name = NULL, *root_hash = NULL, *salt = NULL, *fec_dev_str = NULL;
+	char *root_hash_sig_key_desc = NULL;
 
 	if (get_flags & DM_ACTIVE_VERITY_PARAMS) {
 		vp = crypt_zalloc(sizeof(*vp));
@@ -2140,6 +2189,15 @@ static int _dm_target_query_verity(struct crypt_device *cd,
 				if (vp)
 					vp->fec_roots = val32;
 				i++;
+			} else if (!strcasecmp(arg, "root_hash_sig_key_desc")) {
+				str = strsep(&params, " ");
+				if (!str)
+					goto err;
+				if (!root_hash_sig_key_desc)
+					root_hash_sig_key_desc = strdup(str);
+				i++;
+				if (vp)
+					vp->flags |= CRYPT_VERITY_ROOT_HASH_SIGNATURE;
 			} else /* unknown option */
 				goto err;
 		}
@@ -2165,11 +2223,15 @@ static int _dm_target_query_verity(struct crypt_device *cd,
 		vp->salt = salt;
 	if (vp && fec_dev_str)
 		vp->fec_device = fec_dev_str;
+	if (root_hash_sig_key_desc)
+		tgt->u.verity.root_hash_sig_key_desc = root_hash_sig_key_desc;
+
 	return 0;
 err:
 	device_free(cd, data_device);
 	device_free(cd, hash_device);
 	device_free(cd, fec_device);
+	free(root_hash_sig_key_desc);
 	free(root_hash);
 	free(hash_name);
 	free(salt);
@@ -2334,6 +2396,8 @@ static int _dm_target_query_integrity(struct crypt_device *cd,
 				}
 			} else if (!strcmp(arg, "recalculate")) {
 				*act_flags |= CRYPT_ACTIVATE_RECALCULATE;
+			} else if (!strcmp(arg, "fix_padding")) {
+				tgt->u.integrity.fix_padding = true;
 			} else /* unknown option */
 				goto err;
 		}
@@ -2416,6 +2480,14 @@ static int _dm_target_query_error(struct crypt_device *cd, struct dm_target *tgt
 	return 0;
 }
 
+static int _dm_target_query_zero(struct crypt_device *cd, struct dm_target *tgt)
+{
+	tgt->type = DM_ZERO;
+	tgt->direction = TARGET_QUERY;
+
+	return 0;
+}
+
 /*
  * on error retval has to be negative
  *
@@ -2437,6 +2509,8 @@ static int dm_target_query(struct crypt_device *cd, struct dm_target *tgt, const
 		r = _dm_target_query_linear(cd, tgt, get_flags, params);
 	else if (!strcmp(target_type, DM_ERROR_TARGET))
 		r = _dm_target_query_error(cd, tgt);
+	else if (!strcmp(target_type, DM_ZERO_TARGET))
+		r = _dm_target_query_zero(cd, tgt);
 
 	if (!r) {
 		tgt->offset = *start;
@@ -2518,6 +2592,9 @@ static int _dm_query_device(struct crypt_device *cd, const char *name,
 
 	if (dmi.read_only)
 		dmd->flags |= CRYPT_ACTIVATE_READONLY;
+
+	if (dmi.suspended)
+		dmd->flags |= CRYPT_ACTIVATE_SUSPENDED;
 
 	tmp_uuid = dm_task_get_uuid(dmt);
 	if (!tmp_uuid)
@@ -2841,8 +2918,8 @@ err:
 
 int dm_verity_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t seg_size,
 	struct device *data_device, struct device *hash_device, struct device *fec_device,
-	const char *root_hash, uint32_t root_hash_size, uint64_t hash_offset_block,
-	uint64_t hash_blocks, struct crypt_params_verity *vp)
+	const char *root_hash, uint32_t root_hash_size, const char *root_hash_sig_key_desc,
+	uint64_t hash_offset_block, uint64_t hash_blocks, struct crypt_params_verity *vp)
 {
 	if (!data_device || !hash_device || !vp)
 		return -EINVAL;
@@ -2857,6 +2934,7 @@ int dm_verity_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t se
 	tgt->u.verity.fec_device = fec_device;
 	tgt->u.verity.root_hash = root_hash;
 	tgt->u.verity.root_hash_size = root_hash_size;
+	tgt->u.verity.root_hash_sig_key_desc = root_hash_sig_key_desc;
 	tgt->u.verity.hash_offset = hash_offset_block;
 	tgt->u.verity.fec_offset = vp->fec_area_offset / vp->hash_block_size;
 	tgt->u.verity.hash_blocks = hash_blocks;
@@ -2865,15 +2943,20 @@ int dm_verity_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t se
 	return 0;
 }
 
-int dm_integrity_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t seg_size,
+int dm_integrity_target_set(struct crypt_device *cd,
+			struct dm_target *tgt, uint64_t seg_offset, uint64_t seg_size,
 			struct device *meta_device,
 		        struct device *data_device, uint64_t tag_size, uint64_t offset,
 			uint32_t sector_size, struct volume_key *vk,
 			struct volume_key *journal_crypt_key, struct volume_key *journal_mac_key,
 			const struct crypt_params_integrity *ip)
 {
+	uint32_t dmi_flags;
+
 	if (!data_device)
 		return -EINVAL;
+
+	_dm_check_versions(cd, DM_INTEGRITY);
 
 	tgt->type = DM_INTEGRITY;
 	tgt->direction = TARGET_SET;
@@ -2889,6 +2972,11 @@ int dm_integrity_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t
 	tgt->u.integrity.vk = vk;
 	tgt->u.integrity.journal_crypt_key = journal_crypt_key;
 	tgt->u.integrity.journal_integrity_key = journal_mac_key;
+
+	if (!dm_flags(cd, DM_INTEGRITY, &dmi_flags) &&
+	    (dmi_flags & DM_INTEGRITY_FIX_PADDING_SUPPORTED) &&
+	    !(crypt_get_compatibility(cd) & CRYPT_COMPAT_LEGACY_INTEGRITY_PADDING))
+		tgt->u.integrity.fix_padding = true;
 
 	if (ip) {
 		tgt->u.integrity.journal_size = ip->journal_size;
@@ -2917,6 +3005,16 @@ int dm_linear_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t se
 	tgt->data_device = data_device;
 
 	tgt->u.linear.offset = data_offset;
+
+	return 0;
+}
+
+int dm_zero_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t seg_size)
+{
+	tgt->type = DM_ZERO;
+	tgt->direction = TARGET_SET;
+	tgt->offset = seg_offset;
+	tgt->size = seg_size;
 
 	return 0;
 }

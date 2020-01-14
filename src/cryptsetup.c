@@ -3,8 +3,8 @@
  *
  * Copyright (C) 2004 Jana Saout <jana@saout.de>
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2019 Milan Broz
+ * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2020 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -85,6 +85,7 @@ static const char *opt_priority = NULL; /* normal */
 static const char *opt_integrity = NULL; /* none */
 static int opt_integrity_nojournal = 0;
 static int opt_integrity_no_wipe = 0;
+static int opt_integrity_legacy_padding = 0;
 static const char *opt_key_description = NULL;
 static int opt_sector_size = 0;
 static int opt_persistent = 0;
@@ -448,7 +449,7 @@ static int tcrypt_load(struct crypt_device *cd, struct crypt_params_tcrypt *para
 				continue;
 
 			params->veracrypt_pim = (uint32_t)tmp_pim_ull;
-			crypt_memzero(&tmp_pim_ull, sizeof(tmp_pim_ull));
+			crypt_safe_memzero(&tmp_pim_ull, sizeof(tmp_pim_ull));
 		}
 
 		if (opt_tcrypt_hidden)
@@ -512,7 +513,49 @@ static int action_open_tcrypt(void)
 out:
 	crypt_free(cd);
 	crypt_safe_free(CONST_CAST(char*)params.passphrase);
-	crypt_memzero(&params.veracrypt_pim, sizeof(params.veracrypt_pim));
+	crypt_safe_memzero(&params.veracrypt_pim, sizeof(params.veracrypt_pim));
+	return r;
+}
+
+static int action_open_bitlk(void)
+{
+	struct crypt_device *cd = NULL;
+	const char *activated_name;
+	uint32_t activate_flags = 0;
+	int r, tries;
+	char *password = NULL;
+	size_t passwordLen;
+
+	activated_name = opt_test_passphrase ? NULL : action_argv[1];
+
+	if ((r = crypt_init(&cd, action_argv[0])))
+		goto out;
+
+	r = crypt_load(cd, CRYPT_BITLK, NULL);
+	if (r < 0) {
+		log_err(_("Device %s is not a valid BITLK device."), action_argv[0]);
+		goto out;
+	}
+	_set_activation_flags(&activate_flags);
+
+	tries = (tools_is_stdin(opt_key_file) && isatty(STDIN_FILENO)) ? opt_tries : 1;
+	do {
+		r = tools_get_key(NULL, &password, &passwordLen,
+				opt_keyfile_offset, opt_keyfile_size, opt_key_file,
+				opt_timeout, _verify_passphrase(0), 0, cd);
+		if (r < 0)
+			goto out;
+
+		r = crypt_activate_by_passphrase(cd, activated_name, CRYPT_ANY_SLOT,
+						 password, passwordLen, activate_flags);
+		tools_passphrase_msg(r);
+		check_signal(&r);
+		crypt_safe_free(password);
+		password = NULL;
+	} while ((r == -EPERM || r == -ERANGE) && (--tries > 0));
+out:
+	crypt_safe_free(password);
+	crypt_free(cd);
 	return r;
 }
 
@@ -584,6 +627,24 @@ static int action_tcryptDump(void)
 out:
 	crypt_free(cd);
 	crypt_safe_free(CONST_CAST(char*)params.passphrase);
+	return r;
+}
+
+static int action_bitlkDump(void)
+{
+	struct crypt_device *cd = NULL;
+	int r;
+
+	if ((r = crypt_init(&cd, action_argv[0])))
+		goto out;
+
+	r = crypt_load(cd, CRYPT_BITLK, NULL);
+	if (r < 0)
+		goto out;
+
+	r = crypt_dump(cd);
+out:
+	crypt_free(cd);
 	return r;
 }
 
@@ -744,8 +805,9 @@ static int action_status(void)
 		log_std("  size:    %" PRIu64 " sectors\n", cad.size);
 		if (cad.iv_offset)
 			log_std("  skipped: %" PRIu64 " sectors\n", cad.iv_offset);
-		log_std("  mode:    %s\n", cad.flags & CRYPT_ACTIVATE_READONLY ?
-					   "readonly" : "read/write");
+		log_std("  mode:    %s%s\n", cad.flags & CRYPT_ACTIVATE_READONLY ?
+					   "readonly" : "read/write",
+					   (cad.flags & CRYPT_ACTIVATE_SUSPENDED) ? " (suspended)" : "");
 		if (cad.flags & (CRYPT_ACTIVATE_ALLOW_DISCARDS|
 				 CRYPT_ACTIVATE_SAME_CPU_CRYPT|
 				 CRYPT_ACTIVATE_SUBMIT_FROM_CRYPT_CPUS))
@@ -983,6 +1045,7 @@ static int set_pbkdf_params(struct crypt_device *cd, const char *dev_type)
 
 	if (opt_pbkdf_iterations) {
 		pbkdf.iterations = opt_pbkdf_iterations;
+		pbkdf.time_ms = 0;
 		pbkdf.flags |= CRYPT_PBKDF_NO_BENCHMARK;
 	}
 
@@ -1302,6 +1365,9 @@ static int _luksFormat(struct crypt_device **r_cd, char **r_password, size_t *r_
 	if (signatures && ((r =	tools_wipe_all_signatures(header_device)) < 0))
 		goto out;
 
+	if (opt_integrity_legacy_padding)
+		crypt_set_compatibility(cd, CRYPT_COMPAT_LEGACY_INTEGRITY_PADDING);
+
 	r = crypt_format(cd, type, cipher, cipher_mode,
 			 opt_uuid, key, keysize, params);
 	check_signal(&r);
@@ -1324,7 +1390,7 @@ static int _luksFormat(struct crypt_device **r_cd, char **r_password, size_t *r_
 	if (opt_integrity && !opt_integrity_no_wipe)
 		r = _wipe_data_device(cd);
 out:
-	if (r == 0 && r_cd && r_password && r_passwordLen) {
+	if (r >= 0 && r_cd && r_password && r_passwordLen) {
 		*r_cd = cd;
 		*r_password = password;
 		*r_passwordLen = passwordLen;
@@ -1374,7 +1440,7 @@ static int action_open_luks(void)
 			goto out;
 		}
 
-		if (!data_device && (crypt_get_data_offset(cd) < 8)) {
+		if (!data_device && (crypt_get_data_offset(cd) < 8) && !opt_test_passphrase) {
 			log_err(_("Reduced data offset is allowed only for detached LUKS header."));
 			r = -EINVAL;
 			goto out;
@@ -2169,6 +2235,10 @@ static int action_open(void)
 		if (action_argc < 2 && !opt_test_passphrase)
 			goto args;
 		return action_open_tcrypt();
+	} else if (!strcmp(opt_type, "bitlk")) {
+		if (action_argc < 2 && !opt_test_passphrase)
+			goto args;
+		return action_open_bitlk();
 	}
 
 	log_err(_("Unrecognized metadata device type %s."), opt_type);
@@ -2749,7 +2819,7 @@ static int action_encrypt_luks2(struct crypt_device **cd)
 		_set_activation_flags(&activate_flags);
 		r = crypt_activate_by_passphrase(*cd, activated_name, opt_key_slot, password, passwordLen, activate_flags);
 		if (r >= 0)
-			log_std(_("%s/%s is now active and ready for online encryption."), crypt_get_dir(), activated_name);
+			log_std(_("%s/%s is now active and ready for online encryption.\n"), crypt_get_dir(), activated_name);
 	}
 
 	if (r < 0)
@@ -3226,6 +3296,7 @@ static struct action_type {
 	{ "isLuks",       action_isLuks,       1, 0, N_("<device>"), N_("tests <device> for LUKS partition header") },
 	{ "luksDump",     action_luksDump,     1, 1, N_("<device>"), N_("dump LUKS partition information") },
 	{ "tcryptDump",   action_tcryptDump,   1, 1, N_("<device>"), N_("dump TCRYPT device information") },
+	{ "bitlkDump",    action_bitlkDump,    1, 1, N_("<device>"), N_("dump BITLK device information") },
 	{ "luksSuspend",  action_luksSuspend,  1, 1, N_("<device>"), N_("Suspend LUKS device and wipe key (all IOs are frozen)") },
 	{ "luksResume",   action_luksResume,   1, 1, N_("<device>"), N_("Resume suspended LUKS device") },
 	{ "luksHeaderBackup", action_luksBackup,1,1, N_("<device>"), N_("Backup LUKS device header and keyslots") },
@@ -3256,8 +3327,8 @@ static void help(poptContext popt_context,
 
 		log_std(_("\n"
 			  "You can also use old <action> syntax aliases:\n"
-			  "\topen: create (plainOpen), luksOpen, loopaesOpen, tcryptOpen\n"
-			  "\tclose: remove (plainClose), luksClose, loopaesClose, tcryptClose\n"));
+			  "\topen: create (plainOpen), luksOpen, loopaesOpen, tcryptOpen, bitlkOpen\n"
+			  "\tclose: remove (plainClose), luksClose, loopaesClose, tcryptClose, bitlkClose\n"));
 		log_std(_("\n"
 			 "<name> is the device to create under %s\n"
 			 "<device> is the encrypted device\n"
@@ -3390,7 +3461,7 @@ int main(int argc, const char **argv)
 		{ "veracrypt",         '\0', POPT_ARG_NONE, &opt_veracrypt,             0, N_("Scan also for VeraCrypt compatible device"), NULL },
 		{ "veracrypt-pim",     '\0', POPT_ARG_INT, &opt_veracrypt_pim,          0, N_("Personal Iteration Multiplier for VeraCrypt compatible device"), NULL },
 		{ "veracrypt-query-pim", '\0', POPT_ARG_NONE, &opt_veracrypt_query_pim, 0, N_("Query Personal Iteration Multiplier for VeraCrypt compatible device"), NULL },
-		{ "type",               'M', POPT_ARG_STRING, &opt_type,                0, N_("Type of device metadata: luks, luks1, luks2, plain, loopaes, tcrypt"), NULL },
+		{ "type",               'M', POPT_ARG_STRING, &opt_type,                0, N_("Type of device metadata: luks, luks1, luks2, plain, loopaes, tcrypt, bitlk"), NULL },
 		{ "force-password",    '\0', POPT_ARG_NONE, &opt_force_password,        0, N_("Disable password quality check (if enabled)"), NULL },
 		{ "perf-same_cpu_crypt",'\0', POPT_ARG_NONE, &opt_perf_same_cpu_crypt,  0, N_("Use dm-crypt same_cpu_crypt performance compatibility option"), NULL },
 		{ "perf-submit_from_crypt_cpus",'\0', POPT_ARG_NONE, &opt_perf_submit_from_crypt_cpus,0,N_("Use dm-crypt submit_from_crypt_cpus performance compatibility option"), NULL },
@@ -3407,6 +3478,7 @@ int main(int argc, const char **argv)
 		{ "integrity",          'I', POPT_ARG_STRING, &opt_integrity,           0, N_("Data integrity algorithm (LUKS2 only)"), NULL },
 		{ "integrity-no-journal",'\0',POPT_ARG_NONE, &opt_integrity_nojournal,  0, N_("Disable journal for integrity device"), NULL },
 		{ "integrity-no-wipe", '\0', POPT_ARG_NONE, &opt_integrity_no_wipe,     0, N_("Do not wipe device after format"), NULL },
+		{ "integrity-legacy-padding",'\0', POPT_ARG_NONE, &opt_integrity_legacy_padding,0, N_("Use inefficient legacy padding (old kernels)"), NULL },
 		{ "token-only",        '\0', POPT_ARG_NONE, &opt_token_only,            0, N_("Do not ask for passphrase if activation by token fails"), NULL },
 		{ "token-id",          '\0', POPT_ARG_INT, &opt_token,                  0, N_("Token number (default: any)"), NULL },
 		{ "key-description",   '\0', POPT_ARG_STRING, &opt_key_description,     0, N_("Key description"), NULL },
@@ -3531,13 +3603,19 @@ int main(int argc, const char **argv)
 	} else if (!strcmp(aname, "tcryptOpen")) {
 		aname = "open";
 		opt_type = "tcrypt";
+	} else if (!strcmp(aname, "bitlkOpen")) {
+		aname = "open";
+		opt_type = "bitlk";
 	} else if (!strcmp(aname, "tcryptDump")) {
 		opt_type = "tcrypt";
+	} else if (!strcmp(aname, "bitlkDump")) {
+		opt_type = "bitlk";
 	} else if (!strcmp(aname, "remove") ||
 		   !strcmp(aname, "plainClose") ||
 		   !strcmp(aname, "luksClose") ||
 		   !strcmp(aname, "loopaesClose") ||
-		   !strcmp(aname, "tcryptClose")) {
+		   !strcmp(aname, "tcryptClose") ||
+		   !strcmp(aname, "bitlkClose")) {
 		aname = "close";
 	} else if (!strcmp(aname, "luksErase")) {
 		aname = "erase";
@@ -3635,9 +3713,9 @@ int main(int argc, const char **argv)
 		      poptGetInvocationName(popt_context));
 
 	if (opt_test_passphrase && (strcmp(aname, "open") || !opt_type ||
-	    (strncmp(opt_type, "luks", 4) && strcmp(opt_type, "tcrypt"))))
+	    (strncmp(opt_type, "luks", 4) && strcmp(opt_type, "tcrypt") && strcmp(opt_type, "bitlk"))))
 		usage(popt_context, EXIT_FAILURE,
-		      _("Option --test-passphrase is allowed only for open of LUKS and TCRYPT devices.\n"),
+		      _("Option --test-passphrase is allowed only for open of LUKS, TCRYPT and BITLK devices.\n"),
 		      poptGetInvocationName(popt_context));
 
 	if (opt_key_size % 8 || opt_keyslot_key_size % 8)

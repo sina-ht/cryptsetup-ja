@@ -2,7 +2,7 @@
  * cryptsetup volume key implementation
  *
  * Copyright (C) 2004-2006 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2010-2019 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2010-2020 Red Hat, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -47,7 +47,7 @@ struct volume_key *crypt_alloc_volume_key(size_t keylength, const char *key)
 		if (key)
 			memcpy(&vk->key, key, keylength);
 		else
-			crypt_memzero(&vk->key, keylength);
+			crypt_safe_memzero(&vk->key, keylength);
 	}
 
 	return vk;
@@ -120,7 +120,7 @@ void crypt_free_volume_key(struct volume_key *vk)
 	struct volume_key *vk_next;
 
 	while (vk) {
-		crypt_memzero(vk->key, vk->keylength);
+		crypt_safe_memzero(vk->key, vk->keylength);
 		vk->keylength = 0;
 		free(CONST_CAST(void*)vk->key_description);
 		vk_next = vk->next;

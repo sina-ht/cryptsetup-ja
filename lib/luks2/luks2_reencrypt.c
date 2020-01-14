@@ -1,8 +1,8 @@
 /*
  * LUKS - Linux Unified Key Setup v2, reencryption helpers
  *
- * Copyright (C) 2015-2019, Red Hat, Inc. All rights reserved.
- * Copyright (C) 2015-2019, Ondrej Kozina
+ * Copyright (C) 2015-2020, Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2015-2020, Ondrej Kozina
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -1401,12 +1401,12 @@ static int reencrypt_recover_segment(struct crypt_device *cd,
 			log_dbg(cd, "Failed to read journaled data.");
 			r = -EIO;
 			/* may content plaintext */
-			crypt_memzero(data_buffer, rh->length);
+			crypt_safe_memzero(data_buffer, rh->length);
 			goto out;
 		}
 		read = crypt_storage_wrapper_encrypt_write(cw2, 0, data_buffer, rh->length);
 		/* may content plaintext */
-		crypt_memzero(data_buffer, rh->length);
+		crypt_safe_memzero(data_buffer, rh->length);
 		if (read < 0 || (size_t)read != rh->length) {
 			log_dbg(cd, "recovery write failed.");
 			r = -EINVAL;
@@ -1436,13 +1436,13 @@ static int reencrypt_recover_segment(struct crypt_device *cd,
 			log_dbg(cd, "Failed to read data.");
 			r = -EIO;
 			/* may content plaintext */
-			crypt_memzero(data_buffer, rh->length);
+			crypt_safe_memzero(data_buffer, rh->length);
 			goto out;
 		}
 
 		read = crypt_storage_wrapper_encrypt_write(cw2, 0, data_buffer, rh->length);
 		/* may content plaintext */
-		crypt_memzero(data_buffer, rh->length);
+		crypt_safe_memzero(data_buffer, rh->length);
 		if (read < 0 || (size_t)read != rh->length) {
 			log_dbg(cd, "recovery write failed.");
 			r = -EINVAL;
@@ -2531,7 +2531,7 @@ static int reencrypt_load(struct crypt_device *cd, struct luks2_hdr *hdr,
 	else if (ri == CRYPT_REENCRYPT_CRASH)
 		r = reencrypt_load_crashed(cd, hdr, device_size, &tmp);
 	else if (ri == CRYPT_REENCRYPT_NONE) {
-		log_err(cd, _("No LUKS2 reencryption in progress."));
+		log_err(cd, _("Device not marked for LUKS2 reencryption."));
 		return -EINVAL;
 	} else
 		r = -EINVAL;
@@ -2546,21 +2546,10 @@ static int reencrypt_load(struct crypt_device *cd, struct luks2_hdr *hdr,
 	return 0;
 }
 
-/* internal only */
-int crypt_reencrypt_lock(struct crypt_device *cd, const char *uuid, struct crypt_lock_handle **reencrypt_lock)
+static int reencrypt_lock_internal(struct crypt_device *cd, const char *uuid, struct crypt_lock_handle **reencrypt_lock)
 {
 	int r;
 	char *lock_resource;
-	const char *tmp = crypt_get_uuid(cd);
-
-	if (!tmp && !uuid)
-		return -EINVAL;
-	if (!uuid)
-		uuid = tmp;
-	if (!tmp)
-		 tmp = uuid;
-	if (strcmp(uuid, tmp))
-		return -EINVAL;
 
 	if (!crypt_metadata_locking_enabled()) {
 		*reencrypt_lock = NULL;
@@ -2580,6 +2569,36 @@ out:
 	free(lock_resource);
 
 	return r;
+}
+
+/* internal only */
+int crypt_reencrypt_lock_by_dm_uuid(struct crypt_device *cd, const char *dm_uuid, struct crypt_lock_handle **reencrypt_lock)
+{
+	int r;
+	char hdr_uuid[37];
+	const char *uuid = crypt_get_uuid(cd);
+
+	if (!dm_uuid)
+		return -EINVAL;
+
+	if (!uuid) {
+		r = snprintf(hdr_uuid, sizeof(hdr_uuid), "%.8s-%.4s-%.4s-%.4s-%.12s",
+			 dm_uuid + 6, dm_uuid + 14, dm_uuid + 18, dm_uuid + 22, dm_uuid + 26);
+		if (r < 0 || (size_t)r != (sizeof(hdr_uuid) - 1))
+			return -EINVAL;
+	} else if (crypt_uuid_cmp(dm_uuid, uuid))
+		return -EINVAL;
+
+	return reencrypt_lock_internal(cd, uuid, reencrypt_lock);
+}
+
+/* internal only */
+int crypt_reencrypt_lock(struct crypt_device *cd, struct crypt_lock_handle **reencrypt_lock)
+{
+	if (!cd || !crypt_get_type(cd) || strcmp(crypt_get_type(cd), CRYPT_LUKS2))
+		return -EINVAL;
+
+	return reencrypt_lock_internal(cd, crypt_get_uuid(cd), reencrypt_lock);
 }
 
 /* internal only */
@@ -2605,7 +2624,7 @@ static int reencrypt_lock_and_verify(struct crypt_device *cd, struct luks2_hdr *
 		return -EINVAL;
 	}
 
-	r = crypt_reencrypt_lock(cd, NULL, &h);
+	r = crypt_reencrypt_lock(cd, &h);
 	if (r < 0) {
 		if (r == -EBUSY)
 			log_err(cd, _("Reencryption process is already running."));
@@ -2809,7 +2828,7 @@ static int reencrypt_recovery_by_passphrase(struct crypt_device *cd,
 	crypt_reencrypt_info ri;
 	struct crypt_lock_handle *reencrypt_lock;
 
-	r = crypt_reencrypt_lock(cd, NULL, &reencrypt_lock);
+	r = crypt_reencrypt_lock(cd, &reencrypt_lock);
 	if (r) {
 		if (r == -EBUSY)
 			log_err(cd, _("Reencryption in-progress. Cannot perform recovery."));
@@ -2936,7 +2955,7 @@ int crypt_reencrypt_init_by_keyring(struct crypt_device *cd,
 
 	r = reencrypt_init_by_passphrase(cd, name, passphrase, passphrase_size, keyslot_old, keyslot_new, cipher, cipher_mode, params);
 
-	crypt_memzero(passphrase, passphrase_size);
+	crypt_safe_memzero(passphrase, passphrase_size);
 	free(passphrase);
 
 	return r;
@@ -3386,7 +3405,7 @@ int LUKS2_reencrypt_locked_recovery_by_passphrase(struct crypt_device *cd,
 		r = LUKS2_volume_key_load_in_keyring_by_digest(cd, hdr, vk, crypt_volume_key_get_id(vk));
 		if (r < 0)
 			goto err;
-		vk = vk->next;
+		vk = crypt_volume_key_next(vk);
 	}
 
 	if (luks2_check_device_size(cd, hdr, minimal_size, &device_size, true, false))

@@ -1,9 +1,9 @@
 /*
  * cryptsetup library API check functions
  *
- * Copyright (C) 2009-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2019 Milan Broz
- * Copyright (C) 2016-2019 Ondrej Kozina
+ * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2020 Milan Broz
+ * Copyright (C) 2016-2020 Ondrej Kozina
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -678,6 +678,9 @@ static void UseLuksDevice(void)
 
 static void SuspendDevice(void)
 {
+	struct crypt_active_device cad;
+	char key[128];
+	size_t key_size;
 	int suspend_status;
 
 	OK_(crypt_init(&cd, DEVICE_1));
@@ -693,11 +696,17 @@ static void SuspendDevice(void)
 	}
 
 	OK_(suspend_status);
+	OK_(crypt_get_active_device(cd, CDEVICE_1, &cad));
+	EQ_(CRYPT_ACTIVATE_SUSPENDED, cad.flags & CRYPT_ACTIVATE_SUSPENDED);
+
 	FAIL_(crypt_suspend(cd, CDEVICE_1), "already suspended");
 
 	FAIL_(crypt_resume_by_passphrase(cd, CDEVICE_1, CRYPT_ANY_SLOT, KEY1, strlen(KEY1)-1), "wrong key");
 	OK_(crypt_resume_by_passphrase(cd, CDEVICE_1, CRYPT_ANY_SLOT, KEY1, strlen(KEY1)));
 	FAIL_(crypt_resume_by_passphrase(cd, CDEVICE_1, CRYPT_ANY_SLOT, KEY1, strlen(KEY1)), "not suspended");
+
+	OK_(crypt_get_active_device(cd, CDEVICE_1, &cad));
+	EQ_(0, cad.flags & CRYPT_ACTIVATE_SUSPENDED);
 
 	OK_(prepare_keyfile(KEYFILE1, KEY1, strlen(KEY1)));
 	OK_(crypt_suspend(cd, CDEVICE_1));
@@ -725,6 +734,14 @@ static void SuspendDevice(void)
 
 	OK_(crypt_init_by_name_and_header(&cd, CDEVICE_1, DEVICE_1));
 	OK_(crypt_resume_by_passphrase(cd, CDEVICE_1, CRYPT_ANY_SLOT, KEY1, strlen(KEY1)));
+
+	/* Resume by volume key */
+	OK_(crypt_suspend(cd, CDEVICE_1));
+	key_size = sizeof(key);
+	memset(key, 0, key_size);
+	FAIL_(crypt_resume_by_volume_key(cd, CDEVICE_1, key, key_size), "wrong key");
+	OK_(crypt_volume_key_get(cd, CRYPT_ANY_SLOT, key, &key_size, KEY1, strlen(KEY1)));
+	OK_(crypt_resume_by_volume_key(cd, CDEVICE_1, key, key_size));
 
 	OK_(crypt_deactivate(cd, CDEVICE_1));
 	CRYPT_FREE(cd);
@@ -985,6 +1002,18 @@ static void AddDeviceLuks(void)
 
 	FAIL_(crypt_deactivate(cd, CDEVICE_2), "not active");
 	CRYPT_FREE(cd);
+
+	// No benchmark PBKDF2
+	pbkdf.flags = CRYPT_PBKDF_NO_BENCHMARK;
+	pbkdf.hash = "sha256";
+	pbkdf.iterations = 1000;
+	pbkdf.time_ms = 0;
+
+	OK_(crypt_init(&cd, DEVICE_2));
+	OK_(crypt_set_pbkdf_type(cd, &pbkdf));
+	OK_(crypt_format(cd, CRYPT_LUKS1, cipher, cipher_mode, NULL, key, key_size, &params));
+	CRYPT_FREE(cd);
+
 	_cleanup_dmdevices();
 }
 
@@ -1541,7 +1570,8 @@ static void VerityTest(void)
 {
 	const char *salt_hex =  "20c28ffc129c12360ba6ceea2b6cf04e89c2b41cfe6b8439eb53c1897f50df7b";
 	const char *root_hex =  "ab018b003a967fc782effb293b6dccb60b4f40c06bf80d16391acf686d28b5d6";
-	char salt[256], root_hash[256];
+	char salt[256], root_hash[256], root_hash_out[256];
+	size_t root_hash_out_size = 256;
 	struct crypt_active_device cad;
 	struct crypt_params_verity params = {
 		.data_device = DEVICE_EMPTY,
@@ -1628,6 +1658,10 @@ static void VerityTest(void)
 	CRYPT_FREE(cd);
 
 	OK_(crypt_init_by_name(&cd, CDEVICE_1));
+	memset(root_hash_out, 0, root_hash_out_size);
+	OK_(crypt_volume_key_get(cd, CRYPT_ANY_SLOT, root_hash_out, &root_hash_out_size, NULL, 0));
+	EQ_(32, root_hash_out_size);
+	OK_(memcmp(root_hash, root_hash_out, root_hash_out_size));
 	OK_(crypt_deactivate(cd, CDEVICE_1));
 
 	/* hash fail */

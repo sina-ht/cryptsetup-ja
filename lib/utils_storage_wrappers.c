@@ -2,7 +2,7 @@
  * Generic wrapper for storage functions
  * (experimental only)
  *
- * Copyright (C) 2018, Ondrej Kozina
+ * Copyright (C) 2018-2020, Ondrej Kozina
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -108,7 +108,7 @@ static int crypt_storage_dmcrypt_init(
 	r = device_block_adjust(cd, device, DEV_OK,
 				device_offset, &dmd.size, &dmd.flags);
 	if (r < 0) {
-		log_err(cd, _("Device %s doesn't exist or access denied."),
+		log_err(cd, _("Device %s does not exist or access denied."),
 			device_path(device));
 		return -EIO;
 	}

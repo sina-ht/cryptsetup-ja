@@ -1,8 +1,8 @@
 /*
  * NSS crypto backend implementation
  *
- * Copyright (C) 2010-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2010-2019 Milan Broz
+ * Copyright (C) 2010-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2010-2020 Milan Broz
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -380,4 +380,13 @@ int crypt_cipher_decrypt(struct crypt_cipher *ctx,
 bool crypt_cipher_kernel_only(struct crypt_cipher *ctx)
 {
 	return true;
+}
+
+int crypt_bitlk_decrypt_key(const void *key, size_t key_length,
+			    const char *in, char *out, size_t length,
+			    const char *iv, size_t iv_length,
+			    const char *tag, size_t tag_length)
+{
+	return crypt_bitlk_decrypt_key_kernel(key, key_length, in, out, length,
+					      iv, iv_length, tag, tag_length);
 }

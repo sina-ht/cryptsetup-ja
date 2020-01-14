@@ -1,8 +1,8 @@
 /*
  * crypto backend implementation
  *
- * Copyright (C) 2010-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2010-2019 Milan Broz
+ * Copyright (C) 2010-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2010-2020 Milan Broz
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -55,5 +55,9 @@ int crypt_cipher_decrypt_kernel(struct crypt_cipher_kernel *ctx,
 				const char *in, char *out, size_t length,
 				const char *iv, size_t iv_length);
 void crypt_cipher_destroy_kernel(struct crypt_cipher_kernel *ctx);
+int crypt_bitlk_decrypt_key_kernel(const void *key, size_t key_length,
+				   const char *in, char *out, size_t length,
+				   const char *iv, size_t iv_length,
+				   const char *tag, size_t tag_length);
 
 #endif /* _CRYPTO_BACKEND_INTERNAL_H */

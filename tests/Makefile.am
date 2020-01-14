@@ -17,7 +17,8 @@ TESTS = 00modules-test \
 	luks2-validation-test \
 	luks2-integrity-test \
 	vectors-test \
-	blockwise-compat
+	blockwise-compat \
+	bitlk-compat-test
 
 if VERITYSETUP
 TESTS += verity-compat-test
@@ -67,11 +68,13 @@ EXTRA_DIST = compatimage.img.xz compatv10image.img.xz \
 	cryptsetup-valg-supps valg.sh valg-api.sh \
 	blockwise-compat \
 	blkid-luks2-pv.img.xz \
-	Makefile.localtest
+	Makefile.localtest \
+	bitlk-compat-test \
+	bitlk-images.tar.xz
 
 CLEANFILES = cryptsetup-tst* valglog* *-fail-*.log
 clean-local:
-	-rm -rf tcrypt-images luks1-images luks2-images conversion_imgs luks2_valid_hdr.img blkid-luks2-pv-img blkid-luks2-pv-img.bcp
+	-rm -rf tcrypt-images luks1-images luks2-images bitlk-images conversion_imgs luks2_valid_hdr.img blkid-luks2-pv-img blkid-luks2-pv-img.bcp
 
 differ_SOURCES = differ.c
 differ_CFLAGS = $(AM_CFLAGS) -Wall -O2
@@ -109,12 +112,13 @@ compatimage.img:
 	@xz -k -d compatimage.img.xz
 
 valgrind-check: api-test api-test-2 differ
-	@VALG=1 ./compat-test
 	@VALG=1 ./compat-test2
 	@VALG=1 ./luks2-validation-test
 	@VALG=1 ./verity-compat-test
 	@VALG=1 ./integrity-compat-test
 	@INFOSTRING="api-test-000" ./valg-api.sh ./api-test
 	@INFOSTRING="api-test-002" ./valg-api.sh ./api-test-2
+	@VALG=1 ./luks2-reencryption-test
+	@VALG=1 ./compat-test
 
 .PHONY: valgrind-check

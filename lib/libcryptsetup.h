@@ -3,8 +3,8 @@
  *
  * Copyright (C) 2004 Jana Saout <jana@saout.de>
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2019 Milan Broz
+ * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2020 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -414,6 +414,8 @@ int crypt_get_metadata_size(struct crypt_device *cd,
 #define CRYPT_TCRYPT "TCRYPT"
 /** INTEGRITY dm-integrity device */
 #define CRYPT_INTEGRITY "INTEGRITY"
+/** BITLK (BitLocker-compatible mode) */
+#define CRYPT_BITLK "BITLK"
 
 /** LUKS any version */
 #define CRYPT_LUKS NULL
@@ -505,6 +507,8 @@ struct crypt_params_verity {
 #define CRYPT_VERITY_CHECK_HASH  (1 << 1)
 /** Create hash - format hash device */
 #define CRYPT_VERITY_CREATE_HASH (1 << 2)
+/** Root hash signature required for activation */
+#define CRYPT_VERITY_ROOT_HASH_SIGNATURE (1 << 3)
 
 /**
  *
@@ -628,6 +632,26 @@ int crypt_format(struct crypt_device *cd,
 	const char *volume_key,
 	size_t volume_key_size,
 	void *params);
+
+/**
+ * Set format compatibility flags.
+ *
+ * @param cd crypt device handle
+ * @param flags CRYPT_COMPATIBILITY_* flags
+ */
+void crypt_set_compatibility(struct crypt_device *cd, uint32_t flags);
+
+/**
+ * Get compatibility flags.
+ *
+ * @param cd crypt device handle
+ *
+ * @returns compatibility flags
+ */
+uint32_t crypt_get_compatibility(struct crypt_device *cd);
+
+/** dm-integrity device uses less effective (legacy) padding (old kernels) */
+#define CRYPT_COMPAT_LEGACY_INTEGRITY_PADDING (1 << 0)
 
 /**
  * Convert to new type for already existing device.
@@ -828,6 +852,20 @@ int crypt_resume_by_keyfile(struct crypt_device *cd,
 	int keyslot,
 	const char *keyfile,
 	size_t keyfile_size);
+/**
+ * Resume crypt device using provided volume key.
+ *
+ * @param cd crypt device handle
+ * @param name name of device to resume
+ * @param volume_key provided volume key
+ * @param volume_key_size size of volume_key
+ *
+ * @return @e 0 on success or negative errno value otherwise.
+ */
+int crypt_resume_by_volume_key(struct crypt_device *cd,
+	const char *name,
+	const char *volume_key,
+	size_t volume_key_size);
 /** @} */
 
 /**
@@ -1061,6 +1099,8 @@ int crypt_keyslot_destroy(struct crypt_device *cd, int keyslot);
 #define CRYPT_ACTIVATE_SERIALIZE_MEMORY_HARD_PBKDF (1 << 19)
 /** dm-integrity: direct writes, use bitmap to track dirty sectors */
 #define CRYPT_ACTIVATE_NO_JOURNAL_BITMAP (1 << 20)
+/** device is suspended (key should be wiped from memory), output only */
+#define CRYPT_ACTIVATE_SUSPENDED (1 << 21)
 
 /**
  * Active device runtime attributes
@@ -1253,6 +1293,31 @@ int crypt_activate_by_volume_key(struct crypt_device *cd,
 	uint32_t flags);
 
 /**
+ * Activate VERITY device using provided key and optional signature).
+ *
+ * @param cd crypt device handle
+ * @param name name of device to create
+ * @param volume_key provided volume key
+ * @param volume_key_size size of volume_key
+ * @param signature buffer with signature for the key
+ * @param signature_size bsize of signature buffer
+ * @param flags activation flags
+ *
+ * @return @e 0 on success or negative errno value otherwise.
+ *
+ * @note For VERITY the volume key means root hash required for activation.
+ *	Because kernel dm-verity is always read only, you have to provide
+ *	CRYPT_ACTIVATE_READONLY flag always.
+ */
+int crypt_activate_by_signed_key(struct crypt_device *cd,
+	const char *name,
+	const char *volume_key,
+	size_t volume_key_size,
+	const char *signature,
+	size_t signature_size,
+	uint32_t flags);
+
+/**
  * Activate device using passphrase stored in kernel keyring.
  *
  * @param cd crypt device handle
@@ -1322,6 +1387,7 @@ int crypt_deactivate(struct crypt_device *cd, const char *name);
  *
  * @note For TCRYPT cipher chain is the volume key concatenated
  * 	 for all ciphers in chain.
+ * @note For VERITY the volume key means root hash used for activation.
  */
 int crypt_volume_key_get(struct crypt_device *cd,
 	int keyslot,
@@ -2249,6 +2315,53 @@ typedef enum {
  */
 crypt_reencrypt_info crypt_reencrypt_status(struct crypt_device *cd,
 		struct crypt_params_reencrypt *params);
+/** @} */
+
+/**
+ * @defgroup crypt-memory Safe memory helpers functions
+ * @addtogroup crypt-memory
+ * @{
+ */
+
+/**
+ * Allocate safe memory (content is safely wiped on deallocation).
+ *
+ * @param size size of memory in bytes
+ *
+ * @return pointer to allocate memory or @e NULL.
+ */
+void *crypt_safe_alloc(size_t size);
+
+/**
+ * Release safe memory, content is safely wiped
+ * The pointer must be allocated with @link crypt_safe_alloc @endlink
+ *
+ * @param data pointer to memory to be deallocated
+ *
+ * @return pointer to allocate memory or @e NULL.
+ */
+void crypt_safe_free(void *data);
+
+/**
+ * Reallocate safe memory (content is copied and safely wiped on deallocation).
+ *
+ * @param data pointer to memory to be deallocated
+ * @param size new size of memory in bytes
+ *
+ * @return pointer to allocate memory or @e NULL.
+ */
+void *crypt_safe_realloc(void *data, size_t size);
+
+/**
+ * Safe clear memory area (compile should not compile this call out).
+ *
+ * @param data pointer to memory to cleared
+ * @param size new size of memory in bytes
+ *
+ * @return pointer to allocate memory or @e NULL.
+ */
+void crypt_safe_memzero(void *data, size_t size);
+
 /** @} */
 
 #ifdef __cplusplus

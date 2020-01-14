@@ -1,8 +1,8 @@
 /*
  * GCRYPT crypto backend implementation
  *
- * Copyright (C) 2010-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2010-2019 Milan Broz
+ * Copyright (C) 2010-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2010-2020 Milan Broz
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -478,4 +478,44 @@ int crypt_cipher_decrypt(struct crypt_cipher *ctx,
 bool crypt_cipher_kernel_only(struct crypt_cipher *ctx)
 {
 	return ctx->use_kernel;
+}
+
+int crypt_bitlk_decrypt_key(const void *key, size_t key_length,
+			    const char *in, char *out, size_t length,
+			    const char *iv, size_t iv_length,
+			    const char *tag, size_t tag_length)
+{
+#ifdef GCRY_CCM_BLOCK_LEN
+	gcry_cipher_hd_t hd;
+	uint64_t l[3];
+	int r = -EINVAL;
+
+	if (gcry_cipher_open(&hd, GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_CCM, 0))
+		return -EINVAL;
+
+	if (gcry_cipher_setkey(hd, key, key_length))
+		goto out;
+
+	if (gcry_cipher_setiv(hd, iv, iv_length))
+		goto out;
+
+	l[0] = length;
+	l[1] = 0;
+	l[2] = tag_length;
+	if (gcry_cipher_ctl(hd, GCRYCTL_SET_CCM_LENGTHS, l, sizeof(l)))
+		goto out;
+
+	if (gcry_cipher_decrypt(hd, out, length, in, length))
+		goto out;
+
+	if (gcry_cipher_checktag(hd, tag, tag_length))
+		goto out;
+
+	r = 0;
+out:
+	gcry_cipher_close(hd);
+	return r;
+#else
+	return -ENOTSUP;
+#endif
 }

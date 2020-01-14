@@ -1,9 +1,9 @@
 /*
  * LUKS - Linux Unified Key Setup v2, LUKS1 conversion code
  *
- * Copyright (C) 2015-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2015-2019 Ondrej Kozina
- * Copyright (C) 2015-2019 Milan Broz
+ * Copyright (C) 2015-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2015-2020 Ondrej Kozina
+ * Copyright (C) 2015-2020 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -466,7 +466,7 @@ static int move_keyslot_areas(struct crypt_device *cd, off_t offset_from,
 	r = 0;
 out:
 	device_sync(cd, device);
-	crypt_memzero(buf, buf_size);
+	crypt_safe_memzero(buf, buf_size);
 	free(buf);
 
 	return r;

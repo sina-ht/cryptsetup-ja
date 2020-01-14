@@ -2,8 +2,8 @@
  * LUKS - Linux Unified Key Setup
  *
  * Copyright (C) 2004-2006 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2013-2019 Milan Broz
+ * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2013-2020 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -260,7 +260,7 @@ int LUKS_hdr_backup(const char *backup_file, struct crypt_device *ctx)
 
 	r = 0;
 out:
-	crypt_memzero(&hdr, sizeof(hdr));
+	crypt_safe_memzero(&hdr, sizeof(hdr));
 	crypt_safe_free(buffer);
 	return r;
 }
@@ -284,7 +284,7 @@ int LUKS_hdr_restore(
 		buffer_size = LUKS_device_sectors(&hdr_file) << SECTOR_SHIFT;
 
 	if (r || buffer_size < LUKS_ALIGN_KEYSLOTS) {
-		log_err(ctx, _("Backup file doesn't contain valid LUKS header."));
+		log_err(ctx, _("Backup file does not contain valid LUKS header."));
 		r = -EINVAL;
 		goto out;
 	}
@@ -453,7 +453,7 @@ out:
 	if (r)
 		log_err(ctx, _("Repair failed."));
 	crypt_free_volume_key(vk);
-	crypt_memzero(&temp_phdr, sizeof(temp_phdr));
+	crypt_safe_memzero(&temp_phdr, sizeof(temp_phdr));
 	return r;
 }
 
@@ -692,7 +692,7 @@ int LUKS_check_cipher(struct crypt_device *ctx, size_t keylength, const char *ci
 		r = LUKS_decrypt_from_storage(buf, sizeof(buf), cipher, cipher_mode, empty_key, 0, ctx);
 
 	crypt_free_volume_key(empty_key);
-	crypt_memzero(buf, sizeof(buf));
+	crypt_safe_memzero(buf, sizeof(buf));
 	return r;
 }
 
@@ -787,10 +787,15 @@ int LUKS_generate_phdr(struct luks_phdr *header,
 		return r;
 	assert(pbkdf->iterations);
 
-	PBKDF2_temp = (double)pbkdf->iterations * LUKS_MKD_ITERATIONS_MS / pbkdf->time_ms;
+	if (pbkdf->flags & CRYPT_PBKDF_NO_BENCHMARK && pbkdf->time_ms == 0)
+		PBKDF2_temp = LUKS_MKD_ITERATIONS_MIN;
+	else	/* iterations per ms * LUKS_MKD_ITERATIONS_MS */
+		PBKDF2_temp = (double)pbkdf->iterations * LUKS_MKD_ITERATIONS_MS / pbkdf->time_ms;
+
 	if (PBKDF2_temp > (double)UINT32_MAX)
 		return -EINVAL;
 	header->mkDigestIterations = at_least((uint32_t)PBKDF2_temp, LUKS_MKD_ITERATIONS_MIN);
+	assert(header->mkDigestIterations);
 
 	r = crypt_pbkdf(CRYPT_KDF_PBKDF2, header->hashSpec, vk->key,vk->keylength,
 			header->mkDigestSalt, LUKS_SALTSIZE,

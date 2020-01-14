@@ -1,8 +1,8 @@
 /*
  * libcryptsetup - cryptsetup library, cipher benchmark
  *
- * Copyright (C) 2012-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2012-2019 Milan Broz
+ * Copyright (C) 2012-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2012-2020 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -72,7 +72,7 @@ int crypt_benchmark(struct crypt_device *cd,
 	if (r == -ERANGE)
 		log_dbg(cd, "Measured cipher runtime is too low.");
 	else if (r == -ENOTSUP || r == -ENOENT)
-		log_dbg(cd, "Cannot initialise cipher %s, mode %s.", cipher, cipher_mode);
+		log_dbg(cd, "Cannot initialize cipher %s, mode %s.", cipher, cipher_mode);
 
 out:
 	free(buffer);

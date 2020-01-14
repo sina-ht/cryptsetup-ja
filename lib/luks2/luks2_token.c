@@ -1,8 +1,8 @@
 /*
  * LUKS - Linux Unified Key Setup v2, token handling
  *
- * Copyright (C) 2016-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2016-2019 Milan Broz
+ * Copyright (C) 2016-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2016-2020 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -332,7 +332,7 @@ static void LUKS2_token_buffer_free(struct crypt_device *cd,
 	if (h->buffer_free)
 		h->buffer_free(buffer, buffer_len);
 	else {
-		crypt_memzero(buffer, buffer_len);
+		crypt_safe_memzero(buffer, buffer_len);
 		free(buffer);
 	}
 }

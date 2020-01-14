@@ -1,8 +1,8 @@
 /*
  * crypto backend implementation
  *
- * Copyright (C) 2010-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2010-2019 Milan Broz
+ * Copyright (C) 2010-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2010-2020 Milan Broz
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -118,6 +118,12 @@ int crypt_storage_encrypt(struct crypt_storage *ctx, uint64_t iv_offset,
 			  uint64_t length, char *buffer);
 
 bool crypt_storage_kernel_only(struct crypt_storage *ctx);
+
+/* Temporary Bitlk helper */
+int crypt_bitlk_decrypt_key(const void *key, size_t key_length,
+			    const char *in, char *out, size_t length,
+			    const char *iv, size_t iv_length,
+			    const char *tag, size_t tag_length);
 
 /* Memzero helper (memset on stack can be optimized out) */
 static inline void crypt_backend_memzero(void *s, size_t n)

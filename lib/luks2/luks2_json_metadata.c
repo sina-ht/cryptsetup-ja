@@ -1,9 +1,9 @@
 /*
  * LUKS - Linux Unified Key Setup v2
  *
- * Copyright (C) 2015-2019 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2015-2019 Milan Broz
- * Copyright (C) 2015-2019 Ondrej Kozina
+ * Copyright (C) 2015-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2015-2020 Milan Broz
+ * Copyright (C) 2015-2020 Ondrej Kozina
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -459,12 +459,12 @@ static int hdr_validate_json_size(struct crypt_device *cd, json_object *hdr_jobj
 	json_size = (uint64_t)strlen(json);
 
 	if (hdr_json_size != json_area_size) {
-		log_dbg(cd, "JSON area size doesn't match value in binary header.");
+		log_dbg(cd, "JSON area size does not match value in binary header.");
 		return 1;
 	}
 
 	if (json_size > json_area_size) {
-		log_dbg(cd, "JSON doesn't fit in the designated area.");
+		log_dbg(cd, "JSON does not fit in the designated area.");
 		return 1;
 	}
 
@@ -1159,7 +1159,7 @@ int LUKS2_hdr_restore(struct crypt_device *cd, struct luks2_hdr *hdr,
 	device_free(cd, backup_device);
 
 	if (r < 0) {
-		log_err(cd, _("Backup file doesn't contain valid LUKS header."));
+		log_err(cd, _("Backup file does not contain valid LUKS header."));
 		goto out;
 	}
 
@@ -1270,8 +1270,8 @@ out:
 	LUKS2_hdr_free(cd, hdr);
 	LUKS2_hdr_free(cd, &hdr_file);
 	LUKS2_hdr_free(cd, &tmp_hdr);
-	crypt_memzero(&hdr_file, sizeof(hdr_file));
-	crypt_memzero(&tmp_hdr, sizeof(tmp_hdr));
+	crypt_safe_memzero(&hdr_file, sizeof(hdr_file));
+	crypt_safe_memzero(&tmp_hdr, sizeof(tmp_hdr));
 	crypt_safe_free(buffer);
 
 	device_sync(cd, device);
@@ -2205,24 +2205,19 @@ int LUKS2_deactivate(struct crypt_device *cd, const char *name, struct luks2_hdr
 	struct dm_target *tgt;
 	crypt_status_info ci;
 	struct crypt_dm_active_device dmdc;
-	char **dep, uuid[37], deps_uuid_prefix[40], *deps[MAX_DM_DEPS+1] = { 0 };
+	char **dep, deps_uuid_prefix[40], *deps[MAX_DM_DEPS+1] = { 0 };
 	const char *namei = NULL;
 	struct crypt_lock_handle *reencrypt_lock = NULL;
 
-	if (!dmd || !dmd->uuid)
+	if (!dmd || !dmd->uuid || strncmp(CRYPT_LUKS2, dmd->uuid, sizeof(CRYPT_LUKS2)-1))
+		return -EINVAL;
+
+	/* uuid mismatch with metadata (if available) */
+	if (hdr && crypt_uuid_cmp(dmd->uuid, hdr->uuid))
 		return -EINVAL;
 
 	r = snprintf(deps_uuid_prefix, sizeof(deps_uuid_prefix), CRYPT_SUBDEV "-%.32s", dmd->uuid + 6);
 	if (r < 0 || (size_t)r != (sizeof(deps_uuid_prefix) - 1))
-		return -EINVAL;
-
-	r = snprintf(uuid, sizeof(uuid), "%.8s-%.4s-%.4s-%.4s-%.12s",
-		 dmd->uuid + 6, dmd->uuid + 14, dmd->uuid + 18, dmd->uuid + 22, dmd->uuid + 26);
-	if (r < 0 || (size_t)r != (sizeof(uuid) - 1))
-		return -EINVAL;
-
-	/* uuid mismatch with metadata (if available) */
-	if (hdr && strcmp(hdr->uuid, uuid))
 		return -EINVAL;
 
 	tgt = &dmd->segment;
@@ -2236,7 +2231,7 @@ int LUKS2_deactivate(struct crypt_device *cd, const char *name, struct luks2_hdr
 		goto out;
 
 	if (contains_reencryption_helper(deps)) {
-		r = crypt_reencrypt_lock(cd, uuid, &reencrypt_lock);
+		r = crypt_reencrypt_lock_by_dm_uuid(cd, dmd->uuid, &reencrypt_lock);
 		if (r) {
 			if (r == -EBUSY)
 				log_err(cd, _("Reencryption in-progress. Cannot deactivate device."));
@@ -2345,9 +2340,9 @@ int LUKS2_unmet_requirements(struct crypt_device *cd, struct luks2_hdr *hdr, uin
 	reqs &= ~reqs_mask;
 
 	if (reqs_reencrypt(reqs) && !quiet)
-		log_err(cd, _("Offline reencryption in progress. Aborting."));
+		log_err(cd, _("Operation incompatible with device marked for legacy reencryption. Aborting."));
 	if (reqs_reencrypt_online(reqs) && !quiet)
-		log_err(cd, _("Online reencryption in progress. Aborting."));
+		log_err(cd, _("Operation incompatible with device marked for LUKS2 reencryption. Aborting."));
 
 	/* any remaining unmasked requirement fails the check */
 	return reqs ? -EINVAL : 0;
@@ -2400,7 +2395,7 @@ int json_object_object_add_by_uint(json_object *jobj, unsigned key, json_object 
 #endif
 }
 
-/* jobj_dst must contain pointer initialised to NULL (see json-c json_object_deep_copy API) */
+/* jobj_dst must contain pointer initialized to NULL (see json-c json_object_deep_copy API) */
 int json_object_copy(json_object *jobj_src, json_object **jobj_dst)
 {
 	if (!jobj_src || !jobj_dst || *jobj_dst)
