@@ -45,11 +45,11 @@ void hexprint_base64(struct crypt_device *cd, json_object *jobj,
 				 &buf, &buf_len))
 		return;
 
-	for (i = 0; i < buf_len / 2; i++)
+	for (i = 0; i < buf_len; i++) {
+		if (i && !(i % 16))
+			log_std(cd, "\n\t%s", line_sep);
 		log_std(cd, "%02hhx%s", buf[i], sep);
-	log_std(cd, "\n\t%s", line_sep);
-	for (i = buf_len / 2; i < buf_len; i++)
-		log_std(cd, "%02hhx%s", buf[i], sep);
+	}
 	log_std(cd, "\n");
 	free(buf);
 }
@@ -970,13 +970,16 @@ int LUKS2_hdr_read(struct crypt_device *cd, struct luks2_hdr *hdr, int repair)
 	return r;
 }
 
-int LUKS2_hdr_write_force(struct crypt_device *cd, struct luks2_hdr *hdr)
+static int hdr_cleanup_and_validate(struct crypt_device *cd, struct luks2_hdr *hdr)
 {
-	/* NOTE: is called before LUKS2 validation routines */
-	/* erase unused digests (no assigned keyslot or segment) */
 	LUKS2_digests_erase_unused(cd, hdr);
 
-	if (LUKS2_hdr_validate(cd, hdr->jobj, hdr->hdr_size - LUKS2_HDR_BIN_LEN))
+	return LUKS2_hdr_validate(cd, hdr->jobj, hdr->hdr_size - LUKS2_HDR_BIN_LEN);
+}
+
+int LUKS2_hdr_write_force(struct crypt_device *cd, struct luks2_hdr *hdr)
+{
+	if (hdr_cleanup_and_validate(cd, hdr))
 		return -EINVAL;
 
 	return LUKS2_disk_hdr_write(cd, hdr, crypt_metadata_device(cd), false);
@@ -984,11 +987,7 @@ int LUKS2_hdr_write_force(struct crypt_device *cd, struct luks2_hdr *hdr)
 
 int LUKS2_hdr_write(struct crypt_device *cd, struct luks2_hdr *hdr)
 {
-	/* NOTE: is called before LUKS2 validation routines */
-	/* erase unused digests (no assigned keyslot or segment) */
-	LUKS2_digests_erase_unused(cd, hdr);
-
-	if (LUKS2_hdr_validate(cd, hdr->jobj, hdr->hdr_size - LUKS2_HDR_BIN_LEN))
+	if (hdr_cleanup_and_validate(cd, hdr))
 		return -EINVAL;
 
 	return LUKS2_disk_hdr_write(cd, hdr, crypt_metadata_device(cd), true);
@@ -2157,7 +2156,7 @@ int LUKS2_activate(struct crypt_device *cd,
 			return -EINVAL;
 		}
 
-		r = INTEGRITY_create_dmd_device(cd, NULL, NULL, NULL, NULL, &dmdi, dmd.flags);
+		r = INTEGRITY_create_dmd_device(cd, NULL, NULL, NULL, NULL, &dmdi, dmd.flags, 0);
 		if (r)
 			return r;
 

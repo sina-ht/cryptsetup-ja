@@ -26,7 +26,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <sys/utsname.h>
-#include <fcntl.h>
 #include <errno.h>
 
 #include "libcryptsetup.h"
@@ -584,6 +583,9 @@ int crypt_init(struct crypt_device **cd, const char *device)
 		return -EINVAL;
 
 	log_dbg(NULL, "Allocating context for crypt device %s.", device ?: "(none)");
+#if !HAVE_DECL_O_CLOEXEC
+	log_dbg(NULL, "Running without O_CLOEXEC.");
+#endif
 
 	if (!(h = malloc(sizeof(struct crypt_device))))
 		return -ENOMEM;
@@ -5265,6 +5267,9 @@ uint64_t crypt_get_data_offset(struct crypt_device *cd)
 
 	if (isTCRYPT(cd->type))
 		return TCRYPT_get_data_offset(cd, &cd->u.tcrypt.hdr, &cd->u.tcrypt.params);
+
+	if (isBITLK(cd->type))
+		return cd->u.bitlk.params.volume_header_size / SECTOR_SIZE;
 
 	return cd->data_offset;
 }

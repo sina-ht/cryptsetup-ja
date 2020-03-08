@@ -1,5 +1,5 @@
 AC_PREREQ([2.67])
-AC_INIT([cryptsetup],[2.3.0-rc0])
+AC_INIT([cryptsetup],[2.3.1-rc0])
 
 dnl library version from <major>.<minor>.<release>[-<suffix>]
 LIBCRYPTSETUP_VERSION=$(echo $PACKAGE_VERSION | cut -f1 -d-)
@@ -33,6 +33,7 @@ AC_PROG_MAKE_SET
 AC_ENABLE_STATIC(no)
 LT_INIT
 PKG_PROG_PKG_CONFIG
+AM_ICONV
 
 dnl ==========================================================================
 dnl define PKG_CHECK_VAR for old pkg-config <= 0.28
@@ -59,6 +60,12 @@ AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_CHECK_HEADERS(fcntl.h malloc.h inttypes.h sys/ioctl.h sys/mman.h \
 	sys/sysmacros.h sys/statvfs.h ctype.h unistd.h locale.h byteswap.h endian.h stdint.h)
+AC_CHECK_DECLS([O_CLOEXEC],,[AC_DEFINE([O_CLOEXEC],[0], [Defined to 0 if not provided])],
+[[
+#ifdef HAVE_FCNTL_H
+# include <fcntl.h>
+#endif
+]])
 
 AC_CHECK_HEADERS(uuid/uuid.h,,[AC_MSG_ERROR([You need the uuid library.])])
 AC_CHECK_HEADER(libdevmapper.h,,[AC_MSG_ERROR([You need the device-mapper library.])])
@@ -348,6 +355,7 @@ AC_CHECK_DECLS([dm_task_retry_remove], [], [], [#include <libdevmapper.h>])
 AC_CHECK_DECLS([dm_task_deferred_remove], [], [], [#include <libdevmapper.h>])
 AC_CHECK_DECLS([dm_device_has_mounted_fs], [], [], [#include <libdevmapper.h>])
 AC_CHECK_DECLS([dm_device_has_holders], [], [], [#include <libdevmapper.h>])
+AC_CHECK_DECLS([dm_device_get_name], [], [], [#include <libdevmapper.h>])
 AC_CHECK_DECLS([DM_DEVICE_GET_TARGET_VERSION], [], [], [#include <libdevmapper.h>])
 AC_CHECK_DECLS([DM_UDEV_DISABLE_DISK_RULES_FLAG], [have_cookie=yes], [have_cookie=no], [#include <libdevmapper.h>])
 if test "x$enable_udev" = xyes; then

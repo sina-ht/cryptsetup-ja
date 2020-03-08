@@ -23,7 +23,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
-#include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -987,8 +986,10 @@ static int LUKS_open_key(unsigned int keyIndex,
 			hdr->keyblock[keyIndex].passwordSalt, LUKS_SALTSIZE,
 			derived_key->key, hdr->keyBytes,
 			hdr->keyblock[keyIndex].passwordIterations, 0, 0);
-	if (r < 0)
+	if (r < 0) {
+		log_err(ctx, _("Cannot open keyslot (using hash %s)."), hdr->hashSpec);
 		goto out;
+	}
 
 	log_dbg(ctx, "Reading key slot %d area.", keyIndex);
 	r = LUKS_decrypt_from_storage(AfKey,
@@ -1229,7 +1230,7 @@ int LUKS_wipe_header_areas(struct luks_phdr *hdr,
 
 int LUKS_keyslot_pbkdf(struct luks_phdr *hdr, int keyslot, struct crypt_pbkdf_type *pbkdf)
 {
-	if (keyslot >= LUKS_NUMKEYS || keyslot < 0)
+	if (LUKS_keyslot_info(hdr, keyslot) < CRYPT_SLOT_ACTIVE)
 		return -EINVAL;
 
 	pbkdf->type = CRYPT_KDF_PBKDF2;
