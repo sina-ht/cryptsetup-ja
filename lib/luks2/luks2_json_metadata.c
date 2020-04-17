@@ -219,7 +219,7 @@ int LUKS2_get_default_segment(struct luks2_hdr *hdr)
  * json_type_int needs to be validated first.
  * See validate_json_uint32()
  */
-uint32_t json_object_get_uint32(json_object *jobj)
+uint32_t crypt_jobj_get_uint32(json_object *jobj)
 {
 	return json_object_get_int64(jobj);
 }
@@ -234,21 +234,21 @@ static json_bool json_str_to_uint64(json_object *jobj, uint64_t *value)
 	tmp = strtoull(json_object_get_string(jobj), &endptr, 10);
 	if (*endptr || errno) {
 		*value = 0;
-		return FALSE;
+		return 0;
 	}
 
 	*value = tmp;
-	return TRUE;
+	return 1;
 }
 
-uint64_t json_object_get_uint64(json_object *jobj)
+uint64_t crypt_jobj_get_uint64(json_object *jobj)
 {
 	uint64_t r;
 	json_str_to_uint64(jobj, &r);
 	return r;
 }
 
-json_object *json_object_new_uint64(uint64_t value)
+json_object *crypt_jobj_new_uint64(uint64_t value)
 {
 	/* 18446744073709551615 */
 	char num[21];
@@ -273,9 +273,9 @@ static json_bool numbered(struct crypt_device *cd, const char *name, const char 
 	for (i = 0; key[i]; i++)
 		if (!isdigit(key[i])) {
 			log_dbg(cd, "%s \"%s\" is not in numbered form.", name, key);
-			return FALSE;
+			return 0;
 		}
-	return TRUE;
+	return 1;
 }
 
 json_object *json_contains(struct crypt_device *cd, json_object *jobj, const char *name,
@@ -300,7 +300,7 @@ json_bool validate_json_uint32(json_object *jobj)
 	errno = 0;
 	tmp = json_object_get_int64(jobj);
 
-	return (errno || tmp < 0 || tmp > UINT32_MAX) ? FALSE : TRUE;
+	return (errno || tmp < 0 || tmp > UINT32_MAX) ? 0 : 1;
 }
 
 static json_bool validate_keyslots_array(struct crypt_device *cd,
@@ -313,17 +313,17 @@ static json_bool validate_keyslots_array(struct crypt_device *cd,
 		jobj = json_object_array_get_idx(jarr, i);
 		if (!json_object_is_type(jobj, json_type_string)) {
 			log_dbg(cd, "Illegal value type in keyslots array at index %d.", i);
-			return FALSE;
+			return 0;
 		}
 
 		if (!json_contains(cd, jobj_keys, "", "Keyslots section",
 				   json_object_get_string(jobj), json_type_object))
-			return FALSE;
+			return 0;
 
 		i++;
 	}
 
-	return TRUE;
+	return 1;
 }
 
 static json_bool validate_segments_array(struct crypt_device *cd,
@@ -336,17 +336,17 @@ static json_bool validate_segments_array(struct crypt_device *cd,
 		jobj = json_object_array_get_idx(jarr, i);
 		if (!json_object_is_type(jobj, json_type_string)) {
 			log_dbg(cd, "Illegal value type in segments array at index %d.", i);
-			return FALSE;
+			return 0;
 		}
 
 		if (!json_contains(cd, jobj_segments, "", "Segments section",
 				   json_object_get_string(jobj), json_type_object))
-			return FALSE;
+			return 0;
 
 		i++;
 	}
 
-	return TRUE;
+	return 1;
 }
 
 static json_bool segment_has_digest(const char *segment_name, json_object *jobj_digests)
@@ -357,10 +357,10 @@ static json_bool segment_has_digest(const char *segment_name, json_object *jobj_
 		UNUSED(key);
 		json_object_object_get_ex(val, "segments", &jobj_segments);
 		if (LUKS2_array_jobj(jobj_segments, segment_name))
-			return TRUE;
+			return 1;
 	}
 
-	return FALSE;
+	return 0;
 }
 
 static json_bool validate_intervals(struct crypt_device *cd,
@@ -372,18 +372,18 @@ static json_bool validate_intervals(struct crypt_device *cd,
 	while (i < length) {
 		if (ix[i].offset < 2 * metadata_size) {
 			log_dbg(cd, "Illegal area offset: %" PRIu64 ".", ix[i].offset);
-			return FALSE;
+			return 0;
 		}
 
 		if (!ix[i].length) {
 			log_dbg(cd, "Area length must be greater than zero.");
-			return FALSE;
+			return 0;
 		}
 
 		if ((ix[i].offset + ix[i].length) > keyslots_area_end) {
 			log_dbg(cd, "Area [%" PRIu64 ", %" PRIu64 "] overflows binary keyslots area (ends at offset: %" PRIu64 ").",
 				ix[i].offset, ix[i].offset + ix[i].length, keyslots_area_end);
-			return FALSE;
+			return 0;
 		}
 
 		for (j = 0; j < length; j++) {
@@ -393,14 +393,14 @@ static json_bool validate_intervals(struct crypt_device *cd,
 				log_dbg(cd, "Overlapping areas [%" PRIu64 ",%" PRIu64 "] and [%" PRIu64 ",%" PRIu64 "].",
 					ix[i].offset, ix[i].offset + ix[i].length,
 					ix[j].offset, ix[j].offset + ix[j].length);
-				return FALSE;
+				return 0;
 			}
 		}
 
 		i++;
 	}
 
-	return TRUE;
+	return 1;
 }
 
 static int LUKS2_keyslot_validate(struct crypt_device *cd, json_object *hdr_jobj, json_object *hdr_keyslot, const char *key)
@@ -455,7 +455,7 @@ static int hdr_validate_json_size(struct crypt_device *cd, json_object *hdr_jobj
 
 	json = json_object_to_json_string_ext(hdr_jobj,
 		JSON_C_TO_STRING_PLAIN | JSON_C_TO_STRING_NOSLASHESCAPE);
-	json_area_size = json_object_get_uint64(jobj1);
+	json_area_size = crypt_jobj_get_uint64(jobj1);
 	json_size = (uint64_t)strlen(json);
 
 	if (hdr_json_size != json_area_size) {
@@ -543,7 +543,7 @@ static int hdr_validate_crypt_segment(struct crypt_device *cd,
 		return 1;
 	}
 
-	sector_size = json_object_get_uint32(jobj_sector_size);
+	sector_size = crypt_jobj_get_uint32(jobj_sector_size);
 	if (!sector_size || MISALIGNED_512(sector_size)) {
 		log_dbg(cd, "Illegal sector size: %" PRIu32, sector_size);
 		return 1;
@@ -1566,7 +1566,7 @@ static void hdr_dump_keyslots(struct crypt_device *cd, json_object *hdr_jobj)
 		log_std(cd, "  %s: %s%s\n", slot, tmps, r == -ENOENT ? " (unbound)" : "");
 
 		if (json_object_object_get_ex(val, "key_size", &jobj2))
-			log_std(cd, "\tKey:        %u bits\n", json_object_get_uint32(jobj2) * 8);
+			log_std(cd, "\tKey:        %u bits\n", crypt_jobj_get_uint32(jobj2) * 8);
 
 		log_std(cd, "\tPriority:   %s\n", get_priority_desc(val));
 
@@ -1649,7 +1649,7 @@ static void hdr_dump_segments(struct crypt_device *cd, json_object *hdr_jobj)
 			log_std(cd, "\tcipher: %s\n", json_object_get_string(jobj1));
 
 		if (json_object_object_get_ex(jobj_segment, "sector_size", &jobj1))
-			log_std(cd, "\tsector: %" PRIu32 " [bytes]\n", json_object_get_uint32(jobj1));
+			log_std(cd, "\tsector: %" PRIu32 " [bytes]\n", crypt_jobj_get_uint32(jobj1));
 
 		if (json_object_object_get_ex(jobj_segment, "integrity", &jobj1) &&
 		    json_object_object_get_ex(jobj1, "type", &jobj2))
@@ -1746,7 +1746,7 @@ int LUKS2_get_data_size(struct luks2_hdr *hdr, uint64_t *size, bool *dynamic)
 			return 0;
 		}
 
-		tmp += json_object_get_uint64(jobj_size);
+		tmp += crypt_jobj_get_uint64(jobj_size);
 	}
 
 	/* impossible, real device size must not be zero */
@@ -2153,6 +2153,11 @@ int LUKS2_activate(struct crypt_device *cd,
 	if (crypt_get_integrity_tag_size(cd)) {
 		if (!LUKS2_integrity_compatible(hdr)) {
 			log_err(cd, _("Unsupported device integrity configuration."));
+			return -EINVAL;
+		}
+
+		if (flags & CRYPT_ACTIVATE_ALLOW_DISCARDS) {
+			log_err(cd, _("Discard/TRIM is not supported."));
 			return -EINVAL;
 		}
 

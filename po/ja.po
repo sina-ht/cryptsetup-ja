@@ -1,13 +1,13 @@
 # Japanese messages for cryptsetup.
-# Copyright (C) 2019 Free Software Foundation, Inc.
+# Copyright (C) 2019, 2020 Free Software Foundation, Inc.
 # This file is put in the public domain, to the extent permitted under applicable law.
-# Hiroshi Takekawa <sian@big.or.jp>, <sian.ht@gmail.com>, 2019
+# Hiroshi Takekawa <sian@big.or.jp>, <sian.ht@gmail.com>, 2019, 2020
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: cryptsetup 2.3.0-rc0\n"
+"Project-Id-Version: cryptsetup 2.3.1-rc0\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
-"POT-Creation-Date: 2020-03-08 21:33+0900\n"
+"POT-Creation-Date: 2020-03-08 10:59+0100\n"
 "PO-Revision-Date: 2020-03-08 21:37+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"

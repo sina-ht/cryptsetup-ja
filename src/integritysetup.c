@@ -60,6 +60,7 @@ static int opt_integrity_bitmap = 0;
 static int opt_integrity_legacy_padding = 0;
 
 static int opt_integrity_recalculate = 0;
+static int opt_allow_discards = 0;
 
 static const char **action_argv;
 static int action_argc;
@@ -314,6 +315,8 @@ static int action_open(int arg)
 
 	if (opt_integrity_recalculate)
 		activate_flags |= CRYPT_ACTIVATE_RECALCULATE;
+	if (opt_allow_discards)
+		activate_flags |= CRYPT_ACTIVATE_ALLOW_DISCARDS;
 
 	r = _read_keys(&integrity_key, &params);
 	if (r)
@@ -437,6 +440,9 @@ static int action_status(int arg)
 			if (ip.journal_crypt)
 				log_std("  journal encryption: %s\n", ip.journal_crypt);
 		}
+		if (cad.flags & (CRYPT_ACTIVATE_ALLOW_DISCARDS))
+			log_std("  flags: %s\n",
+				(cad.flags & CRYPT_ACTIVATE_ALLOW_DISCARDS) ? "discards " : "");
 	}
 out:
 	crypt_free(cd);
@@ -569,6 +575,8 @@ int main(int argc, const char **argv)
 		{ "integrity-bitmap-mode",      'B', POPT_ARG_NONE,  &opt_integrity_bitmap, 0, N_("Use bitmap to track changes and disable journal for integrity device"), NULL },
 		{ "integrity-recalculate",     '\0', POPT_ARG_NONE,  &opt_integrity_recalculate,  0, N_("Recalculate initial tags automatically."), NULL },
 		{ "integrity-legacy-padding",  '\0', POPT_ARG_NONE,  &opt_integrity_legacy_padding, 0, N_("Use inefficient legacy padding (old kernels)"), NULL },
+
+		{ "allow-discards",            '\0', POPT_ARG_NONE,  &opt_allow_discards, 0, N_("Allow discards (aka TRIM) requests for device"), NULL },
 		POPT_TABLEEND
 	};
 	poptContext popt_context;
@@ -641,6 +649,11 @@ int main(int argc, const char **argv)
 		      _("Option --integrity-recalculate can be used only for open action."),
 		      poptGetInvocationName(popt_context));
 
+	if (opt_allow_discards && strcmp(aname, "open"))
+		usage(popt_context, EXIT_FAILURE,
+		      _("Option --allow-discards is allowed only for open operation."),
+		      poptGetInvocationName(popt_context));
+
 	if (opt_interleave_sectors < 0 || opt_journal_watermark < 0 ||
 	    opt_journal_commit_time < 0 || opt_tag_size < 0 ||
 	    opt_sector_size < 0 || opt_buffer_sectors < 0 ||
@@ -654,7 +667,7 @@ int main(int argc, const char **argv)
 		opt_sector_size || opt_tag_size || opt_no_wipe ))
 		usage(popt_context, EXIT_FAILURE,
 		      _("Options --journal-size, --interleave-sectors, --sector-size, --tag-size"
-		        " and --no-wipe can be used only for format action.\n"),
+		        " and --no-wipe can be used only for format action."),
 		      poptGetInvocationName(popt_context));
 
 	if (opt_journal_size_str &&
