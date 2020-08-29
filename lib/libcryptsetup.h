@@ -1103,6 +1103,12 @@ int crypt_keyslot_destroy(struct crypt_device *cd, int keyslot);
 #define CRYPT_ACTIVATE_SUSPENDED (1 << 21)
 /** use IV sector counted in sector_size instead of default 512 bytes sectors */
 #define CRYPT_ACTIVATE_IV_LARGE_SECTORS (1 << 22)
+/** dm-verity: panic_on_corruption flag - panic kernel on corruption */
+#define CRYPT_ACTIVATE_PANIC_ON_CORRUPTION (1 << 23)
+/** dm-crypt: bypass internal workqueue and process read requests synchronously. */
+#define CRYPT_ACTIVATE_NO_READ_WORKQUEUE (1 << 24)
+/** dm-crypt: bypass internal workqueue and process write requests synchronously. */
+#define CRYPT_ACTIVATE_NO_WRITE_WORKQUEUE (1 << 25)
 
 /**
  * Active device runtime attributes
@@ -2103,6 +2109,27 @@ typedef int (*crypt_token_open_func) (
 	void *usrptr);
 
 /**
+ * Token handler open with passphrase/PIN function prototype.
+ * This function retrieves password from a token and return allocated buffer
+ * containing this password. This buffer has to be deallocated by calling
+ * free() function and content should be wiped before deallocation.
+ *
+ * @param cd crypt device handle
+ * @param token token id
+ * @param pin passphrase (or PIN) to unlock token
+ * @param buffer returned allocated buffer with password
+ * @param buffer_len length of the buffer
+ * @param usrptr user data in @link crypt_activate_by_token @endlink
+ */
+typedef int (*crypt_token_open_pin_func) (
+	struct crypt_device *cd,
+	int token,
+	const char *pin,
+	char **buffer,
+	size_t *buffer_len,
+	void *usrptr);
+
+/**
  * Token handler buffer free function prototype.
  * This function is used by library to free the buffer with keyslot
  * passphrase when it's no longer needed. If not defined the library
@@ -2148,6 +2175,7 @@ typedef struct  {
 	crypt_token_buffer_free_func buffer_free; /**< token handler buffer_free function (optional) */
 	crypt_token_validate_func validate; /**< token handler validate function (optional) */
 	crypt_token_dump_func dump; /**< token handler dump function (optional) */
+	crypt_token_open_pin_func open_pin; /**< open with passphrase function (optional) */
 } crypt_token_handler;
 
 /**
@@ -2159,6 +2187,20 @@ typedef struct  {
  */
 int crypt_token_register(const crypt_token_handler *handler);
 
+/** ABI version for external token in libcryptsetup-token-<name>.so */
+#define CRYPT_TOKEN_ABI_VERSION1 "CRYPTSETUP_TOKEN_1.0"
+/** ABI exported symbol for external token */
+#define CRYPT_TOKEN_ABI_HANDLER  "cryptsetup_token_handler"
+
+/**
+ * Find external library, load and register token handler
+ *
+ * @param name token name to register
+ *
+ * @return @e 0 on success or negative errno value otherwise.
+ */
+int crypt_token_load(struct crypt_device *cd, const char *name);
+
 /**
  * Activate device or check key using a token.
  *
@@ -2169,10 +2211,32 @@ int crypt_token_register(const crypt_token_handler *handler);
  * @param flags activation flags
  *
  * @return unlocked key slot number or negative errno otherwise.
+ *
+ * @note EAGAIN errno means that token is PIN protected and you should call
+ *       @link crypt_activate_by_pin_token @endlink with PIN
  */
 int crypt_activate_by_token(struct crypt_device *cd,
 	const char *name,
 	int token,
+	void *usrptr,
+	uint32_t flags);
+
+/**
+ * Activate device or check key using a token with PIN.
+ *
+ * @param cd crypt device handle
+ * @param name name of device to create, if @e NULL only check token
+ * @param token requested token to check or CRYPT_ANY_TOKEN to check all
+ * @param pin passphrase (or PIN) to unlock token
+ * @param usrptr provided identification in callback
+ * @param flags activation flags
+ *
+ * @return unlocked key slot number or negative errno otherwise.
+ */
+int crypt_activate_by_pin_token(struct crypt_device *cd,
+	const char *name,
+	int token,
+	const char *pin,
 	void *usrptr,
 	uint32_t flags);
 /** @} */
@@ -2291,11 +2355,13 @@ int crypt_reencrypt_init_by_keyring(struct crypt_device *cd,
  * @param cd crypt device handle
  * @param progress is a callback funtion reporting device \b size,
  * current \b offset of reencryption and provided \b usrptr identification
+ * @param usrptr progress specific data
  *
  * @return @e 0 on success or negative errno value otherwise.
  */
 int crypt_reencrypt(struct crypt_device *cd,
-		    int (*progress)(uint64_t size, uint64_t offset, void *usrptr));
+		    int (*progress)(uint64_t size, uint64_t offset, void *usrptr),
+		    void *usrptr);
 
 /**
  * Reencryption status info

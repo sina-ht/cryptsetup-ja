@@ -44,16 +44,16 @@ Download
 --------
 All release tarballs and release notes are hosted on [kernel.org](https://www.kernel.org/pub/linux/utils/cryptsetup/).
 
-**The latest stable cryptsetup version is 2.3.2**
-  * [cryptsetup-2.3.2.tar.xz](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.2.tar.xz)
-  * Signature [cryptsetup-2.3.2.tar.sign](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.2.tar.sign)
+**The latest stable cryptsetup version is 2.3.3**
+  * [cryptsetup-2.3.3.tar.xz](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.3.tar.xz)
+  * Signature [cryptsetup-2.3.3.tar.sign](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.3.tar.sign)
     _(You need to decompress file first to check signature.)_
-  * [Cryptsetup 2.3.2 Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/v2.3.2-ReleaseNotes).
+  * [Cryptsetup 2.3.3 Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/v2.3.3-ReleaseNotes).
 
 Previous versions
- * [Version 2.3.1](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.1.tar.xz) -
-   [Signature](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.1.tar.sign) -
-   [Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/v2.3.1-ReleaseNotes).
+ * [Version 2.3.2](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.2.tar.xz) -
+   [Signature](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.2.tar.sign) -
+   [Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/v2.3.2-ReleaseNotes).
  * [Version 2.2.2](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.2/cryptsetup-2.2.2.tar.xz) -
    [Signature](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.2/cryptsetup-2.2.2.tar.sign) -
    [Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.2/v2.2.2-ReleaseNotes).
@@ -73,7 +73,7 @@ For libcryptsetup documentation see [libcryptsetup API](https://mbroz.fedorapeop
 
 The libcryptsetup API/ABI changes are tracked in [compatibility report](https://abi-laboratory.pro/tracker/timeline/cryptsetup/).
 
-NLS PO files are maintained by [TranslationProject](http://translationproject.org/domain/cryptsetup.html).
+NLS PO files are maintained by [TranslationProject](https://translationproject.org/domain/cryptsetup.html).
 
 Help!
 -----
@@ -82,5 +82,5 @@ For cryptsetup and LUKS related questions, please use the dm-crypt mailing list,
 
 If you want to subscribe just send an empty mail to [dm-crypt-subscribe@saout.de](mailto:dm-crypt-subscribe@saout.de).
 
-You can also browse [list archive](http://www.saout.de/pipermail/dm-crypt/) or read it through
+You can also browse [list archive](https://www.saout.de/pipermail/dm-crypt/) or read it through
 [web interface](https://marc.info/?l=dm-crypt).

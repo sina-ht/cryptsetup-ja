@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <ctype.h>
+#include <dlfcn.h>
 #include <assert.h>
 
 #include "luks2_internal.h"
@@ -29,29 +31,74 @@ extern const crypt_token_handler keyring_handler;
 static token_handler token_handlers[LUKS2_TOKENS_MAX] = {
 	/* keyring builtin token */
 	{
-	  .get = token_keyring_get,
-	  .set = token_keyring_set,
 	  .h = &keyring_handler
-	},
+	}
 };
+
+static int
+crypt_token_load_external(struct crypt_device *cd, const char *name, token_handler *ret)
+{
+#if USE_EXTERNAL_TOKENS
+	const crypt_token_handler *token = NULL;
+	void *handle;
+	char *error;
+	char buf[512];
+	int i, r;
+
+	if (!ret || !name || strlen(name) > 64)
+		return -EINVAL;
+
+	for (i = 0; name[i]; i++)
+		if (!isalnum(name[i]))
+			return -EINVAL;
+
+	r = snprintf(buf, sizeof(buf), "libcryptsetup-token-%s.so", name);
+	if (r < 0 || (size_t)r >= sizeof(buf))
+		return -EINVAL;
+
+	log_dbg(cd, "Trying to load %s.", buf);
+
+	handle = dlopen(buf, RTLD_LAZY);
+	if (!handle) {
+		log_dbg(NULL, "%s", dlerror());
+		return -EINVAL;
+	}
+	dlerror();
+
+	token = dlvsym(handle, CRYPT_TOKEN_ABI_HANDLER, CRYPT_TOKEN_ABI_VERSION1);
+	error = dlerror();
+	if (error) {
+		log_dbg(cd, "%s", error);
+		dlclose(handle);
+		return -EINVAL;
+	}
+
+	ret->h = token;
+	ret->dlhandle = handle;
+
+	return 0;
+#else
+	return -ENOTSUP;
+#endif
+}
 
 static int is_builtin_candidate(const char *type)
 {
 	return !strncmp(type, LUKS2_BUILTIN_TOKEN_PREFIX, LUKS2_BUILTIN_TOKEN_PREFIX_LEN);
 }
 
-int crypt_token_register(const crypt_token_handler *handler)
+static int crypt_token_find_free(struct crypt_device *cd, const char *name, int *index)
 {
 	int i;
 
-	if (is_builtin_candidate(handler->name)) {
-		log_dbg(NULL, "'" LUKS2_BUILTIN_TOKEN_PREFIX "' is reserved prefix for builtin tokens.");
+	if (is_builtin_candidate(name)) {
+		log_dbg(cd, "'" LUKS2_BUILTIN_TOKEN_PREFIX "' is reserved prefix for builtin tokens.");
 		return -EINVAL;
 	}
 
 	for (i = 0; i < LUKS2_TOKENS_MAX && token_handlers[i].h; i++) {
-		if (!strcmp(token_handlers[i].h->name, handler->name)) {
-			log_dbg(NULL, "Keyslot handler %s is already registered.", handler->name);
+		if (!strcmp(token_handlers[i].h->name, name)) {
+			log_dbg(cd, "Keyslot handler %s is already registered.", name);
 			return -EINVAL;
 		}
 	}
@@ -59,32 +106,76 @@ int crypt_token_register(const crypt_token_handler *handler)
 	if (i == LUKS2_TOKENS_MAX)
 		return -EINVAL;
 
+	if (index)
+		*index = i;
+
+	return 0;
+}
+
+int crypt_token_register(const crypt_token_handler *handler)
+{
+	int i, r;
+
+	if (!handler->name || !handler->open)
+		return -EINVAL;
+
+	r = crypt_token_find_free(NULL, handler->name, &i);
+	if (r < 0)
+		return r;
+
 	token_handlers[i].h = handler;
 	return 0;
 }
 
-static const token_handler
-*LUKS2_token_handler_type_internal(struct crypt_device *cd, const char *type)
+int crypt_token_load(struct crypt_device *cd, const char *name)
+{
+	int i, r;
+
+	r = crypt_token_find_free(cd, name, &i);
+	if (r < 0)
+		return r;
+
+	return crypt_token_load_external(cd, name, &token_handlers[i]);
+}
+
+void crypt_token_unload_external_all(struct crypt_device *cd)
 {
 	int i;
 
-	for (i = 0; i < LUKS2_TOKENS_MAX && token_handlers[i].h; i++)
-		if (!strcmp(token_handlers[i].h->name, type))
-			return token_handlers + i;
+	for (i = LUKS2_TOKENS_MAX - 1; i >= 0; i--) {
+		if (!token_handlers[i].dlhandle)
+			continue;
 
-	return NULL;
+		log_dbg(cd, "Unloading %s token handler.", token_handlers[i].h->name);
+
+		if (dlclose(CONST_CAST(void *)token_handlers[i].dlhandle))
+			log_dbg(cd, "%s", dlerror());
+	}
 }
 
 static const crypt_token_handler
 *LUKS2_token_handler_type(struct crypt_device *cd, const char *type)
 {
-	const token_handler *th = LUKS2_token_handler_type_internal(cd, type);
+	int i;
 
-	return th ? th->h : NULL;
+	for (i = 0; i < LUKS2_TOKENS_MAX && token_handlers[i].h; i++)
+		if (!strcmp(token_handlers[i].h->name, type))
+			return token_handlers[i].h;
+
+	if (i >= LUKS2_TOKENS_MAX)
+		return NULL;
+
+	if (is_builtin_candidate(type))
+		return NULL;
+
+	if (crypt_token_load_external(cd, type, &token_handlers[i]))
+		return NULL;
+
+	return token_handlers[i].h;
 }
 
-static const token_handler
-*LUKS2_token_handler_internal(struct crypt_device *cd, int token)
+static const crypt_token_handler
+*LUKS2_token_handler(struct crypt_device *cd, int token)
 {
 	struct luks2_hdr *hdr;
 	json_object *jobj1, *jobj2;
@@ -101,15 +192,7 @@ static const token_handler
 	if (!json_object_object_get_ex(jobj1, "type", &jobj2))
 		return NULL;
 
-	return LUKS2_token_handler_type_internal(cd, json_object_get_string(jobj2));
-}
-
-static const crypt_token_handler
-*LUKS2_token_handler(struct crypt_device *cd, int token)
-{
-	const token_handler *th = LUKS2_token_handler_internal(cd, token);
-
-	return th ? th->h : NULL;
+	return LUKS2_token_handler_type(cd, json_object_get_string(jobj2));
 }
 
 static int LUKS2_token_find_free(struct luks2_hdr *hdr)
@@ -130,7 +213,6 @@ int LUKS2_token_create(struct crypt_device *cd,
 	int commit)
 {
 	const crypt_token_handler *h;
-	const token_handler *th;
 	json_object *jobj_tokens, *jobj_type, *jobj;
 	enum json_tokener_error jerr;
 	char num[16];
@@ -166,16 +248,14 @@ int LUKS2_token_create(struct crypt_device *cd,
 		}
 
 		json_object_object_get_ex(jobj, "type", &jobj_type);
-		if (is_builtin_candidate(json_object_get_string(jobj_type))) {
-			th = LUKS2_token_handler_type_internal(cd, json_object_get_string(jobj_type));
-			if (!th || !th->set) {
-				log_dbg(cd, "%s is builtin token candidate with missing handler", json_object_get_string(jobj_type));
-				json_object_put(jobj);
-				return -EINVAL;
-			}
-			h = th->h;
-		} else
-			h = LUKS2_token_handler_type(cd, json_object_get_string(jobj_type));
+		h = LUKS2_token_handler_type(cd, json_object_get_string(jobj_type));
+
+		if (is_builtin_candidate(json_object_get_string(jobj_type)) && !h) {
+			log_dbg(cd, "%s is builtin token candidate with missing handler",
+				json_object_get_string(jobj_type));
+			json_object_put(jobj);
+			return -EINVAL;
+		}
 
 		if (h && h->validate && h->validate(cd, json)) {
 			json_object_put(jobj);
@@ -203,7 +283,7 @@ crypt_token_info LUKS2_token_status(struct crypt_device *cd,
 	const char **type)
 {
 	const char *tmp;
-	const token_handler *th;
+	const crypt_token_handler *th;
 	json_object *jobj_type, *jobj_token;
 
 	if (token < 0 || token >= LUKS2_TOKENS_MAX)
@@ -215,10 +295,10 @@ crypt_token_info LUKS2_token_status(struct crypt_device *cd,
 	json_object_object_get_ex(jobj_token, "type", &jobj_type);
 	tmp = json_object_get_string(jobj_type);
 
-	if ((th = LUKS2_token_handler_type_internal(cd, tmp))) {
+	if ((th = LUKS2_token_handler_type(cd, tmp))) {
 		if (type)
-			*type = th->h->name;
-		return th->set ? CRYPT_TOKEN_INTERNAL : CRYPT_TOKEN_EXTERNAL;
+			*type = th->name;
+		return is_builtin_candidate(tmp) ? CRYPT_TOKEN_INTERNAL : CRYPT_TOKEN_EXTERNAL;
 	}
 
 	if (type)
@@ -227,73 +307,10 @@ crypt_token_info LUKS2_token_status(struct crypt_device *cd,
 	return is_builtin_candidate(tmp) ? CRYPT_TOKEN_INTERNAL_UNKNOWN : CRYPT_TOKEN_EXTERNAL_UNKNOWN;
 }
 
-int LUKS2_builtin_token_get(struct crypt_device *cd,
-	struct luks2_hdr *hdr,
-	int token,
-	const char *type,
-	void *params)
-{
-	const token_handler *th = LUKS2_token_handler_type_internal(cd, type);
-
-	// internal error
-	assert(th && th->get);
-
-	return th->get(LUKS2_get_token_jobj(hdr, token), params) ?: token;
-}
-
-int LUKS2_builtin_token_create(struct crypt_device *cd,
-	struct luks2_hdr *hdr,
-	int token,
-	const char *type,
-	const void *params,
-	int commit)
-{
-	const token_handler *th;
-	int r;
-	json_object *jobj_token, *jobj_tokens;
-
-	th = LUKS2_token_handler_type_internal(cd, type);
-
-	// at this point all builtin handlers must exist and have validate fn defined
-	assert(th && th->set && th->h->validate);
-
-	if (token == CRYPT_ANY_TOKEN) {
-		if ((token = LUKS2_token_find_free(hdr)) < 0)
-			log_err(cd, _("No free token slot."));
-	}
-	if (token < 0 || token >= LUKS2_TOKENS_MAX)
-		return -EINVAL;
-
-	r = th->set(&jobj_token, params);
-	if (r) {
-		log_err(cd, _("Failed to create builtin token %s."), type);
-		return r;
-	}
-
-	// builtin tokens must produce valid json
-	r = LUKS2_token_validate(cd, hdr->jobj, jobj_token, "new");
-	assert(!r);
-	r = th->h->validate(cd, json_object_to_json_string_ext(jobj_token,
-		JSON_C_TO_STRING_PLAIN | JSON_C_TO_STRING_NOSLASHESCAPE));
-	assert(!r);
-
-	json_object_object_get_ex(hdr->jobj, "tokens", &jobj_tokens);
-	json_object_object_add_by_uint(jobj_tokens, token, jobj_token);
-	if (LUKS2_check_json_size(cd, hdr)) {
-		log_dbg(cd, "Not enough space in header json area for new %s token.", type);
-		json_object_object_del_by_uint(jobj_tokens, token);
-		return -ENOSPC;
-	}
-
-	if (commit)
-		return LUKS2_hdr_write(cd, hdr) ?: token;
-
-	return token;
-}
-
 static int LUKS2_token_open(struct crypt_device *cd,
 	struct luks2_hdr *hdr,
 	int token,
+	const char *pin,
 	char **buffer,
 	size_t *buffer_len,
 	void *usrptr)
@@ -315,7 +332,12 @@ static int LUKS2_token_open(struct crypt_device *cd,
 		}
 	}
 
-	r = h->open(cd, token, buffer, buffer_len, usrptr);
+	if (pin && !h->open_pin)
+		r = -ENOENT;
+	else if (pin)
+		r = h->open_pin(cd, token, pin, buffer, buffer_len, usrptr);
+	else
+		r = h->open(cd, token, buffer, buffer_len, usrptr);
 	if (r < 0)
 		log_dbg(cd, "Token %d (%s) open failed with %d.", token, h->name, r);
 
@@ -377,18 +399,19 @@ static int LUKS2_keyslot_open_by_token(struct crypt_device *cd,
 }
 
 int LUKS2_token_open_and_activate(struct crypt_device *cd,
-		struct luks2_hdr *hdr,
-		int token,
-		const char *name,
-		uint32_t flags,
-		void *usrptr)
+	struct luks2_hdr *hdr,
+	int token,
+	const char *name,
+	const char *pin,
+	uint32_t flags,
+	void *usrptr)
 {
 	int keyslot, r;
 	char *buffer;
 	size_t buffer_len;
 	struct volume_key *vk = NULL;
 
-	r = LUKS2_token_open(cd, hdr, token, &buffer, &buffer_len, usrptr);
+	r = LUKS2_token_open(cd, hdr, token, pin, &buffer, &buffer_len, usrptr);
 	if (r < 0)
 		return r;
 
@@ -422,6 +445,7 @@ int LUKS2_token_open_and_activate(struct crypt_device *cd,
 int LUKS2_token_open_and_activate_any(struct crypt_device *cd,
 	struct luks2_hdr *hdr,
 	const char *name,
+	const char *pin,
 	uint32_t flags)
 {
 	char *buffer;
@@ -436,7 +460,7 @@ int LUKS2_token_open_and_activate_any(struct crypt_device *cd,
 		UNUSED(val);
 		token = atoi(slot);
 
-		r = LUKS2_token_open(cd, hdr, token, &buffer, &buffer_len, NULL);
+		r = LUKS2_token_open(cd, hdr, token, pin, &buffer, &buffer_len, NULL);
 		if (r < 0)
 			continue;
 

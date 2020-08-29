@@ -1,23 +1,30 @@
 # cryptsetup
 if CRYPTSETUP
 
+# cryptsetup_CPPFLAGS = $(AM_CPPFLAGS) \
+# 	-I $(top_srcdir)/lib/cli
+
 cryptsetup_SOURCES =		\
 	lib/utils_crypt.c	\
 	lib/utils_loop.c	\
 	lib/utils_io.c		\
 	lib/utils_blkid.c	\
+	src/utils_args.c	\
 	src/utils_tools.c	\
 	src/utils_password.c	\
 	src/utils_luks2.c	\
 	src/utils_blockdev.c	\
+	src/utils_arg_names.h	\
+	src/utils_arg_macros.h	\
 	src/cryptsetup.c	\
-	src/cryptsetup.h
+	src/cryptsetup.h	\
+	src/cryptsetup_args.h	\
+	src/cryptsetup_arg_list.h
 
 cryptsetup_LDADD = $(LDADD)	\
 	libcryptsetup.la	\
+	libcryptsetup_cli.la	\
 	@POPT_LIBS@		\
-	@PWQUALITY_LIBS@	\
-	@PASSWDQC_LIBS@		\
 	@UUID_LIBS@		\
 	@BLKID_LIBS@
 
@@ -43,16 +50,20 @@ veritysetup_SOURCES =		\
 	lib/utils_loop.c	\
 	lib/utils_io.c		\
 	lib/utils_blkid.c	\
+	src/utils_args.c	\
+	src/utils_arg_names.h	\
+	src/utils_arg_macros.h	\
 	src/utils_tools.c	\
 	src/utils_password.c	\
 	src/veritysetup.c	\
+	src/veritysetup_args.h	\
+	src/veritysetup_arg_list.h	\
 	src/cryptsetup.h
 
 veritysetup_LDADD = $(LDADD)	\
 	libcryptsetup.la	\
+	libcryptsetup_cli.la	\
 	@POPT_LIBS@		\
-	@PWQUALITY_LIBS@	\
-	@PASSWDQC_LIBS@		\
 	@BLKID_LIBS@
 
 sbin_PROGRAMS += veritysetup
@@ -77,12 +88,19 @@ integritysetup_SOURCES =	\
 	lib/utils_loop.c	\
 	lib/utils_io.c		\
 	lib/utils_blkid.c	\
+	src/utils_args.c	\
+	src/utils_arg_names.h	\
+	src/utils_arg_macros.h	\
 	src/utils_tools.c	\
+	src/utils_blockdev.c	\
 	src/integritysetup.c	\
+	src/integritysetup_args.h \
+	src/integritysetup_arg_list.h \
 	src/cryptsetup.h
 
 integritysetup_LDADD = $(LDADD)	\
 	libcryptsetup.la	\
+	libcryptsetup_cli.la	\
 	@POPT_LIBS@		\
 	@UUID_LIBS@		\
 	@BLKID_LIBS@
@@ -109,15 +127,17 @@ cryptsetup_reencrypt_SOURCES =		\
 	lib/utils_blkid.c		\
 	src/utils_tools.c		\
 	lib/utils_loop.c		\
+	src/utils_args.c		\
 	src/utils_password.c		\
 	src/cryptsetup_reencrypt.c	\
+	src/cryptsetup_reencrypt_args.h	\
+	src/cryptsetup_reencrypt_arg_list.h \
 	src/cryptsetup.h
 
 cryptsetup_reencrypt_LDADD = $(LDADD)	\
 	libcryptsetup.la		\
+	libcryptsetup_cli.la		\
 	@POPT_LIBS@			\
-	@PWQUALITY_LIBS@		\
-	@PASSWDQC_LIBS@			\
 	@UUID_LIBS@			\
 	@BLKID_LIBS@
 

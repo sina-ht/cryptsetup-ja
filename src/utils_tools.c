@@ -77,29 +77,6 @@ void check_signal(int *r)
 		*r = -EINTR;
 }
 
-#define LOG_MAX_LEN 4096
-
-__attribute__((format(printf, 5, 6)))
-void clogger(struct crypt_device *cd, int level, const char *file, int line,
-	     const char *format, ...)
-{
-	va_list argp;
-	char target[LOG_MAX_LEN + 2];
-
-	va_start(argp, format);
-
-	if (vsnprintf(&target[0], LOG_MAX_LEN, format, argp) > 0) {
-		/* All verbose and error messages in tools end with EOL. */
-		if (level == CRYPT_LOG_VERBOSE || level == CRYPT_LOG_ERROR ||
-		    level == CRYPT_LOG_DEBUG || level == CRYPT_LOG_DEBUG_JSON)
-			strncat(target, "\n", LOG_MAX_LEN);
-
-		crypt_log(cd, level, target);
-	}
-
-	va_end(argp);
-}
-
 void tool_log(int level, const char *msg, void *usrptr __attribute__((unused)))
 {
 	switch(level) {
@@ -125,7 +102,7 @@ void tool_log(int level, const char *msg, void *usrptr __attribute__((unused)))
 void quiet_log(int level, const char *msg, void *usrptr)
 {
 	if (!opt_verbose && (level == CRYPT_LOG_ERROR || level == CRYPT_LOG_NORMAL))
-		level = CRYPT_LOG_VERBOSE;
+		return;
 	tool_log(level, msg, usrptr);
 }
 
@@ -238,6 +215,7 @@ __attribute__ ((noreturn)) void usage(poptContext popt_context,
 	poptPrintUsage(popt_context, stderr, 0);
 	if (error)
 		log_err("%s: %s", more, error);
+	tools_cleanup();
 	poptFreeContext(popt_context);
 	exit(exitcode);
 }
@@ -372,7 +350,7 @@ static double time_diff(struct timeval *start, struct timeval *end)
 		+ (end->tv_usec - start->tv_usec) / 1E6;
 }
 
-void tools_clear_line(void)
+static void tools_clear_line(void)
 {
 	if (opt_progress_frequency)
 		return;
@@ -464,135 +442,6 @@ int tools_wipe_progress(uint64_t size, uint64_t offset, void *usrptr)
 		log_err(_("\nWipe interrupted."));
 	}
 
-	return r;
-}
-
-static void report_partition(const char *value, const char *device)
-{
-	if (opt_batch_mode)
-		log_dbg("Device %s already contains a '%s' partition signature.", device, value);
-	else
-		log_std(_("WARNING: Device %s already contains a '%s' partition signature.\n"), device, value);
-}
-
-static void report_superblock(const char *value, const char *device)
-{
-	if (opt_batch_mode)
-		log_dbg("Device %s already contains a '%s' superblock signature.", device, value);
-	else
-		log_std(_("WARNING: Device %s already contains a '%s' superblock signature.\n"), device, value);
-}
-
-int tools_detect_signatures(const char *device, int ignore_luks, size_t *count)
-{
-	int r;
-	size_t tmp_count;
-	struct blkid_handle *h;
-	blk_probe_status pr;
-
-	if (!count)
-		count = &tmp_count;
-
-	*count = 0;
-
-	if (!blk_supported()) {
-		log_dbg("Blkid support disabled.");
-		return 0;
-	}
-
-	if ((r = blk_init_by_path(&h, device))) {
-		log_err(_("Failed to initialize device signature probes."));
-		return -EINVAL;
-	}
-
-	blk_set_chains_for_full_print(h);
-
-	if (ignore_luks && blk_superblocks_filter_luks(h)) {
-		r = -EINVAL;
-		goto out;
-	}
-
-	while ((pr = blk_probe(h)) < PRB_EMPTY) {
-		if (blk_is_partition(h))
-			report_partition(blk_get_partition_type(h), device);
-		else if (blk_is_superblock(h))
-			report_superblock(blk_get_superblock_type(h), device);
-		else {
-			log_dbg("Internal tools_detect_signatures() error.");
-			r = -EINVAL;
-			goto out;
-		}
-		(*count)++;
-	}
-
-	if (pr == PRB_FAIL)
-		r = -EINVAL;
-out:
-	blk_free(h);
-	return r;
-}
-
-int tools_wipe_all_signatures(const char *path)
-{
-	int fd, flags, r;
-	blk_probe_status pr;
-	struct stat st;
-	struct blkid_handle *h = NULL;
-
-	if (!blk_supported()) {
-		log_dbg("Blkid support disabled.");
-		return 0;
-	}
-
-	if (stat(path, &st)) {
-		log_err(_("Failed to stat device %s."), path);
-		return -EINVAL;
-	}
-
-	flags = O_RDWR;
-	if (S_ISBLK(st.st_mode))
-		flags |= O_EXCL;
-
-	/* better than opening regular file with O_EXCL (undefined) */
-	/* coverity[toctou] */
-	fd = open(path, flags);
-	if (fd < 0) {
-		if (errno == EBUSY)
-			log_err(_("Device %s is in use. Can not proceed with format operation."), path);
-		else
-			log_err(_("Failed to open file %s in read/write mode."), path);
-		return -EINVAL;
-	}
-
-	if ((r = blk_init_by_fd(&h, fd))) {
-		log_err(_("Failed to initialize device signature probes."));
-		r = -EINVAL;
-		goto out;
-	}
-
-	blk_set_chains_for_wipes(h);
-
-	while ((pr = blk_probe(h)) < PRB_EMPTY) {
-		if (blk_is_partition(h))
-			log_verbose(_("Existing '%s' partition signature (offset: %" PRIi64 " bytes) on device %s will be wiped."),
-				    blk_get_partition_type(h), blk_get_offset(h), path);
-		if (blk_is_superblock(h))
-			log_verbose(_("Existing '%s' superblock signature (offset: %" PRIi64 " bytes) on device %s will be wiped."),
-				    blk_get_superblock_type(h), blk_get_offset(h), path);
-		if (blk_do_wipe(h)) {
-			log_err(_("Failed to wipe device signature."));
-			r = -EINVAL;
-			goto out;
-		}
-	}
-
-	if (pr != PRB_EMPTY) {
-		log_err(_("Failed to probe device %s for a signature."), path);
-		r = -EINVAL;
-	}
-out:
-	close(fd);
-	blk_free(h);
 	return r;
 }
 

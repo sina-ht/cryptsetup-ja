@@ -20,30 +20,17 @@
  */
 
 #include "cryptsetup.h"
+#include "veritysetup_args.h"
 
 #define PACKAGE_VERITY "veritysetup"
 
-static int use_superblock = 1;
-
-static const char *fec_device = NULL;
-static int fec_roots = DEFAULT_VERITY_FEC_ROOTS;
-static const char *hash_algorithm = NULL;
-static int hash_type = 1;
-static int data_block_size = DEFAULT_VERITY_DATA_BLOCK;
-static int hash_block_size = DEFAULT_VERITY_HASH_BLOCK;
-static uint64_t data_blocks = 0;
-static const char *salt_string = NULL;
-static uint64_t hash_offset = 0;
-static uint64_t fec_offset = 0;
-static const char *opt_uuid = NULL;
-static int opt_restart_on_corruption = 0;
-static int opt_ignore_corruption = 0;
-static int opt_ignore_zero_blocks = 0;
-static int opt_check_at_most_once = 0;
-static const char *opt_root_hash_signature = NULL;
-
 static const char **action_argv;
 static int action_argc;
+
+void tools_cleanup(void)
+{
+	tools_args_free(tool_core_args, ARRAY_SIZE(tool_core_args));
+}
 
 static int _prepare_format(struct crypt_params_verity *params,
 			   const char *data_device,
@@ -52,16 +39,16 @@ static int _prepare_format(struct crypt_params_verity *params,
 	char *salt = NULL;
 	int len;
 
-	params->hash_name = hash_algorithm ?: DEFAULT_VERITY_HASH;
+	params->hash_name = ARG_STR(OPT_HASH_ID);
 	params->data_device = data_device;
-	params->fec_device = fec_device;
-	params->fec_roots = fec_roots;
+	params->fec_device = ARG_STR(OPT_FEC_DEVICE_ID);
+	params->fec_roots = ARG_UINT32(OPT_FEC_ROOTS_ID);
 
-	if (salt_string && !strcmp(salt_string, "-")) {
+	if (ARG_STR(OPT_SALT_ID) && !strcmp(ARG_STR(OPT_SALT_ID), "-")) {
 		params->salt_size = 0;
 		params->salt = NULL;
-	} else if (salt_string) {
-		len = crypt_hex_to_bytes(salt_string, &salt, 0);
+	} else if (ARG_SET(OPT_SALT_ID)) {
+		len = crypt_hex_to_bytes(ARG_STR(OPT_SALT_ID), &salt, 0);
 		if (len < 0) {
 			log_err(_("Invalid salt string specified."));
 			return -EINVAL;
@@ -73,12 +60,12 @@ static int _prepare_format(struct crypt_params_verity *params,
 		params->salt = NULL;
 	}
 
-	params->data_block_size = data_block_size;
-	params->hash_block_size = hash_block_size;
-	params->data_size = data_blocks;
-	params->hash_area_offset = hash_offset;
-	params->fec_area_offset = fec_offset;
-	params->hash_type = hash_type;
+	params->data_block_size = ARG_UINT32(OPT_DATA_BLOCK_SIZE_ID);
+	params->hash_block_size = ARG_UINT32(OPT_HASH_BLOCK_SIZE_ID);
+	params->data_size = ARG_UINT64(OPT_DATA_BLOCKS_ID);
+	params->hash_area_offset = ARG_UINT64(OPT_HASH_OFFSET_ID);
+	params->fec_area_offset = ARG_UINT64(OPT_FEC_OFFSET_ID);
+	params->hash_type = ARG_UINT32(OPT_FORMAT_ID);
 	params->flags = flags;
 
 	return 0;
@@ -101,13 +88,13 @@ static int action_format(int arg)
 		close(r);
 	}
 	/* Try to create FEC image if doesn't exist */
-	if (fec_device) {
-		r = open(fec_device, O_WRONLY | O_EXCL | O_CREAT, S_IRUSR | S_IWUSR);
+	if (ARG_SET(OPT_FEC_DEVICE_ID)) {
+		r = open(ARG_STR(OPT_FEC_DEVICE_ID), O_WRONLY | O_EXCL | O_CREAT, S_IRUSR | S_IWUSR);
 		if (r < 0 && errno != EEXIST) {
-			log_err(_("Cannot create FEC image %s for writing."), fec_device);
+			log_err(_("Cannot create FEC image %s for writing."), ARG_STR(OPT_FEC_DEVICE_ID));
 			return -EINVAL;
 		} else if (r >= 0) {
-			log_dbg("Created FEC image %s.", fec_device);
+			log_dbg("Created FEC image %s.", ARG_STR(OPT_FEC_DEVICE_ID));
 			close(r);
 		}
 	}
@@ -115,14 +102,14 @@ static int action_format(int arg)
 	if ((r = crypt_init(&cd, action_argv[1])))
 		goto out;
 
-	if (!use_superblock)
+	if (ARG_SET(OPT_NO_SUPERBLOCK_ID))
 		flags |= CRYPT_VERITY_NO_HEADER;
 
 	r = _prepare_format(&params, action_argv[0], flags);
 	if (r < 0)
 		goto out;
 
-	r = crypt_format(cd, CRYPT_VERITY, NULL, NULL, opt_uuid, NULL, 0, &params);
+	r = crypt_format(cd, CRYPT_VERITY, NULL, NULL, ARG_STR(OPT_UUID_ID), NULL, 0, &params);
 	if (!r)
 		crypt_dump(cd);
 out:
@@ -149,21 +136,23 @@ static int _activate(const char *dm_device,
 	if ((r = crypt_init_data_device(&cd, hash_device, data_device)))
 		goto out;
 
-	if (opt_ignore_corruption)
+	if (ARG_SET(OPT_IGNORE_CORRUPTION_ID))
 		activate_flags |= CRYPT_ACTIVATE_IGNORE_CORRUPTION;
-	if (opt_restart_on_corruption)
+	if (ARG_SET(OPT_RESTART_ON_CORRUPTION_ID))
 		activate_flags |= CRYPT_ACTIVATE_RESTART_ON_CORRUPTION;
-	if (opt_ignore_zero_blocks)
+	if (ARG_SET(OPT_PANIC_ON_CORRUPTION_ID))
+		activate_flags |= CRYPT_ACTIVATE_PANIC_ON_CORRUPTION;
+	if (ARG_SET(OPT_IGNORE_ZERO_BLOCKS_ID))
 		activate_flags |= CRYPT_ACTIVATE_IGNORE_ZERO_BLOCKS;
-	if (opt_check_at_most_once)
+	if (ARG_SET(OPT_CHECK_AT_MOST_ONCE_ID))
 		activate_flags |= CRYPT_ACTIVATE_CHECK_AT_MOST_ONCE;
 
-	if (use_superblock) {
+	if (!ARG_SET(OPT_NO_SUPERBLOCK_ID)) {
 		params.flags = flags;
-		params.hash_area_offset = hash_offset;
-		params.fec_area_offset = fec_offset;
-		params.fec_device = fec_device;
-		params.fec_roots = fec_roots;
+		params.hash_area_offset = ARG_UINT64(OPT_HASH_OFFSET_ID);
+		params.fec_area_offset = ARG_UINT64(OPT_FEC_OFFSET_ID);
+		params.fec_device = ARG_STR(OPT_FEC_DEVICE_ID);
+		params.fec_roots = ARG_UINT32(OPT_FEC_ROOTS_ID);
 		r = crypt_load(cd, CRYPT_VERITY, &params);
 	} else {
 		r = _prepare_format(&params, data_device, flags | CRYPT_VERITY_NO_HEADER);
@@ -181,17 +170,17 @@ static int _activate(const char *dm_device,
 		goto out;
 	}
 
-	if (opt_root_hash_signature) {
+	if (ARG_SET(OPT_ROOT_HASH_SIGNATURE_ID)) {
 		// FIXME: check max file size
-		if (stat(opt_root_hash_signature, &st) || !S_ISREG(st.st_mode) || !st.st_size) {
-			log_err(_("Invalid signature file %s."), opt_root_hash_signature);
+		if (stat(ARG_STR(OPT_ROOT_HASH_SIGNATURE_ID), &st) || !S_ISREG(st.st_mode) || !st.st_size) {
+			log_err(_("Invalid signature file %s."), ARG_STR(OPT_ROOT_HASH_SIGNATURE_ID));
 			r = -EINVAL;
 			goto out;
 		}
 		signature_size = st.st_size;
-		r = tools_read_mk(opt_root_hash_signature, &signature, signature_size);
+		r = crypt_cli_read_mk(ARG_STR(OPT_ROOT_HASH_SIGNATURE_ID), &signature, signature_size);
 		if (r < 0) {
-			log_err(_("Cannot read signature file %s."), opt_root_hash_signature);
+			log_err(_("Cannot read signature file %s."), ARG_STR(OPT_ROOT_HASH_SIGNATURE_ID));
 			goto out;
 		}
 	}
@@ -214,7 +203,7 @@ static int action_open(int arg)
 			 action_argv[0],
 			 action_argv[2],
 			 action_argv[3],
-			 opt_root_hash_signature ? CRYPT_VERITY_ROOT_HASH_SIGNATURE : 0);
+			 ARG_SET(OPT_ROOT_HASH_SIGNATURE_ID) ? CRYPT_VERITY_ROOT_HASH_SIGNATURE : 0);
 }
 
 static int action_verify(int arg)
@@ -326,7 +315,7 @@ static int action_status(int arg)
 
 		if (vp.fec_device) {
 			log_std("  FEC device:  %s\n", vp.fec_device);
-			if ((backing_file = crypt_loop_backing_file(vp.fec_device))) {
+			if ((backing_file = crypt_loop_backing_file(ARG_STR(OPT_FEC_DEVICE_ID)))) {
 				log_std("  FEC loop:    %s\n", backing_file);
 				free(backing_file);
 			}
@@ -349,11 +338,13 @@ static int action_status(int arg)
 
 		if (cad.flags & (CRYPT_ACTIVATE_IGNORE_CORRUPTION|
 				 CRYPT_ACTIVATE_RESTART_ON_CORRUPTION|
+				 CRYPT_ACTIVATE_PANIC_ON_CORRUPTION|
 				 CRYPT_ACTIVATE_IGNORE_ZERO_BLOCKS|
 				 CRYPT_ACTIVATE_CHECK_AT_MOST_ONCE))
-			log_std("  flags:       %s%s%s%s\n",
+			log_std("  flags:       %s%s%s%s%s\n",
 				(cad.flags & CRYPT_ACTIVATE_IGNORE_CORRUPTION) ? "ignore_corruption " : "",
 				(cad.flags & CRYPT_ACTIVATE_RESTART_ON_CORRUPTION) ? "restart_on_corruption " : "",
+				(cad.flags & CRYPT_ACTIVATE_PANIC_ON_CORRUPTION) ? "panic_on_corruption " : "",
 				(cad.flags & CRYPT_ACTIVATE_IGNORE_ZERO_BLOCKS) ? "ignore_zero_blocks " : "",
 				(cad.flags & CRYPT_ACTIVATE_CHECK_AT_MOST_ONCE) ? "check_at_most_once" : "");
 	}
@@ -373,8 +364,8 @@ static int action_dump(int arg)
 	if ((r = crypt_init(&cd, action_argv[0])))
 		return r;
 
-	params.hash_area_offset = hash_offset;
-	params.fec_area_offset = fec_offset;
+	params.hash_area_offset = ARG_UINT64(OPT_HASH_OFFSET_ID);
+	params.fec_area_offset = ARG_UINT64(OPT_FEC_OFFSET_ID);
 	r = crypt_load(cd, CRYPT_VERITY, &params);
 	if (!r)
 		crypt_dump(cd);
@@ -426,10 +417,12 @@ static void help(poptContext popt_context,
 			DEFAULT_VERITY_HASH, DEFAULT_VERITY_DATA_BLOCK,
 			DEFAULT_VERITY_HASH_BLOCK, DEFAULT_VERITY_SALT_SIZE,
 			1);
+		tools_cleanup();
 		poptFreeContext(popt_context);
 		exit(EXIT_SUCCESS);
 	} else if (key->shortName == 'V') {
 		log_std("%s %s\n", PACKAGE_VERITY, PACKAGE_VERSION);
+		tools_cleanup();
 		poptFreeContext(popt_context);
 		exit(EXIT_SUCCESS);
 	} else
@@ -448,9 +441,17 @@ static int run_action(struct action_type *action)
 	return translate_errno(r);
 }
 
+static void basic_options_cb(poptContext popt_context,
+		 enum poptCallbackReason reason __attribute__((unused)),
+		 struct poptOption *key,
+		 const char *arg,
+		 void *data __attribute__((unused)))
+{
+	tools_parse_arg_value(popt_context, tool_core_args[key->val].type, tool_core_args + key->val, arg, key->val, NULL);
+}
+
 int main(int argc, const char **argv)
 {
-	static char *popt_tmp;
 	static const char *null_action_argv[] = {NULL};
 	static struct poptOption popt_help_options[] = {
 		{ NULL,    '\0', POPT_ARG_CALLBACK, help, 0, NULL,                         NULL },
@@ -459,27 +460,16 @@ int main(int argc, const char **argv)
 		{ "version",'V', POPT_ARG_NONE,     NULL, 0, N_("Print package version"),  NULL },
 		POPT_TABLEEND
 	};
+	static struct poptOption popt_basic_options[] = {
+		{ NULL,    '\0', POPT_ARG_CALLBACK, basic_options_cb, 0, NULL, NULL },
+#define ARG(A, B, C, D, E, F, G, H) { A, B, C, NULL, A ## _ID, D, E },
+#include "veritysetup_arg_list.h"
+#undef arg
+		POPT_TABLEEND
+	};
 	static struct poptOption popt_options[] = {
 		{ NULL,              '\0', POPT_ARG_INCLUDE_TABLE, popt_help_options, 0, N_("Help options:"), NULL },
-		{ "verbose",         'v',  POPT_ARG_NONE, &opt_verbose,      0, N_("Shows more detailed error messages"), NULL },
-		{ "debug",           '\0', POPT_ARG_NONE, &opt_debug,        0, N_("Show debug messages"), NULL },
-		{ "no-superblock",   0,    POPT_ARG_VAL,  &use_superblock,   0, N_("Do not use verity superblock"), NULL },
-		{ "format",          0,    POPT_ARG_INT,  &hash_type,        0, N_("Format type (1 - normal, 0 - original Chrome OS)"), N_("number") },
-		{ "data-block-size", 0,    POPT_ARG_INT,  &data_block_size,  0, N_("Block size on the data device"), N_("bytes") },
-		{ "hash-block-size", 0,    POPT_ARG_INT,  &hash_block_size,  0, N_("Block size on the hash device"), N_("bytes") },
-		{ "fec-roots",       0,    POPT_ARG_INT,  &fec_roots,        0, N_("FEC parity bytes"), N_("bytes") },
-		{ "data-blocks",     0,    POPT_ARG_STRING, &popt_tmp,       1, N_("The number of blocks in the data file"), N_("blocks") },
-		{ "fec-device",      0,    POPT_ARG_STRING, &fec_device,     0, N_("Path to device with error correction data"), N_("path") },
-		{ "hash-offset",     0,    POPT_ARG_STRING, &popt_tmp,       2, N_("Starting offset on the hash device"), N_("bytes") },
-		{ "fec-offset",      0,    POPT_ARG_STRING, &popt_tmp,       3, N_("Starting offset on the FEC device"), N_("bytes") },
-		{ "hash",            'h',  POPT_ARG_STRING, &hash_algorithm, 0, N_("Hash algorithm"), N_("string") },
-		{ "salt",            's',  POPT_ARG_STRING, &salt_string,    0, N_("Salt"), N_("hex string") },
-		{ "uuid",            '\0', POPT_ARG_STRING, &opt_uuid,       0, N_("UUID for device to use"), NULL },
-		{ "root-hash-signature",'\0', POPT_ARG_STRING, &opt_root_hash_signature,  0, N_("Path to root hash signature file"), NULL },
-		{ "restart-on-corruption", 0,POPT_ARG_NONE,&opt_restart_on_corruption, 0, N_("Restart kernel if corruption is detected"), NULL },
-		{ "ignore-corruption", 0,  POPT_ARG_NONE, &opt_ignore_corruption,  0, N_("Ignore corruption, log it only"), NULL },
-		{ "ignore-zero-blocks", 0, POPT_ARG_NONE, &opt_ignore_zero_blocks, 0, N_("Do not verify zeroed blocks"), NULL },
-		{ "check-at-most-once", 0, POPT_ARG_NONE, &opt_check_at_most_once, 0, N_("Verify data block only the first time it is read"), NULL },
+		{ NULL,              '\0', POPT_ARG_INCLUDE_TABLE, popt_basic_options, 0, NULL, NULL },
 		POPT_TABLEEND
 	};
 
@@ -498,32 +488,7 @@ int main(int argc, const char **argv)
 	poptSetOtherOptionHelp(popt_context,
 	                       _("[OPTION...] <action> <action-specific>"));
 
-	while((r = poptGetNextOpt(popt_context)) > 0) {
-		unsigned long long ull_value;
-		char *endp;
-
-		errno = 0;
-		ull_value = strtoull(popt_tmp, &endp, 10);
-		if (*endp || !*popt_tmp || !isdigit(*popt_tmp) ||
-		    (errno == ERANGE && ull_value == ULLONG_MAX) ||
-		    (errno != 0 && ull_value == 0))
-			r = POPT_ERROR_BADNUMBER;
-
-		switch(r) {
-			case 1:
-				data_blocks = ull_value;
-				break;
-			case 2:
-				hash_offset = ull_value;
-				break;
-			case 3:
-				fec_offset = ull_value;
-				break;
-		}
-
-		if (r < 0)
-			break;
-	}
+	while((r = poptGetNextOpt(popt_context)) > 0) {}
 
 	if (r < -1)
 		usage(popt_context, EXIT_FAILURE, poptStrerror(r),
@@ -571,34 +536,29 @@ int main(int argc, const char **argv)
 		      poptGetInvocationName(popt_context));
 	}
 
-	if (data_block_size < 0 || hash_block_size < 0 || hash_type < 0) {
-		usage(popt_context, EXIT_FAILURE,
-		      _("Negative number for option not permitted."),
-		      poptGetInvocationName(popt_context));
-	}
+	tools_check_args(action->type, tool_core_args, ARRAY_SIZE(tool_core_args), popt_context);
 
-	if ((opt_ignore_corruption || opt_restart_on_corruption || opt_ignore_zero_blocks) && strcmp(aname, "open"))
-		usage(popt_context, EXIT_FAILURE,
-		_("Option --ignore-corruption, --restart-on-corruption or --ignore-zero-blocks is allowed only for open operation."),
-		poptGetInvocationName(popt_context));
-
-	if (opt_root_hash_signature && strcmp(aname, "open"))
-		usage(popt_context, EXIT_FAILURE,
-		_("Option --root-hash-signature can be used only for open operation."),
-		poptGetInvocationName(popt_context));
-
-	if (opt_ignore_corruption && opt_restart_on_corruption)
+	if (ARG_SET(OPT_IGNORE_CORRUPTION_ID) && ARG_SET(OPT_RESTART_ON_CORRUPTION_ID))
 		usage(popt_context, EXIT_FAILURE,
 		_("Option --ignore-corruption and --restart-on-corruption cannot be used together."),
 		poptGetInvocationName(popt_context));
 
-	if (opt_debug) {
-		opt_verbose = 1;
-		crypt_set_debug_level(-1);
+	if (ARG_SET(OPT_PANIC_ON_CORRUPTION_ID) && ARG_SET(OPT_RESTART_ON_CORRUPTION_ID))
+		usage(popt_context, EXIT_FAILURE,
+		_("Option --panic-on-corruption and --restart-on-corruption cannot be used together."),
+		poptGetInvocationName(popt_context));
+
+	if (ARG_SET(OPT_DEBUG_ID)) {
+		ARG_SET(OPT_VERBOSE_ID) = true;
+		crypt_set_debug_level(CRYPT_DEBUG_ALL);
 		dbg_version_and_cmd(argc, argv);
 	}
 
+	opt_verbose = ARG_SET(OPT_VERBOSE_ID) ? 1 : 0;
+	opt_debug = ARG_SET(OPT_DEBUG_ID) ? 1 : 0;
+
 	r = run_action(action);
+	tools_cleanup();
 	poptFreeContext(popt_context);
 	return r;
 }

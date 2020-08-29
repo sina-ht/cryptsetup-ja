@@ -24,6 +24,7 @@
 #ifndef CRYPTSETUP_H
 #define CRYPTSETUP_H
 
+#include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -47,6 +48,8 @@
 #include "lib/utils_blkid.h"
 
 #include "libcryptsetup.h"
+#include "libcryptsetup_cli.h"
+#include "lib/cli/cli_internal.h"
 
 #define CONST_CAST(x) (x)(uintptr_t)
 #define DEFAULT_CIPHER(type)	(DEFAULT_##type##_CIPHER "-" DEFAULT_##type##_MODE)
@@ -55,17 +58,19 @@
 #define ROUND_SECTOR(x) (((x) + SECTOR_SIZE - 1) / SECTOR_SIZE)
 
 #define DEFAULT_WIPE_BLOCK	1048576 /* 1 MiB */
+#define MAX_ACTIONS 16
+
+#ifndef ARRAY_SIZE
+# define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#endif
 
 extern int opt_debug;
 extern int opt_debug_json;
 extern int opt_verbose;
 extern int opt_batch_mode;
-extern int opt_force_password;
 extern int opt_progress_frequency;
 
 /* Common tools */
-void clogger(struct crypt_device *cd, int level, const char *file, int line,
-	     const char *format, ...)  __attribute__ ((format (printf, 5, 6)));
 void tool_log(int level, const char *msg, void *usrptr __attribute__((unused)));
 void quiet_log(int level, const char *msg, void *usrptr);
 
@@ -99,13 +104,8 @@ int tools_is_stdin(const char *key_file);
 int tools_string_to_size(struct crypt_device *cd, const char *s, uint64_t *size);
 int tools_is_cipher_null(const char *cipher);
 
-void tools_clear_line(void);
-
 int tools_wipe_progress(uint64_t size, uint64_t offset, void *usrptr);
 int tools_reencrypt_progress(uint64_t size, uint64_t offset, void *usrptr);
-
-int tools_read_mk(const char *file, char **key, int keysize);
-int tools_write_mk(const char *file, const char *key, int keysize);
 
 int tools_read_json_file(struct crypt_device *cd, const char *file, char **json, size_t *json_size);
 int tools_write_json_file(struct crypt_device *cd, const char *file, const char *json);
@@ -116,10 +116,15 @@ int tools_wipe_all_signatures(const char *path);
 int tools_lookup_crypt_device(struct crypt_device *cd, const char *type,
 		const char *data_device_path, char *name, size_t name_length);
 
-/* Log */
-#define log_dbg(x...) clogger(NULL, CRYPT_LOG_DEBUG, __FILE__, __LINE__, x)
-#define log_std(x...) clogger(NULL, CRYPT_LOG_NORMAL, __FILE__, __LINE__, x)
-#define log_verbose(x...) clogger(NULL, CRYPT_LOG_VERBOSE, __FILE__, __LINE__, x)
-#define log_err(x...) clogger(NULL, CRYPT_LOG_ERROR, __FILE__, __LINE__, x)
+void tools_parse_arg_value(poptContext popt_context, crypt_arg_type_info type, struct tools_arg *arg, const char *popt_arg, int popt_val, bool(*needs_size_conv_fn)(unsigned arg_id));
+
+void tools_args_free(struct tools_arg *args, size_t args_count);
+
+void tools_check_args(const char *action, const struct tools_arg *args, size_t args_size, poptContext popt_context);
+
+/* each utility is required to implement it */
+void tools_cleanup(void);
+
+#define FREE_AND_NULL(x) do { free(x); x = NULL; } while (0)
 
 #endif /* CRYPTSETUP_H */

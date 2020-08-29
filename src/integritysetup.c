@@ -19,82 +19,24 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "cryptsetup.h"
+#include <assert.h>
 #include <uuid/uuid.h>
+
+#define DEFAULT_ALG_NAME "crc32c"
+
+#include "cryptsetup.h"
+#include "integritysetup_args.h"
 
 #define PACKAGE_INTEGRITY "integritysetup"
 
-#define DEFAULT_ALG_NAME "crc32c"
 #define MAX_KEY_SIZE 4096
-
-static const char *opt_journal_size_str = NULL;
-static uint64_t opt_journal_size = 0;
-static int opt_interleave_sectors = 0;
-static int opt_journal_watermark = 0;
-static int opt_bitmap_sectors_per_bit = 0;
-static int opt_journal_commit_time = 0;
-static int opt_bitmap_flush_time = 0;
-static int opt_tag_size = 0;
-static int opt_sector_size = 0;
-static int opt_buffer_sectors = 0;
-
-static int opt_no_wipe = 0;
-
-static const char *opt_data_device = NULL;
-
-static const char *opt_integrity = DEFAULT_ALG_NAME;
-static const char *opt_integrity_key_file = NULL;
-static int opt_integrity_key_size = 0;
-
-static const char *opt_journal_integrity = NULL; /* none */
-static const char *opt_journal_integrity_key_file = NULL;
-static int opt_journal_integrity_key_size = 0;
-
-static const char *opt_journal_crypt = NULL; /* none */
-static const char *opt_journal_crypt_key_file = NULL;
-static int opt_journal_crypt_key_size = 0;
-
-static int opt_integrity_nojournal = 0;
-static int opt_integrity_recovery = 0;
-static int opt_integrity_bitmap = 0;
-static int opt_integrity_legacy_padding = 0;
-
-static int opt_integrity_recalculate = 0;
-static int opt_allow_discards = 0;
 
 static const char **action_argv;
 static int action_argc;
 
-// FIXME: move this to tools and handle EINTR
-static int _read_mk(const char *file, char **key, int keysize)
+void tools_cleanup(void)
 {
-	int fd;
-
-	if (keysize <= 0 || keysize > MAX_KEY_SIZE) {
-		log_err(_("Invalid key size."));
-		return -EINVAL;
-	}
-
-	*key = crypt_safe_alloc(keysize);
-	if (!*key)
-		return -ENOMEM;
-
-	fd = open(file, O_RDONLY);
-	if (fd == -1) {
-		log_err(_("Cannot read keyfile %s."), file);
-		goto fail;
-	}
-	if ((read(fd, *key, keysize) != keysize)) {
-		log_err(_("Cannot read %d bytes from keyfile %s."), keysize, file);
-		close(fd);
-		goto fail;
-	}
-	close(fd);
-	return 0;
-fail:
-	crypt_safe_free(*key);
-	*key = NULL;
-	return -EINVAL;
+	tools_args_free(tool_core_args, ARRAY_SIZE(tool_core_args));
 }
 
 static int _read_keys(char **integrity_key, struct crypt_params_integrity *params)
@@ -102,32 +44,32 @@ static int _read_keys(char **integrity_key, struct crypt_params_integrity *param
 	char *int_key = NULL, *journal_integrity_key = NULL, *journal_crypt_key = NULL;
 	int r;
 
-	if (integrity_key && opt_integrity_key_file) {
-		r = _read_mk(opt_integrity_key_file, &int_key, opt_integrity_key_size);
+	if (integrity_key && ARG_SET(OPT_INTEGRITY_KEY_FILE_ID)) {
+		r = crypt_cli_read_mk(ARG_STR(OPT_INTEGRITY_KEY_FILE_ID), &int_key, ARG_UINT32(OPT_INTEGRITY_KEY_SIZE_ID));
 		if (r < 0)
 			return r;
-		params->integrity_key_size = opt_integrity_key_size;
+		params->integrity_key_size = ARG_UINT32(OPT_INTEGRITY_KEY_SIZE_ID);
 	}
 
-	if (opt_journal_integrity_key_file) {
-		r = _read_mk(opt_journal_integrity_key_file, &journal_integrity_key, opt_journal_integrity_key_size);
+	if (ARG_SET(OPT_JOURNAL_INTEGRITY_KEY_FILE_ID)) {
+		r = crypt_cli_read_mk(ARG_STR(OPT_JOURNAL_INTEGRITY_KEY_FILE_ID), &journal_integrity_key, ARG_UINT32(OPT_JOURNAL_INTEGRITY_KEY_SIZE_ID));
 		if (r < 0) {
 			crypt_safe_free(int_key);
 			return r;
 		}
 		params->journal_integrity_key = journal_integrity_key;
-		params->journal_integrity_key_size = opt_journal_integrity_key_size;
+		params->journal_integrity_key_size = ARG_UINT32(OPT_JOURNAL_INTEGRITY_KEY_SIZE_ID);
 	}
 
-	if (opt_journal_crypt_key_file) {
-		r = _read_mk(opt_journal_crypt_key_file, &journal_crypt_key, opt_journal_crypt_key_size);
+	if (ARG_SET(OPT_JOURNAL_CRYPT_KEY_FILE_ID)) {
+		r = crypt_cli_read_mk(ARG_STR(OPT_JOURNAL_CRYPT_KEY_FILE_ID), &journal_crypt_key, ARG_UINT32(OPT_JOURNAL_CRYPT_KEY_SIZE_ID));
 		if (r < 0) {
 			crypt_safe_free(int_key);
 			crypt_safe_free(journal_integrity_key);
 			return r;
 		}
 		params->journal_crypt_key = journal_crypt_key;
-		params->journal_crypt_key_size = opt_journal_crypt_key_size;
+		params->journal_crypt_key_size = ARG_UINT32(OPT_JOURNAL_CRYPT_KEY_SIZE_ID);
 	}
 
 	if (integrity_key)
@@ -142,7 +84,7 @@ static int _wipe_data_device(struct crypt_device *cd, const char *integrity_key)
 	uuid_t tmp_uuid_bin;
 	int r;
 
-	if (!opt_batch_mode)
+	if (!ARG_SET(OPT_BATCH_MODE_ID))
 		log_std(_("Wiping device to initialize integrity checksum.\n"
 			"You can interrupt this by pressing CTRL+c "
 			"(rest of not wiped device will contain invalid checksum).\n"));
@@ -156,7 +98,7 @@ static int _wipe_data_device(struct crypt_device *cd, const char *integrity_key)
 		return -EINVAL;
 
 	r = crypt_activate_by_volume_key(cd, tmp_name, integrity_key,
-		opt_integrity_key_size, CRYPT_ACTIVATE_PRIVATE | CRYPT_ACTIVATE_NO_JOURNAL);
+		ARG_UINT32(OPT_INTEGRITY_KEY_SIZE_ID), CRYPT_ACTIVATE_PRIVATE | CRYPT_ACTIVATE_NO_JOURNAL);
 	if (r < 0)
 		return r;
 
@@ -175,31 +117,29 @@ static int action_format(int arg)
 {
 	struct crypt_device *cd = NULL;
 	struct crypt_params_integrity params = {
-		.journal_size = opt_journal_size,
-		.interleave_sectors = opt_interleave_sectors,
+		.journal_size = ARG_UINT64(OPT_JOURNAL_SIZE_ID),
+		.interleave_sectors = ARG_UINT32(OPT_INTERLEAVE_SECTORS_ID),
 		/* in bitmap mode we have to overload these values... */
-		.journal_watermark = opt_integrity_bitmap ? opt_bitmap_sectors_per_bit : opt_journal_watermark,
-		.journal_commit_time = opt_integrity_bitmap ? opt_bitmap_flush_time : opt_journal_commit_time,
-		.buffer_sectors = opt_buffer_sectors,
-		.tag_size = opt_tag_size,
-		.sector_size = opt_sector_size ?: SECTOR_SIZE,
+		.journal_watermark = ARG_SET(OPT_INTEGRITY_BITMAP_MODE_ID) ? ARG_UINT32(OPT_BITMAP_SECTORS_PER_BIT_ID) : ARG_UINT32(OPT_JOURNAL_WATERMARK_ID),
+		.journal_commit_time = ARG_SET(OPT_INTEGRITY_BITMAP_MODE_ID) ? ARG_UINT32(OPT_BITMAP_FLUSH_TIME_ID) : ARG_UINT32(OPT_JOURNAL_COMMIT_TIME_ID),
+		.buffer_sectors = ARG_UINT32(OPT_BUFFER_SECTORS_ID),
+		.tag_size = ARG_UINT32(OPT_TAG_SIZE_ID),
+		.sector_size = ARG_UINT32(OPT_SECTOR_SIZE_ID),
 	}, params2;
 	char integrity[MAX_CIPHER_LEN], journal_integrity[MAX_CIPHER_LEN], journal_crypt[MAX_CIPHER_LEN];
 	char *integrity_key = NULL, *msg = NULL;
 	int r;
 	size_t signatures;
 
-	if (opt_integrity) {
-		r = crypt_parse_hash_integrity_mode(opt_integrity, integrity);
-		if (r < 0) {
-			log_err(_("No known integrity specification pattern detected."));
-			return r;
-		}
-		params.integrity = integrity;
+	r = crypt_parse_hash_integrity_mode(ARG_STR(OPT_INTEGRITY_ID), integrity);
+	if (r < 0) {
+		log_err(_("No known integrity specification pattern detected."));
+		return r;
 	}
+	params.integrity = integrity;
 
-	if (opt_journal_integrity) {
-		r = crypt_parse_hash_integrity_mode(opt_journal_integrity, journal_integrity);
+	if (ARG_SET(OPT_JOURNAL_INTEGRITY_ID)) {
+		r = crypt_parse_hash_integrity_mode(ARG_STR(OPT_JOURNAL_INTEGRITY_ID), journal_integrity);
 		if (r < 0) {
 			log_err(_("No known integrity specification pattern detected."));
 			return r;
@@ -207,8 +147,8 @@ static int action_format(int arg)
 		params.journal_integrity = journal_integrity;
 	}
 
-	if (opt_journal_crypt) {
-		r = crypt_parse_hash_integrity_mode(opt_journal_crypt, journal_crypt);
+	if (ARG_SET(OPT_JOURNAL_CRYPT_ID)) {
+		r = crypt_parse_hash_integrity_mode(ARG_STR(OPT_JOURNAL_CRYPT_ID), journal_crypt);
 		if (r < 0) {
 			log_err(_("No known integrity specification pattern detected."));
 			return r;
@@ -220,7 +160,7 @@ static int action_format(int arg)
 	if (r)
 		goto out;
 
-	r = crypt_init_data_device(&cd, action_argv[0], opt_data_device);
+	r = crypt_init_data_device(&cd, action_argv[0], ARG_STR(OPT_DATA_DEVICE_ID));
 	if (r < 0)
 		goto out;
 
@@ -243,18 +183,18 @@ static int action_format(int arg)
 	if (signatures && ((r =	tools_wipe_all_signatures(action_argv[0])) < 0))
 		goto out;
 
-	if (opt_integrity_legacy_padding)
+	if (ARG_SET(OPT_INTEGRITY_LEGACY_PADDING_ID))
 		crypt_set_compatibility(cd, CRYPT_COMPAT_LEGACY_INTEGRITY_PADDING);
 
 	r = crypt_format(cd, CRYPT_INTEGRITY, NULL, NULL, NULL, NULL, 0, &params);
 	if (r < 0) /* FIXME: call wipe signatures again */
 		goto out;
 
-	if (!opt_batch_mode && !crypt_get_integrity_info(cd, &params2))
+	if (!ARG_SET(OPT_BATCH_MODE_ID) && !crypt_get_integrity_info(cd, &params2))
 		log_std(_("Formatted with tag size %u, internal integrity %s.\n"),
 			params2.tag_size, params2.integrity);
 
-	if (!opt_no_wipe)
+	if (!ARG_SET(OPT_NO_WIPE_ID))
 		r = _wipe_data_device(cd, integrity_key);
 out:
 	crypt_safe_free(integrity_key);
@@ -269,26 +209,24 @@ static int action_open(int arg)
 	struct crypt_device *cd = NULL;
 	struct crypt_params_integrity params = {
 		/* in bitmap mode we have to overload these values... */
-		.journal_watermark = opt_integrity_bitmap ? opt_bitmap_sectors_per_bit : opt_journal_watermark,
-		.journal_commit_time = opt_integrity_bitmap ? opt_bitmap_flush_time : opt_journal_commit_time,
-		.buffer_sectors = opt_buffer_sectors,
+		.journal_watermark = ARG_SET(OPT_INTEGRITY_BITMAP_MODE_ID) ? ARG_UINT32(OPT_BITMAP_SECTORS_PER_BIT_ID) : ARG_UINT32(OPT_JOURNAL_WATERMARK_ID),
+		.journal_commit_time = ARG_SET(OPT_INTEGRITY_BITMAP_MODE_ID) ? ARG_UINT32(OPT_BITMAP_FLUSH_TIME_ID) : ARG_UINT32(OPT_JOURNAL_COMMIT_TIME_ID),
+		.buffer_sectors = ARG_UINT32(OPT_BUFFER_SECTORS_ID),
 	};
 	uint32_t activate_flags = 0;
 	char integrity[MAX_CIPHER_LEN], journal_integrity[MAX_CIPHER_LEN], journal_crypt[MAX_CIPHER_LEN];
 	char *integrity_key = NULL;
 	int r;
 
-	if (opt_integrity) {
-		r = crypt_parse_hash_integrity_mode(opt_integrity, integrity);
-		if (r < 0) {
-			log_err(_("No known integrity specification pattern detected."));
-			return r;
-		}
-		params.integrity = integrity;
+	r = crypt_parse_hash_integrity_mode(ARG_STR(OPT_INTEGRITY_ID), integrity);
+	if (r < 0) {
+		log_err(_("No known integrity specification pattern detected."));
+		return r;
 	}
+	params.integrity = integrity;
 
-	if (opt_journal_integrity) {
-		r = crypt_parse_hash_integrity_mode(opt_journal_integrity, journal_integrity);
+	if (ARG_SET(OPT_JOURNAL_INTEGRITY_ID)) {
+		r = crypt_parse_hash_integrity_mode(ARG_STR(OPT_JOURNAL_INTEGRITY_ID), journal_integrity);
 		if (r < 0) {
 			log_err(_("No known integrity specification pattern detected."));
 			return r;
@@ -297,8 +235,8 @@ static int action_open(int arg)
 		params.journal_integrity = journal_integrity;
 	}
 
-	if (opt_journal_crypt) {
-		r = crypt_parse_hash_integrity_mode(opt_journal_crypt, journal_crypt);
+	if (ARG_SET(OPT_JOURNAL_CRYPT_ID)) {
+		r = crypt_parse_hash_integrity_mode(ARG_STR(OPT_JOURNAL_CRYPT_ID), journal_crypt);
 		if (r < 0) {
 			log_err(_("No known integrity specification pattern detected."));
 			return r;
@@ -306,23 +244,23 @@ static int action_open(int arg)
 		params.journal_crypt = journal_crypt;
 	}
 
-	if (opt_integrity_nojournal || opt_integrity_bitmap)
+	if (ARG_SET(OPT_INTEGRITY_NO_JOURNAL_ID) || ARG_SET(OPT_INTEGRITY_BITMAP_MODE_ID))
 		activate_flags |= CRYPT_ACTIVATE_NO_JOURNAL;
-	if (opt_integrity_recovery)
+	if (ARG_SET(OPT_INTEGRITY_RECOVERY_MODE_ID))
 		activate_flags |= CRYPT_ACTIVATE_RECOVERY;
-	if (opt_integrity_bitmap)
+	if (ARG_SET(OPT_INTEGRITY_BITMAP_MODE_ID))
 		activate_flags |= CRYPT_ACTIVATE_NO_JOURNAL_BITMAP;
 
-	if (opt_integrity_recalculate)
+	if (ARG_SET(OPT_INTEGRITY_RECALCULATE_ID))
 		activate_flags |= CRYPT_ACTIVATE_RECALCULATE;
-	if (opt_allow_discards)
+	if (ARG_SET(OPT_ALLOW_DISCARDS_ID))
 		activate_flags |= CRYPT_ACTIVATE_ALLOW_DISCARDS;
 
 	r = _read_keys(&integrity_key, &params);
 	if (r)
 		goto out;
 
-	if ((r = crypt_init_data_device(&cd, action_argv[0], opt_data_device)))
+	if ((r = crypt_init_data_device(&cd, action_argv[0], ARG_STR(OPT_DATA_DEVICE_ID))))
 		goto out;
 
 	r = crypt_load(cd, CRYPT_INTEGRITY, &params);
@@ -330,7 +268,7 @@ static int action_open(int arg)
 		goto out;
 
 	r = crypt_activate_by_volume_key(cd, action_argv[1], integrity_key,
-					 opt_integrity_key_size, activate_flags);
+					 ARG_UINT32(OPT_INTEGRITY_KEY_SIZE_ID), activate_flags);
 out:
 	crypt_safe_free(integrity_key);
 	crypt_safe_free(CONST_CAST(void*)params.journal_integrity_key);
@@ -476,12 +414,12 @@ static struct action_type {
 	const char *arg_desc;
 	const char *desc;
 } action_types[] = {
-	{ "format",	action_format, 1, N_("<integrity_device>"),N_("format device") },
-	{ "open",	action_open,   2, N_("<integrity_device> <name>"),N_("open device as <name>") },
-	{ "close",	action_close,  1, N_("<name>"),N_("close device (remove mapping)") },
-	{ "status",	action_status, 1, N_("<name>"),N_("show active device status") },
-	{ "dump",	action_dump,   1, N_("<integrity_device>"),N_("show on-disk information") },
-	{ NULL, NULL, 0, NULL, NULL }
+	{ FORMAT_ACTION,action_format, 1, N_("<integrity_device>"),N_("format device") },
+	{ OPEN_ACTION,	action_open,   2, N_("<integrity_device> <name>"),N_("open device as <name>") },
+	{ CLOSE_ACTION,	action_close,  1, N_("<name>"),N_("close device (remove mapping)") },
+	{ STATUS_ACTION,action_status, 1, N_("<name>"),N_("show active device status") },
+	{ DUMP_ACTION,	action_dump,   1, N_("<integrity_device>"),N_("show on-disk information") },
+	{}
 };
 
 static void help(poptContext popt_context,
@@ -506,10 +444,12 @@ static void help(poptContext popt_context,
 
 		log_std(_("\nDefault compiled-in dm-integrity parameters:\n"
 			  "\tChecksum algorithm: %s\n"), DEFAULT_ALG_NAME);
+		tools_cleanup();
 		poptFreeContext(popt_context);
 		exit(EXIT_SUCCESS);
 	} else if (key->shortName == 'V') {
 		log_std("%s %s\n", PACKAGE_INTEGRITY, PACKAGE_VERSION);
+		tools_cleanup();
 		poptFreeContext(popt_context);
 		exit(EXIT_SUCCESS);
 	} else
@@ -528,6 +468,36 @@ static int run_action(struct action_type *action)
 	return translate_errno(r);
 }
 
+static bool needs_size_conversion(unsigned int arg_id)
+{
+	return arg_id == OPT_JOURNAL_SIZE_ID;
+}
+
+static void basic_options_cb(poptContext popt_context,
+		 enum poptCallbackReason reason __attribute__((unused)),
+		 struct poptOption *key,
+		 const char *arg,
+		 void *data __attribute__((unused)))
+{
+	char msg[256];
+
+	tools_parse_arg_value(popt_context, tool_core_args[key->val].type, tool_core_args + key->val, arg, key->val, needs_size_conversion);
+
+	/* special cases additional handling */
+	switch (key->val) {
+	case OPT_INTEGRITY_KEY_SIZE_ID:
+		/* fall through */
+	case OPT_JOURNAL_INTEGRITY_KEY_SIZE_ID:
+		/* fall through */
+	case OPT_JOURNAL_CRYPT_KEY_SIZE_ID:
+		if (ARG_UINT32(key->val) > MAX_KEY_SIZE) {
+			snprintf(msg, sizeof(msg), _("Invalid --%s size."), key->longName);
+			usage(popt_context, EXIT_FAILURE, msg,
+			      poptGetInvocationName(popt_context));
+		}
+	}
+}
+
 int main(int argc, const char **argv)
 {
 	static const char *null_action_argv[] = {NULL};
@@ -538,45 +508,16 @@ int main(int argc, const char **argv)
 		{ "version",'V', POPT_ARG_NONE,     NULL, 0, N_("Print package version"),  NULL },
 		POPT_TABLEEND
 	};
+	static struct poptOption popt_basic_options[] = {
+		{ NULL,    '\0', POPT_ARG_CALLBACK, basic_options_cb, 0, NULL, NULL },
+#define ARG(A, B, C, D, E, F, G, H) { A, B, C, NULL, A ## _ID, D, E },
+#include "integritysetup_arg_list.h"
+#undef arg
+		POPT_TABLEEND
+	};
 	static struct poptOption popt_options[] = {
-		{ NULL,                 '\0', POPT_ARG_INCLUDE_TABLE, popt_help_options, 0, N_("Help options:"), NULL },
-		{ "verbose",             'v', POPT_ARG_NONE, &opt_verbose,            0, N_("Shows more detailed error messages"), NULL },
-		{ "debug",              '\0', POPT_ARG_NONE, &opt_debug,              0, N_("Show debug messages"), NULL },
-		{ "batch-mode",          'q', POPT_ARG_NONE, &opt_batch_mode,         0, N_("Do not ask for confirmation"), NULL },
-		{ "progress-frequency", '\0', POPT_ARG_INT,  &opt_progress_frequency, 0, N_("Progress line update (in seconds)"), N_("secs") },
-		{ "no-wipe",            '\0', POPT_ARG_NONE, &opt_no_wipe,            0, N_("Do not wipe device after format"), NULL },
-
-		{ "data-device",        '\0', POPT_ARG_STRING, &opt_data_device,      0, N_("Path to data device (if separated)"), N_("path") },
-
-		{ "journal-size",        'j', POPT_ARG_STRING,&opt_journal_size_str,  0, N_("Journal size"), N_("bytes") },
-		{ "interleave-sectors", '\0', POPT_ARG_INT,  &opt_interleave_sectors, 0, N_("Interleave sectors"), N_("SECTORS") },
-		{ "journal-watermark",  '\0', POPT_ARG_INT,  &opt_journal_watermark,  0, N_("Journal watermark"),N_("percent") },
-		{ "journal-commit-time",'\0', POPT_ARG_INT,  &opt_journal_commit_time,0, N_("Journal commit time"), N_("ms") },
-		{ "bitmap-sectors-per-bit",'\0', POPT_ARG_INT,&opt_bitmap_sectors_per_bit, 0, N_("Number of 512-byte sectors per bit (bitmap mode)."), NULL },
-		{ "bitmap-flush-time",  '\0', POPT_ARG_INT,  &opt_bitmap_flush_time,  0, N_("Bitmap mode flush time"), N_("ms") },
-		{ "tag-size",            't', POPT_ARG_INT,  &opt_tag_size,           0, N_("Tag size (per-sector)"), N_("bytes") },
-		{ "sector-size",         's', POPT_ARG_INT,  &opt_sector_size,        0, N_("Sector size"), N_("bytes") },
-		{ "buffer-sectors",     '\0', POPT_ARG_INT,  &opt_buffer_sectors,     0, N_("Buffers size"), N_("SECTORS") },
-
-		{ "integrity",                  'I', POPT_ARG_STRING, &opt_integrity,                 0, N_("Data integrity algorithm"), NULL },
-		{ "integrity-key-size",        '\0', POPT_ARG_INT,    &opt_integrity_key_size,        0, N_("The size of the data integrity key"), N_("BITS") },
-		{ "integrity-key-file",        '\0', POPT_ARG_STRING, &opt_integrity_key_file,        0, N_("Read the integrity key from a file"), NULL },
-
-		{ "journal-integrity",         '\0', POPT_ARG_STRING, &opt_journal_integrity,         0, N_("Journal integrity algorithm"), NULL },
-		{ "journal-integrity-key-size",'\0', POPT_ARG_INT,    &opt_journal_integrity_key_size,0, N_("The size of the journal integrity key"), N_("BITS") },
-		{ "journal-integrity-key-file",'\0', POPT_ARG_STRING, &opt_journal_integrity_key_file,0, N_("Read the journal integrity key from a file"), NULL },
-
-		{ "journal-crypt",             '\0', POPT_ARG_STRING, &opt_journal_crypt,             0, N_("Journal encryption algorithm"), NULL },
-		{ "journal-crypt-key-size",    '\0', POPT_ARG_INT,    &opt_journal_crypt_key_size,    0, N_("The size of the journal encryption key"), N_("BITS") },
-		{ "journal-crypt-key-file",    '\0', POPT_ARG_STRING, &opt_journal_crypt_key_file,    0, N_("Read the journal encryption key from a file"), NULL },
-
-		{ "integrity-no-journal",       'D', POPT_ARG_NONE,  &opt_integrity_nojournal, 0, N_("Disable journal for integrity device"), NULL },
-		{ "integrity-recovery-mode",    'R', POPT_ARG_NONE,  &opt_integrity_recovery,  0, N_("Recovery mode (no journal, no tag checking)"), NULL },
-		{ "integrity-bitmap-mode",      'B', POPT_ARG_NONE,  &opt_integrity_bitmap, 0, N_("Use bitmap to track changes and disable journal for integrity device"), NULL },
-		{ "integrity-recalculate",     '\0', POPT_ARG_NONE,  &opt_integrity_recalculate,  0, N_("Recalculate initial tags automatically."), NULL },
-		{ "integrity-legacy-padding",  '\0', POPT_ARG_NONE,  &opt_integrity_legacy_padding, 0, N_("Use inefficient legacy padding (old kernels)"), NULL },
-
-		{ "allow-discards",            '\0', POPT_ARG_NONE,  &opt_allow_discards, 0, N_("Allow discards (aka TRIM) requests for device"), NULL },
+		{ NULL, '\0', POPT_ARG_INCLUDE_TABLE, popt_help_options, 0, N_("Help options:"), NULL },
+		{ NULL, '\0', POPT_ARG_INCLUDE_TABLE, popt_basic_options, 0, NULL, NULL },
 		POPT_TABLEEND
 	};
 	poptContext popt_context;
@@ -644,80 +585,55 @@ int main(int argc, const char **argv)
 		      poptGetInvocationName(popt_context));
 	}
 
-	if (opt_integrity_recalculate && strcmp(aname, "open"))
-		usage(popt_context, EXIT_FAILURE,
-		      _("Option --integrity-recalculate can be used only for open action."),
-		      poptGetInvocationName(popt_context));
+	tools_check_args(action->type, tool_core_args, ARRAY_SIZE(tool_core_args), popt_context);
 
-	if (opt_allow_discards && strcmp(aname, "open"))
-		usage(popt_context, EXIT_FAILURE,
-		      _("Option --allow-discards is allowed only for open operation."),
-		      poptGetInvocationName(popt_context));
-
-	if (opt_interleave_sectors < 0 || opt_journal_watermark < 0 ||
-	    opt_journal_commit_time < 0 || opt_tag_size < 0 ||
-	    opt_sector_size < 0 || opt_buffer_sectors < 0 ||
-	    opt_integrity_key_size < 0 || opt_journal_integrity_key_size < 0 ||
-	    opt_journal_crypt_key_size < 0 || opt_bitmap_flush_time < 0 || opt_bitmap_sectors_per_bit < 0)
-                usage(popt_context, EXIT_FAILURE,
-                      _("Negative number for option not permitted."),
-                      poptGetInvocationName(popt_context));
-
-	if (strcmp(aname, "format") && (opt_journal_size_str || opt_interleave_sectors ||
-		opt_sector_size || opt_tag_size || opt_no_wipe ))
-		usage(popt_context, EXIT_FAILURE,
-		      _("Options --journal-size, --interleave-sectors, --sector-size, --tag-size"
-		        " and --no-wipe can be used only for format action."),
-		      poptGetInvocationName(popt_context));
-
-	if (opt_journal_size_str &&
-	    tools_string_to_size(NULL, opt_journal_size_str, &opt_journal_size))
-		usage(popt_context, EXIT_FAILURE, _("Invalid journal size specification."),
-		      poptGetInvocationName(popt_context));
-
-	if ((opt_integrity_key_file && !opt_integrity_key_size) ||
-	   (!opt_integrity_key_file && opt_integrity_key_size))
+	if (ARG_SET(OPT_INTEGRITY_KEY_FILE_ID) != ARG_SET(OPT_INTEGRITY_KEY_SIZE_ID))
 		usage(popt_context, EXIT_FAILURE, _("Both key file and key size options must be specified."),
 		      poptGetInvocationName(popt_context));
-	if (!opt_integrity && opt_integrity_key_file)
-		usage(popt_context, EXIT_FAILURE, _("Integrity algorithm must be specified if integrity key is used."),
-		      poptGetInvocationName(popt_context));
 
-	if ((opt_journal_integrity_key_file && !opt_journal_integrity_key_size) ||
-	   (!opt_journal_integrity_key_file && opt_journal_integrity_key_size))
+	if (ARG_SET(OPT_JOURNAL_INTEGRITY_KEY_FILE_ID) != ARG_SET(OPT_JOURNAL_INTEGRITY_KEY_SIZE_ID))
 		usage(popt_context, EXIT_FAILURE, _("Both journal integrity key file and key size options must be specified."),
 		      poptGetInvocationName(popt_context));
-	if (!opt_journal_integrity && opt_journal_integrity_key_file)
+	if (!ARG_SET(OPT_JOURNAL_INTEGRITY_ID) && ARG_SET(OPT_JOURNAL_INTEGRITY_KEY_FILE_ID))
 		usage(popt_context, EXIT_FAILURE, _("Journal integrity algorithm must be specified if journal integrity key is used."),
 		      poptGetInvocationName(popt_context));
 
-	if ((opt_journal_crypt_key_file && !opt_journal_crypt_key_size) ||
-	   (!opt_journal_crypt_key_file && opt_journal_crypt_key_size))
+	if (ARG_SET(OPT_JOURNAL_CRYPT_KEY_FILE_ID) != ARG_SET(OPT_JOURNAL_CRYPT_KEY_SIZE_ID))
 		usage(popt_context, EXIT_FAILURE, _("Both journal encryption key file and key size options must be specified."),
 		      poptGetInvocationName(popt_context));
-	if (!opt_journal_crypt && opt_journal_crypt_key_file)
+	if (!ARG_SET(OPT_JOURNAL_CRYPT_ID) && ARG_SET(OPT_JOURNAL_CRYPT_KEY_FILE_ID))
 		usage(popt_context, EXIT_FAILURE, _("Journal encryption algorithm must be specified if journal encryption key is used."),
 		      poptGetInvocationName(popt_context));
 
-	if (opt_integrity_recovery && opt_integrity_bitmap)
+	if (ARG_SET(OPT_INTEGRITY_RECOVERY_MODE_ID) && ARG_SET(OPT_INTEGRITY_BITMAP_MODE_ID))
 		usage(popt_context, EXIT_FAILURE, _("Recovery and bitmap mode options are mutually exclusive."),
 		      poptGetInvocationName(popt_context));
 
-	if (opt_integrity_bitmap && (opt_journal_integrity_key_file || opt_journal_crypt || opt_journal_watermark || opt_journal_commit_time))
+	if (ARG_SET(OPT_INTEGRITY_BITMAP_MODE_ID) &&
+	    (ARG_SET(OPT_JOURNAL_INTEGRITY_KEY_FILE_ID) ||
+	     ARG_SET(OPT_JOURNAL_CRYPT_ID) || ARG_SET(OPT_JOURNAL_WATERMARK_ID) ||
+	     ARG_SET(OPT_JOURNAL_COMMIT_TIME_ID)))
 		usage(popt_context, EXIT_FAILURE, _("Journal options cannot be used in bitmap mode."),
 		      poptGetInvocationName(popt_context));
 
-	if (!opt_integrity_bitmap && (opt_bitmap_flush_time || opt_bitmap_sectors_per_bit))
+	if (!ARG_SET(OPT_INTEGRITY_BITMAP_MODE_ID) &&
+	    (ARG_SET(OPT_BITMAP_FLUSH_TIME_ID) || ARG_SET(OPT_BITMAP_SECTORS_PER_BIT_ID)))
 		usage(popt_context, EXIT_FAILURE, _("Bitmap options can be used only in bitmap mode."),
 		      poptGetInvocationName(popt_context));
 
-	if (opt_debug) {
-		opt_verbose = 1;
-		crypt_set_debug_level(-1);
+	if (ARG_SET(OPT_DEBUG_ID)) {
+		ARG_SET(OPT_VERBOSE_ID) = true;
+		crypt_set_debug_level(CRYPT_DEBUG_ALL);
 		dbg_version_and_cmd(argc, argv);
 	}
 
+	opt_verbose = ARG_SET(OPT_VERBOSE_ID) ? 1 : 0;
+	opt_debug = ARG_SET(OPT_DEBUG_ID) ? 1 : 0;
+	opt_batch_mode = ARG_SET(OPT_BATCH_MODE_ID) ? 1 : 0;
+	opt_progress_frequency = ARG_UINT32(OPT_PROGRESS_FREQUENCY_ID);
+
 	r = run_action(action);
+	tools_cleanup();
 	poptFreeContext(popt_context);
 	return r;
 }

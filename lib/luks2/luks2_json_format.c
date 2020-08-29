@@ -41,7 +41,7 @@ static size_t get_min_offset(struct luks2_hdr *hdr)
 
 static size_t get_max_offset(struct luks2_hdr *hdr)
 {
-	return LUKS2_hdr_and_areas_size(hdr->jobj);
+	return LUKS2_hdr_and_areas_size(hdr);
 }
 
 int LUKS2_find_area_max_gap(struct crypt_device *cd, struct luks2_hdr *hdr,
@@ -337,7 +337,7 @@ err:
 }
 
 int LUKS2_wipe_header_areas(struct crypt_device *cd,
-	struct luks2_hdr *hdr)
+	struct luks2_hdr *hdr, bool detached_header)
 {
 	int r;
 	uint64_t offset, length;
@@ -352,7 +352,7 @@ int LUKS2_wipe_header_areas(struct crypt_device *cd,
 		return -EINVAL;
 
 	/* On detached header wipe at least the first 4k */
-	if (length == 0) {
+	if (detached_header) {
 		length = 4096;
 		wipe_block = 4096;
 	}
@@ -368,7 +368,7 @@ int LUKS2_wipe_header_areas(struct crypt_device *cd,
 	/* Wipe keyslot area */
 	wipe_block = 1024 * 1024;
 	offset = get_min_offset(hdr);
-	length = LUKS2_keyslots_size(hdr->jobj);
+	length = LUKS2_keyslots_size(hdr);
 
 	log_dbg(cd, "Wiping keyslots area (0x%06" PRIx64 " - 0x%06" PRIx64") with random data.",
 		offset, length + offset);

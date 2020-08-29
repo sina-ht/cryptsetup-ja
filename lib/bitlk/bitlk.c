@@ -415,6 +415,7 @@ void BITLK_bitlk_fvek_free(struct bitlk_fvek *fvek)
 		return;
 
 	crypt_free_volume_key(fvek->vk);
+	free(fvek);
 }
 
 void BITLK_bitlk_vmk_free(struct bitlk_vmk *vmk)
@@ -505,6 +506,11 @@ int BITLK_read_sb(struct crypt_device *cd, struct bitlk_metadata *params)
 	}
 
 	params->sector_size = le16_to_cpu(sig.sector_size);
+	if (params->sector_size == 0) {
+		log_dbg(cd, "Got sector size 0, assuming 512.");
+		params->sector_size = SECTOR_SIZE;
+	}
+
 	if (!(params->sector_size == 512 || params->sector_size == 4096)) {
 		log_err(cd, _("Unsupported sector size %" PRIu16 "."), params->sector_size);
 		r = -EINVAL;
@@ -907,7 +913,7 @@ static int decrypt_key(struct crypt_device *cd,
 {
 	char *outbuf;
 	int r;
-	uint32_t key_size = 0;
+	uint16_t key_size = 0;
 
 	outbuf = crypt_safe_alloc(enc_key->keylength);
 	if (!outbuf)
@@ -922,10 +928,12 @@ static int decrypt_key(struct crypt_device *cd,
 	}
 
 	/* key_data has it's size as part of the metadata */
-	memcpy(&key_size, outbuf, 4);
-	key_size = le32_to_cpu(key_size);
+	memcpy(&key_size, outbuf, 2);
+	key_size = le16_to_cpu(key_size);
 	if (enc_key->keylength != key_size) {
-		log_err(cd, _("Wrong key size."));
+		log_err(cd, _("Unexpected key data size."));
+		log_dbg(cd, "Expected key data size: %zu, got %" PRIu16 "", enc_key->keylength, key_size);
+
 		r = -EINVAL;
 		goto out;
 	}
