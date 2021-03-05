@@ -1,6 +1,8 @@
-CRYPTSETUP_2.1 {
+CRYPTSETUP_2.4 {
 	global:
 		crypt_reencrypt;
+		crypt_token_max;
+		crypt_header_is_detached;
 };
 
 CRYPTSETUP_2.0 {
@@ -117,6 +119,7 @@ CRYPTSETUP_2.0 {
 		crypt_get_dir;
 		crypt_set_debug_level;
 		crypt_log;
+		crypt_logf;
 
 		crypt_header_backup;
 		crypt_header_restore;

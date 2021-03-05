@@ -1,5 +1,5 @@
 /*
- * Cryptsetup command line arguments list
+ * Command line arguments parsing helpers
  *
  * Copyright (C) 2020 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2020 Ondrej Kozina
@@ -89,6 +89,7 @@ void tools_args_free(struct tools_arg *args, size_t args_size)
 	for (i = 0; i < args_size; i++) {
 		if (args[i].set && args[i].type == CRYPT_ARG_STRING)
 			free(args[i].u.str_value);
+		args[i].set = false;
 	}
 }
 

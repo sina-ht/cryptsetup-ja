@@ -26,6 +26,7 @@
 
 static const char **action_argv;
 static int action_argc;
+static struct tools_log_params log_parms;
 
 void tools_cleanup(void)
 {
@@ -178,7 +179,7 @@ static int _activate(const char *dm_device,
 			goto out;
 		}
 		signature_size = st.st_size;
-		r = crypt_cli_read_mk(ARG_STR(OPT_ROOT_HASH_SIGNATURE_ID), &signature, signature_size);
+		r = tools_read_mk(ARG_STR(OPT_ROOT_HASH_SIGNATURE_ID), &signature, signature_size);
 		if (r < 0) {
 			log_err(_("Cannot read signature file %s."), ARG_STR(OPT_ROOT_HASH_SIGNATURE_ID));
 			goto out;
@@ -218,11 +219,25 @@ static int action_verify(int arg)
 static int action_close(int arg)
 {
 	struct crypt_device *cd = NULL;
+	crypt_status_info ci;
+	uint32_t flags = 0;
 	int r;
+
+	if (ARG_SET(OPT_DEFERRED_ID))
+		flags |= CRYPT_DEACTIVATE_DEFERRED;
+	if (ARG_SET(OPT_CANCEL_DEFERRED_ID))
+		flags |= CRYPT_DEACTIVATE_DEFERRED_CANCEL;
 
 	r = crypt_init_by_name(&cd, action_argv[0]);
 	if (r == 0)
-		r = crypt_deactivate(cd, action_argv[0]);
+		r = crypt_deactivate_by_name(cd, action_argv[0], flags);
+
+	if (!r && ARG_SET(OPT_DEFERRED_ID)) {
+		ci = crypt_status(cd, action_argv[0]);
+		if (ci == CRYPT_ACTIVE || ci == CRYPT_BUSY)
+			log_std(_("Device %s is still active and scheduled for deferred removal.\n"),
+				  action_argv[0]);
+	}
 
 	crypt_free(cd);
 	return r;
@@ -448,6 +463,14 @@ static void basic_options_cb(poptContext popt_context,
 		 void *data __attribute__((unused)))
 {
 	tools_parse_arg_value(popt_context, tool_core_args[key->val].type, tool_core_args + key->val, arg, key->val, NULL);
+
+	switch (key->val) {
+	case OPT_DEBUG_ID:
+		log_parms.debug = true;
+		/* fall through */
+	case OPT_VERBOSE_ID:
+		log_parms.verbose = true;
+	}
 }
 
 int main(int argc, const char **argv)
@@ -478,7 +501,7 @@ int main(int argc, const char **argv)
 	const char *aname;
 	int r;
 
-	crypt_set_log_callback(NULL, tool_log, NULL);
+	crypt_set_log_callback(NULL, tool_log, &log_parms);
 
 	setlocale(LC_ALL, "");
 	bindtextdomain(PACKAGE, LOCALEDIR);
@@ -548,14 +571,15 @@ int main(int argc, const char **argv)
 		_("Option --panic-on-corruption and --restart-on-corruption cannot be used together."),
 		poptGetInvocationName(popt_context));
 
+	if (ARG_SET(OPT_CANCEL_DEFERRED_ID) && ARG_SET(OPT_DEFERRED_ID))
+		usage(popt_context, EXIT_FAILURE,
+		      _("Options --cancel-deferred and --deferred cannot be used at the same time."),
+		      poptGetInvocationName(popt_context));
+
 	if (ARG_SET(OPT_DEBUG_ID)) {
-		ARG_SET(OPT_VERBOSE_ID) = true;
 		crypt_set_debug_level(CRYPT_DEBUG_ALL);
 		dbg_version_and_cmd(argc, argv);
 	}
-
-	opt_verbose = ARG_SET(OPT_VERBOSE_ID) ? 1 : 0;
-	opt_debug = ARG_SET(OPT_DEBUG_ID) ? 1 : 0;
 
 	r = run_action(action);
 	tools_cleanup();

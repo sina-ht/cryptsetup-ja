@@ -215,6 +215,15 @@ void crypt_set_log_callback(struct crypt_device *cd,
  * @param msg log message
  */
 void crypt_log(struct crypt_device *cd, int level, const char *msg);
+
+/**
+ * Log function with variable arguments.
+ *
+ * @param cd crypt device handle
+ * @param level log level
+ * @param format formatted log message
+ */
+void crypt_logf(struct crypt_device *cd, int level, const char *format, ...);
 /** @} */
 
 /**
@@ -1351,6 +1360,8 @@ int crypt_activate_by_keyring(struct crypt_device *cd,
 #define CRYPT_DEACTIVATE_DEFERRED (1 << 0)
 /** force deactivation - if the device is busy, it is replaced by error device */
 #define CRYPT_DEACTIVATE_FORCE    (1 << 1)
+/** if set, remove lazy deactivation */
+#define CRYPT_DEACTIVATE_DEFERRED_CANCEL (1 << 2)
 
 /**
  * Deactivate crypt device. This function tries to remove active device-mapper
@@ -1485,11 +1496,11 @@ const char *crypt_get_cipher_mode(struct crypt_device *cd);
 const char *crypt_get_uuid(struct crypt_device *cd);
 
 /**
- * Get path to underlaying device.
+ * Get path to underlying device.
  *
  * @param cd crypt device handle
  *
- * @return path to underlaying device name
+ * @return path to underlying device name
  *
  */
 const char *crypt_get_device_name(struct crypt_device *cd);
@@ -1499,7 +1510,7 @@ const char *crypt_get_device_name(struct crypt_device *cd);
  *
  * @param cd crypt device handle
  *
- * @return path to underlaying device name
+ * @return path to underlying device name
  *
  */
 const char *crypt_get_metadata_device_name(struct crypt_device *cd);
@@ -1545,6 +1556,21 @@ int crypt_get_volume_key_size(struct crypt_device *cd);
  *
  */
 int crypt_get_sector_size(struct crypt_device *cd);
+
+/**
+ * Check if initialized LUKS context uses detached header
+ * (LUKS header located on a different device than data.)
+ *
+ * @param cd crypt device handle
+ *
+ * @return @e 1 if detached header is used, @e 0 if not
+ * or negative errno value otherwise.
+ *
+ * @note This is a runtime attribute, it does not say
+ * 	 if a LUKS device requires detached header.
+ * 	 This function works only with LUKS devices.
+ */
+int crypt_header_is_detached(struct crypt_device *cd);
 
 /**
  * Get device parameters for VERITY device.
@@ -1942,6 +1968,19 @@ int crypt_wipe(struct crypt_device *cd,
  * @addtogroup crypt-tokens
  * @{
  */
+
+/**
+ * Get number of tokens supported for device type.
+ *
+ * @param type crypt device type
+ *
+ * @return token count or negative errno otherwise if device
+ * doesn't not support tokens.
+ *
+ * @note Real number of supported tokens for a particular device depends
+ *       on usable metadata area size.
+ */
+int crypt_token_max(const char *type);
 
 /** Iterate through all tokens */
 #define CRYPT_ANY_TOKEN -1
@@ -2353,7 +2392,7 @@ int crypt_reencrypt_init_by_keyring(struct crypt_device *cd,
  * Run data reencryption.
  *
  * @param cd crypt device handle
- * @param progress is a callback funtion reporting device \b size,
+ * @param progress is a callback function reporting device \b size,
  * current \b offset of reencryption and provided \b usrptr identification
  * @param usrptr progress specific data
  *
@@ -2396,17 +2435,15 @@ crypt_reencrypt_info crypt_reencrypt_status(struct crypt_device *cd,
  *
  * @param size size of memory in bytes
  *
- * @return pointer to allocate memory or @e NULL.
+ * @return pointer to allocated memory or @e NULL.
  */
 void *crypt_safe_alloc(size_t size);
 
 /**
- * Release safe memory, content is safely wiped
+ * Release safe memory, content is safely wiped.
  * The pointer must be allocated with @link crypt_safe_alloc @endlink
  *
  * @param data pointer to memory to be deallocated
- *
- * @return pointer to allocate memory or @e NULL.
  */
 void crypt_safe_free(void *data);
 
@@ -2416,17 +2453,15 @@ void crypt_safe_free(void *data);
  * @param data pointer to memory to be deallocated
  * @param size new size of memory in bytes
  *
- * @return pointer to allocate memory or @e NULL.
+ * @return pointer to allocated memory or @e NULL.
  */
 void *crypt_safe_realloc(void *data, size_t size);
 
 /**
  * Safe clear memory area (compile should not compile this call out).
  *
- * @param data pointer to memory to cleared
- * @param size new size of memory in bytes
- *
- * @return pointer to allocate memory or @e NULL.
+ * @param data pointer to memory to be cleared
+ * @param size size of memory in bytes
  */
 void crypt_safe_memzero(void *data, size_t size);
 

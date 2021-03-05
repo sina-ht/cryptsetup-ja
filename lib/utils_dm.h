@@ -25,7 +25,8 @@
 #define _UTILS_DM_H
 
 /* device-mapper library helpers */
-#include <inttypes.h>
+#include <stddef.h>
+#include <stdint.h>
 
 struct crypt_device;
 struct volume_key;
@@ -219,6 +220,7 @@ int dm_resume_and_reinstate_key(struct crypt_device *cd, const char *name,
 				const struct volume_key *vk);
 int dm_error_device(struct crypt_device *cd, const char *name);
 int dm_clear_device(struct crypt_device *cd, const char *name);
+int dm_cancel_deferred_removal(const char *name);
 
 const char *dm_get_dir(void);
 

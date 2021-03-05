@@ -40,6 +40,8 @@ static int action_argc;
 static const char *null_action_argv[] = {NULL, NULL};
 static int total_keyfiles = 0;
 
+static struct tools_log_params log_parms;
+
 void tools_cleanup(void)
 {
 	tools_args_free(tool_core_args, ARRAY_SIZE(tool_core_args));
@@ -160,23 +162,9 @@ static int _set_keyslot_encryption_params(struct crypt_device *cd)
 	return crypt_keyslot_set_encryption(cd, ARG_STR(OPT_KEYSLOT_CIPHER_ID), ARG_UINT32(OPT_KEYSLOT_KEY_SIZE_ID) / 8);
 }
 
-static int tools_write_mk(const char *file, const char *key, int keysize)
+static int _set_tries_tty(void)
 {
-	int fd, r = -EINVAL;
-
-	fd = open(file, O_CREAT|O_EXCL|O_WRONLY, S_IRUSR);
-	if (fd < 0) {
-		log_err(_("Cannot open keyfile %s for write."), file);
-		return r;
-	}
-
-	if (write_buffer(fd, key, keysize) == keysize)
-		r = 0;
-	else
-		log_err(_("Cannot write to keyfile %s."), file);
-
-	close(fd);
-	return r;
+	return (tools_is_stdin(ARG_STR(OPT_KEY_FILE_ID)) && isatty(STDIN_FILENO)) ? ARG_UINT32(OPT_TRIES_ID) : 1;
 }
 
 static int action_open_plain(void)
@@ -252,12 +240,12 @@ static int action_open_plain(void)
 		/* Skip blkid scan when activating plain device with offset */
 		if (!ARG_UINT64(OPT_OFFSET_ID)) {
 			/* Print all present signatures in read-only mode */
-			r = tools_detect_signatures(action_argv[0], 0, &signatures);
+			r = tools_detect_signatures(action_argv[0], 0, &signatures, ARG_SET(OPT_BATCH_MODE_ID));
 			if (r < 0)
 				goto out;
 		}
 
-		if (signatures) {
+		if (signatures && !ARG_SET(OPT_BATCH_MODE_ID)) {
 			r = asprintf(&msg, _("Detected device signature(s) on %s. Proceeding further may damage existing data."), action_argv[0]);
 			if (r == -1) {
 				r = -ENOMEM;
@@ -366,11 +354,9 @@ out:
 
 static int tcrypt_load(struct crypt_device *cd, struct crypt_params_tcrypt *params)
 {
-	int r, tries = ARG_UINT32(OPT_TRIES_ID), eperm = 0;
+	int r, tries, eperm = 0;
 
-	if (keyfile_stdin)
-		tries = 1;
-
+	tries = _set_tries_tty();
 	do {
 		/* TCRYPT header is encrypted, get passphrase now */
 		r = tools_get_key(NULL, CONST_CAST(char**)&params->passphrase,
@@ -451,6 +437,8 @@ static int action_open_tcrypt(void)
 		.flags = CRYPT_TCRYPT_LEGACY_MODES |
 			 (ARG_SET(OPT_VERACRYPT_ID) ? CRYPT_TCRYPT_VERA_MODES : 0),
 		.veracrypt_pim = ARG_UINT32(OPT_VERACRYPT_PIM_ID),
+		.hash_name = ARG_STR(OPT_HASH_ID),
+		.cipher = ARG_STR(OPT_CIPHER_ID),
 	};
 	const char *activated_name;
 	uint32_t activate_flags = 0;
@@ -458,7 +446,8 @@ static int action_open_tcrypt(void)
 
 	activated_name = ARG_SET(OPT_TEST_PASSPHRASE_ID) ? NULL : action_argv[1];
 
-	if ((r = crypt_init(&cd, action_argv[0])))
+	r = crypt_init_data_device(&cd, ARG_STR(OPT_HEADER_ID) ?: action_argv[0], action_argv[0]);
+	if (r < 0)
 		goto out;
 
 	r = tcrypt_load(cd, &params);
@@ -481,8 +470,9 @@ static int action_open_bitlk(void)
 	struct crypt_device *cd = NULL;
 	const char *activated_name;
 	uint32_t activate_flags = 0;
-	int r, tries;
+	int r, tries, keysize;
 	char *password = NULL;
+	char *key = NULL;
 	size_t passwordLen;
 
 	activated_name = ARG_SET(OPT_TEST_PASSPHRASE_ID) ? NULL : action_argv[1];
@@ -497,23 +487,40 @@ static int action_open_bitlk(void)
 	}
 	_set_activation_flags(&activate_flags);
 
-	tries = (tools_is_stdin(ARG_STR(OPT_KEY_FILE_ID)) && isatty(STDIN_FILENO)) ? ARG_UINT32(OPT_TRIES_ID) : 1;
-	do {
-		r = tools_get_key(NULL, &password, &passwordLen,
-				ARG_UINT64(OPT_KEYFILE_OFFSET_ID), ARG_UINT32(OPT_KEYFILE_SIZE_ID), ARG_STR(OPT_KEY_FILE_ID),
-				ARG_UINT32(OPT_TIMEOUT_ID), _verify_passphrase(0), 0, cd);
+	if (ARG_SET(OPT_MASTER_KEY_FILE_ID)) {
+		keysize = crypt_get_volume_key_size(cd);
+		if (!keysize && !ARG_SET(OPT_KEY_SIZE_ID)) {
+			log_err(_("Cannot determine volume key size for BITLK, please use --key-size option."));
+			r = -EINVAL;
+			goto out;
+		} else if (!keysize)
+			keysize = ARG_UINT32(OPT_KEY_SIZE_ID) / 8;
+
+		r = tools_read_mk(ARG_STR(OPT_MASTER_KEY_FILE_ID), &key, keysize);
 		if (r < 0)
 			goto out;
+		r = crypt_activate_by_volume_key(cd, activated_name,
+						 key, keysize, activate_flags);
+	} else {
+		tries = _set_tries_tty();
+		do {
+			r = tools_get_key(NULL, &password, &passwordLen,
+					ARG_UINT64(OPT_KEYFILE_OFFSET_ID), ARG_UINT32(OPT_KEYFILE_SIZE_ID), ARG_STR(OPT_KEY_FILE_ID),
+					ARG_UINT32(OPT_TIMEOUT_ID), _verify_passphrase(0), 0, cd);
+			if (r < 0)
+				goto out;
 
-		r = crypt_activate_by_passphrase(cd, activated_name, CRYPT_ANY_SLOT,
-						 password, passwordLen, activate_flags);
-		tools_passphrase_msg(r);
-		check_signal(&r);
-		crypt_safe_free(password);
-		password = NULL;
-	} while ((r == -EPERM || r == -ERANGE) && (--tries > 0));
+			r = crypt_activate_by_passphrase(cd, activated_name, CRYPT_ANY_SLOT,
+							password, passwordLen, activate_flags);
+			tools_passphrase_msg(r);
+			check_signal(&r);
+			crypt_safe_free(password);
+			password = NULL;
+		} while ((r == -EPERM || r == -ERANGE) && (--tries > 0));
+	}
 out:
 	crypt_safe_free(password);
+	crypt_safe_free(key);
 	crypt_free(cd);
 	return r;
 }
@@ -525,8 +532,7 @@ static int tcryptDump_with_volume_key(struct crypt_device *cd)
 	unsigned i;
 	int r;
 
-	crypt_set_confirm_callback(cd, yesDialog, NULL);
-	if (!yesDialog(
+	if (!ARG_SET(OPT_BATCH_MODE_ID) && !yesDialog(
 	    _("Header dump with volume key is sensitive information\n"
 	      "which allows access to encrypted partition without passphrase.\n"
 	      "This dump should be always stored encrypted on safe place."),
@@ -568,11 +574,13 @@ static int action_tcryptDump(void)
 		.keyfiles_count = keyfiles_count,
 		.flags = CRYPT_TCRYPT_LEGACY_MODES |
 			 (ARG_SET(OPT_VERACRYPT_ID) ? CRYPT_TCRYPT_VERA_MODES : 0),
-		.veracrypt_pim = ARG_UINT32(OPT_VERACRYPT_PIM_ID)
+		.veracrypt_pim = ARG_UINT32(OPT_VERACRYPT_PIM_ID),
+		.hash_name = ARG_STR(OPT_HASH_ID),
+		.cipher = ARG_STR(OPT_CIPHER_ID),
 	};
 	int r;
-
-	if ((r = crypt_init(&cd, action_argv[0])))
+	r = crypt_init_data_device(&cd, ARG_STR(OPT_HEADER_ID) ?: action_argv[0], action_argv[0]);
+	if (r < 0)
 		goto out;
 
 	r = tcrypt_load(cd, &params);
@@ -589,6 +597,70 @@ out:
 	return r;
 }
 
+static int bitlkDump_with_volume_key(struct crypt_device *cd)
+{
+	char *vk = NULL, *password = NULL;
+	size_t passwordLen = 0;
+	size_t vk_size;
+	unsigned i;
+	int r;
+
+	if (!yesDialog(
+	    _("The header dump with volume key is sensitive information\n"
+	      "that allows access to encrypted partition without a passphrase.\n"
+	      "This dump should be stored encrypted in a safe place."),
+	      NULL))
+		return -EPERM;
+
+	vk_size = crypt_get_volume_key_size(cd);
+	vk = crypt_safe_alloc(vk_size);
+	if (!vk)
+		return -ENOMEM;
+
+	r = tools_get_key(NULL, &password, &passwordLen,
+			  ARG_UINT64(OPT_KEYFILE_OFFSET_ID), ARG_UINT32(OPT_KEYFILE_SIZE_ID), ARG_STR(OPT_KEY_FILE_ID),
+			  ARG_UINT32(OPT_TIMEOUT_ID), 0, 0, cd);
+	if (r < 0)
+		goto out;
+
+	r = crypt_volume_key_get(cd, CRYPT_ANY_SLOT, vk, &vk_size,
+				 password, passwordLen);
+	tools_passphrase_msg(r);
+	check_signal(&r);
+	if (r < 0)
+		goto out;
+	tools_keyslot_msg(r, UNLOCKED);
+
+	if (ARG_SET(OPT_MASTER_KEY_FILE_ID)) {
+		r = tools_write_mk(ARG_STR(OPT_MASTER_KEY_FILE_ID), vk, vk_size);
+		if (r < 0)
+			goto out;
+	}
+
+	log_std("BITLK header information for %s\n", crypt_get_device_name(cd));
+	log_std("Cipher name:   \t%s\n", crypt_get_cipher(cd));
+	log_std("Cipher mode:   \t%s\n", crypt_get_cipher_mode(cd));
+	log_std("UUID:          \t%s\n", crypt_get_uuid(cd));
+	log_std("MK bits:       \t%d\n", (int)vk_size * 8);
+	if (ARG_SET(OPT_MASTER_KEY_FILE_ID)) {
+		log_std("Key stored to file %s.\n", ARG_STR(OPT_MASTER_KEY_FILE_ID));
+		goto out;
+	}
+	log_std("MK dump:\t");
+
+	for(i = 0; i < vk_size; i++) {
+		if (i && !(i % 16))
+			log_std("\n\t\t");
+		log_std("%02hhx ", (char)vk[i]);
+	}
+	log_std("\n");
+
+out:
+	crypt_safe_free(password);
+	crypt_safe_free(vk);
+	return r;
+}
+
 static int action_bitlkDump(void)
 {
 	struct crypt_device *cd = NULL;
@@ -601,7 +673,10 @@ static int action_bitlkDump(void)
 	if (r < 0)
 		goto out;
 
-	r = crypt_dump(cd);
+	if (ARG_SET(OPT_DUMP_MASTER_KEY_ID))
+		r = bitlkDump_with_volume_key(cd);
+	else
+		r = crypt_dump(cd);
 out:
 	crypt_free(cd);
 	return r;
@@ -616,6 +691,8 @@ static int action_close(void)
 
 	if (ARG_SET(OPT_DEFERRED_ID))
 		flags |= CRYPT_DEACTIVATE_DEFERRED;
+	if (ARG_SET(OPT_CANCEL_DEFERRED_ID))
+		flags |= CRYPT_DEACTIVATE_DEFERRED_CANCEL;
 
 	r = crypt_init_by_name(&cd, action_argv[0]);
 	if (r == 0)
@@ -662,7 +739,10 @@ static int action_resize(void)
 		r = crypt_activate_by_token(cd, NULL, ARG_INT32(OPT_TOKEN_ID_ID), NULL,
 					    CRYPT_ACTIVATE_KEYRING_KEY);
 		tools_keyslot_msg(r, UNLOCKED);
-		if (r < 0 && ARG_SET(OPT_TOKEN_ONLY_ID))
+
+		if (r >= 0)
+			goto resize;
+		else if (ARG_SET(OPT_TOKEN_ONLY_ID))
 			goto out;
 
 		r = tools_get_key(NULL, &password, &passwordLen,
@@ -679,6 +759,7 @@ static int action_resize(void)
 		crypt_safe_free(password);
 	}
 
+resize:
 	if (ARG_UINT64(OPT_DEVICE_SIZE_ID))
 		dev_size = ARG_UINT64(OPT_DEVICE_SIZE_ID) / SECTOR_SIZE;
 	else
@@ -1041,15 +1122,15 @@ static int _do_luks2_reencrypt_recovery(struct crypt_device *cd)
 	case CRYPT_REENCRYPT_NONE:
 		/* fall through */
 	case CRYPT_REENCRYPT_CLEAN:
-		r = noDialog(_("Seems device does not require reencryption recovery.\n"
-				"Do you want to proceed anyway?"), NULL);
-		if (!r)
+		if (ARG_SET(OPT_BATCH_MODE_ID) ||
+		    !noDialog(_("Seems device does not require reencryption recovery.\n"
+				"Do you want to proceed anyway?"), NULL))
 			return 0;
 		break;
 	case CRYPT_REENCRYPT_CRASH:
-		r = yesDialog(_("Really proceed with LUKS2 reencryption recovery?"),
-			      _("Operation aborted.\n"));
-		if (!r)
+		if (!ARG_SET(OPT_BATCH_MODE_ID) &&
+		    !yesDialog(_("Really proceed with LUKS2 reencryption recovery?"),
+			       _("Operation aborted.\n")))
 			return -EINVAL;
 		break;
 	default:
@@ -1087,21 +1168,23 @@ static int action_luksRepair(void)
 					action_argv[0])))
 		goto out;
 
-	crypt_set_log_callback(cd, quiet_log, NULL);
+	crypt_set_log_callback(cd, quiet_log, &log_parms);
 	r = crypt_load(cd, luksType(device_type), NULL);
-	crypt_set_log_callback(cd, tool_log, NULL);
+	crypt_set_log_callback(cd, tool_log, &log_parms);
 	if (r == 0) {
 		log_verbose(_("No known problems detected for LUKS header."));
 		goto skip_repair;
 	}
 
-	r = tools_detect_signatures(action_argv[0], 1, NULL);
+	r = tools_detect_signatures(action_argv[0], 1, NULL, ARG_SET(OPT_BATCH_MODE_ID));
 	if (r < 0)
 		goto out;
 
-	r = yesDialog(_("Really try to repair LUKS device header?"),
-		       _("Operation aborted.\n")) ? 0 : -EINVAL;
-	if (r == 0)
+	if (!ARG_SET(OPT_BATCH_MODE_ID) &&
+	    !yesDialog(_("Really try to repair LUKS device header?"),
+		       _("Operation aborted.\n")))
+		r = -EINVAL;
+	else
 		r = crypt_repair(cd, luksType(device_type), NULL);
 skip_repair:
 	if (!r && crypt_get_type(cd) && !strcmp(crypt_get_type(cd), CRYPT_LUKS2))
@@ -1116,6 +1199,10 @@ static int _wipe_data_device(struct crypt_device *cd)
 	char tmp_name[64], tmp_path[128], tmp_uuid[40];
 	uuid_t tmp_uuid_bin;
 	int r;
+	struct tools_progress_params prog_parms = {
+		.frequency = ARG_UINT32(OPT_PROGRESS_FREQUENCY_ID),
+		.batch_mode = ARG_SET(OPT_BATCH_MODE_ID)
+	};
 
 	if (!ARG_SET(OPT_BATCH_MODE_ID))
 		log_std(_("Wiping device to initialize integrity checksum.\n"
@@ -1138,7 +1225,7 @@ static int _wipe_data_device(struct crypt_device *cd)
 	/* Wipe the device */
 	set_int_handler(0);
 	r = crypt_wipe(cd, tmp_path, CRYPT_WIPE_ZERO, 0, 0, DEFAULT_WIPE_BLOCK,
-		       0, &tools_wipe_progress, NULL);
+		       0, &tools_wipe_progress, &prog_parms);
 	if (crypt_deactivate(cd, tmp_name))
 		log_err(_("Cannot deactivate temporary device %s."), tmp_path);
 	set_int_block(0);
@@ -1203,8 +1290,8 @@ static int _luksFormat(struct crypt_device **r_cd, char **r_password, size_t *r_
 	/* Create header file (must contain at least one sector)? */
 	if (ARG_SET(OPT_HEADER_ID) && stat(ARG_STR(OPT_HEADER_ID), &st) < 0 && errno == ENOENT) {
 		if (!ARG_SET(OPT_BATCH_MODE_ID) &&
-		    !yesDialog("Header file does not exist, do you want to create it?",
-			    _("Operation aborted.\n")))
+		    !yesDialog(_("Header file does not exist, do you want to create it?"),
+			       _("Operation aborted.\n")))
 		    return -EPERM;
 
 		log_dbg("Creating header file.");
@@ -1243,7 +1330,7 @@ static int _luksFormat(struct crypt_device **r_cd, char **r_password, size_t *r_
 
 	/* Never call pwquality if using null cipher */
 	if (tools_is_cipher_null(cipher))
-		ARG_SET(OPT_FORCE_PASSWORD_ID) = true;
+		ARG_SET_TRUE(OPT_FORCE_PASSWORD_ID);
 
 	if ((r = crypt_init(&cd, header_device))) {
 		if (ARG_SET(OPT_HEADER_ID))
@@ -1266,11 +1353,11 @@ static int _luksFormat(struct crypt_device **r_cd, char **r_password, size_t *r_
 	}
 
 	/* Print all present signatures in read-only mode */
-	r = tools_detect_signatures(header_device, 0, &signatures);
+	r = tools_detect_signatures(header_device, 0, &signatures, ARG_SET(OPT_BATCH_MODE_ID));
 	if (r < 0)
 		goto out;
 
-	if (!created) {
+	if (!created && !ARG_SET(OPT_BATCH_MODE_ID)) {
 		r = asprintf(&msg, _("This will overwrite data on %s irrevocably."), header_device);
 		if (r == -1) {
 			r = -ENOMEM;
@@ -1305,7 +1392,7 @@ static int _luksFormat(struct crypt_device **r_cd, char **r_password, size_t *r_
 		goto out;
 
 	if (ARG_SET(OPT_MASTER_KEY_FILE_ID)) {
-		r = crypt_cli_read_mk(ARG_STR(OPT_MASTER_KEY_FILE_ID), &key, keysize);
+		r = tools_read_mk(ARG_STR(OPT_MASTER_KEY_FILE_ID), &key, keysize);
 		if (r < 0)
 			goto out;
 	}
@@ -1414,7 +1501,7 @@ static int action_open_luks(void)
 		} else if (!keysize)
 			keysize = ARG_UINT32(OPT_KEY_SIZE_ID) / 8;
 
-		r = crypt_cli_read_mk(ARG_STR(OPT_MASTER_KEY_FILE_ID), &key, keysize);
+		r = tools_read_mk(ARG_STR(OPT_MASTER_KEY_FILE_ID), &key, keysize);
 		if (r < 0)
 			goto out;
 		r = crypt_activate_by_volume_key(cd, activated_name,
@@ -1437,7 +1524,7 @@ static int action_open_luks(void)
 		if (r >= 0 || ARG_SET(OPT_TOKEN_ONLY_ID))
 			goto out;
 
-		tries = (tools_is_stdin(ARG_STR(OPT_KEY_FILE_ID)) && isatty(STDIN_FILENO)) ? ARG_UINT32(OPT_TRIES_ID) : 1;
+		tries = _set_tries_tty();
 		do {
 			r = tools_get_key(NULL, &password, &passwordLen,
 					ARG_UINT64(OPT_KEYFILE_OFFSET_ID), ARG_UINT32(OPT_KEYFILE_SIZE_ID), ARG_STR(OPT_KEY_FILE_ID),
@@ -1476,7 +1563,7 @@ static int verify_keyslot(struct crypt_device *cd, int key_slot, crypt_keyslot_i
 	int i, max, r;
 
 	if (ki == CRYPT_SLOT_ACTIVE_LAST && !ARG_SET(OPT_BATCH_MODE_ID) && !key_file &&
-	    msg_last && !yesDialog(msg_last, msg_fail))
+	    msg_last && !ARG_SET(OPT_BATCH_MODE_ID) && !yesDialog(msg_last, msg_fail))
 		return -EPERM;
 
 	r = tools_get_key(msg_pass, &password, &passwordLen,
@@ -1525,8 +1612,6 @@ static int action_luksKillSlot(void)
 
 	if ((r = crypt_init(&cd, uuid_or_device_header(NULL))))
 		goto out;
-
-	crypt_set_confirm_callback(cd, yesDialog, NULL);
 
 	if ((r = crypt_load(cd, luksType(device_type), NULL))) {
 		log_err(_("Device %s is not a valid LUKS device."),
@@ -1583,8 +1668,6 @@ static int action_luksRemoveKey(void)
 	if ((r = crypt_init(&cd, uuid_or_device_header(NULL))))
 		goto out;
 
-	crypt_set_confirm_callback(cd, yesDialog, NULL);
-
 	if ((r = crypt_load(cd, luksType(device_type), NULL))) {
 		log_err(_("Device %s is not a valid LUKS device."),
 			uuid_or_device_header(NULL));
@@ -1612,9 +1695,10 @@ static int action_luksRemoveKey(void)
 	log_verbose(_("Keyslot %d is selected for deletion."), ARG_INT32(OPT_KEY_SLOT_ID));
 
 	if (crypt_keyslot_status(cd, ARG_INT32(OPT_KEY_SLOT_ID)) == CRYPT_SLOT_ACTIVE_LAST &&
+	    !ARG_SET(OPT_BATCH_MODE_ID) &&
 	    !yesDialog(_("This is the last keyslot. "
-			  "Device will become unusable after purging this key."),
-			_("Operation aborted, the keyslot was NOT wiped.\n"))) {
+			 "Device will become unusable after purging this key."),
+		       _("Operation aborted, the keyslot was NOT wiped.\n"))) {
 		r = -EPERM;
 		goto out;
 	}
@@ -1639,8 +1723,6 @@ static int luksAddUnboundKey(void)
 	if ((r = crypt_init(&cd, uuid_or_device_header(NULL))))
 		goto out;
 
-	crypt_set_confirm_callback(cd, yesDialog, NULL);
-
 	if ((r = crypt_load(cd, CRYPT_LUKS2, NULL))) {
 		log_err(_("Device %s is not a valid LUKS device."),
 			uuid_or_device_header(NULL));
@@ -1653,7 +1735,7 @@ static int luksAddUnboundKey(void)
 
 	/* Never call pwquality if using null cipher */
 	if (tools_is_cipher_null(crypt_get_cipher(cd)))
-		ARG_SET(OPT_FORCE_PASSWORD_ID) = true;
+		ARG_SET_TRUE(OPT_FORCE_PASSWORD_ID);
 
 	keysize = ARG_UINT32(OPT_KEY_SIZE_ID) / 8;
 	r = set_pbkdf_params(cd, crypt_get_type(cd));
@@ -1663,7 +1745,7 @@ static int luksAddUnboundKey(void)
 	}
 
 	if (ARG_SET(OPT_MASTER_KEY_FILE_ID)) {
-		r = crypt_cli_read_mk(ARG_STR(OPT_MASTER_KEY_FILE_ID), &key, keysize);
+		r = tools_read_mk(ARG_STR(OPT_MASTER_KEY_FILE_ID), &key, keysize);
 		if (r < 0)
 			goto out;
 
@@ -1706,8 +1788,6 @@ static int action_luksAddKey(void)
 	if ((r = crypt_init(&cd, uuid_or_device_header(NULL))))
 		goto out;
 
-	crypt_set_confirm_callback(cd, yesDialog, NULL);
-
 	if ((r = crypt_load(cd, luksType(device_type), NULL))) {
 		log_err(_("Device %s is not a valid LUKS device."),
 			uuid_or_device_header(NULL));
@@ -1720,7 +1800,7 @@ static int action_luksAddKey(void)
 
 	/* Never call pwquality if using null cipher */
 	if (tools_is_cipher_null(crypt_get_cipher(cd)))
-		ARG_SET(OPT_FORCE_PASSWORD_ID) = true;
+		ARG_SET_TRUE(OPT_FORCE_PASSWORD_ID);
 
 	keysize = crypt_get_volume_key_size(cd);
 	r = set_pbkdf_params(cd, crypt_get_type(cd));
@@ -1737,7 +1817,7 @@ static int action_luksAddKey(void)
 		} else if (!keysize)
 			keysize = ARG_UINT32(OPT_KEY_SIZE_ID) / 8;
 
-		r = crypt_cli_read_mk(ARG_STR(OPT_MASTER_KEY_FILE_ID), &key, keysize);
+		r = tools_read_mk(ARG_STR(OPT_MASTER_KEY_FILE_ID), &key, keysize);
 		if (r < 0)
 			goto out;
 
@@ -1823,7 +1903,7 @@ static int action_luksChangeKey(void)
 
 	/* Never call pwquality if using null cipher */
 	if (tools_is_cipher_null(crypt_get_cipher(cd)))
-		ARG_SET(OPT_FORCE_PASSWORD_ID) = true;
+		ARG_SET_TRUE(OPT_FORCE_PASSWORD_ID);
 
 	r = set_pbkdf_params(cd, crypt_get_type(cd));
 	if (r) {
@@ -1928,7 +2008,7 @@ static int action_isLuks(void)
 	if ((r = crypt_init(&cd, uuid_or_device_header(NULL))))
 		goto out;
 
-	crypt_set_log_callback(cd, quiet_log, NULL);
+	crypt_set_log_callback(cd, quiet_log, &log_parms);
 	r = crypt_load(cd, luksType(device_type), NULL);
 out:
 	crypt_free(cd);
@@ -1944,7 +2024,8 @@ static int action_luksUUID(void)
 	if ((r = crypt_init(&cd, uuid_or_device_header(NULL))))
 		goto out;
 
-	crypt_set_confirm_callback(cd, yesDialog, _("Operation aborted.\n"));
+	if (!ARG_SET(OPT_BATCH_MODE_ID))
+		crypt_set_confirm_callback(cd, yesDialog, _("Operation aborted.\n"));
 
 	if ((r = crypt_load(cd, luksType(device_type), NULL)))
 		goto out;
@@ -1969,8 +2050,7 @@ static int luksDump_with_volume_key(struct crypt_device *cd)
 	unsigned i;
 	int r;
 
-	crypt_set_confirm_callback(cd, yesDialog, NULL);
-	if (!yesDialog(
+	if (!ARG_SET(OPT_BATCH_MODE_ID) && !yesDialog(
 	    _("The header dump with volume key is sensitive information\n"
 	      "that allows access to encrypted partition without a passphrase.\n"
 	      "This dump should be stored encrypted in a safe place."),
@@ -2040,8 +2120,7 @@ static int luksDump_with_unbound_key(struct crypt_device *cd)
 		return -EINVAL;
 	}
 
-	crypt_set_confirm_callback(cd, yesDialog, NULL);
-	if (!yesDialog(
+	if (!ARG_SET(OPT_BATCH_MODE_ID) && !yesDialog(
 	    _("The header dump with unbound key is sensitive information.\n"
 	      "This dump should be stored encrypted in a safe place."),
 	      NULL))
@@ -2148,7 +2227,7 @@ static int action_luksResume(void)
 	if ((r = crypt_load(cd, luksType(device_type), NULL)))
 		goto out;
 
-	tries = (tools_is_stdin(ARG_STR(OPT_KEY_FILE_ID)) && isatty(STDIN_FILENO)) ? ARG_UINT32(OPT_TRIES_ID) : 1;
+	tries = _set_tries_tty();
 	do {
 		r = tools_get_key(NULL, &password, &passwordLen,
 			ARG_UINT64(OPT_KEYFILE_OFFSET_ID), ARG_UINT32(OPT_KEYFILE_SIZE_ID), ARG_STR(OPT_KEY_FILE_ID),
@@ -2184,8 +2263,6 @@ static int action_luksBackup(void)
 	if ((r = crypt_init(&cd, uuid_or_device_header(NULL))))
 		goto out;
 
-	crypt_set_confirm_callback(cd, yesDialog, NULL);
-
 	r = crypt_header_backup(cd, NULL, ARG_STR(OPT_HEADER_BACKUP_FILE_ID));
 out:
 	crypt_free(cd);
@@ -2205,7 +2282,8 @@ static int action_luksRestore(void)
 	if ((r = crypt_init(&cd, uuid_or_device_header(NULL))))
 		goto out;
 
-	crypt_set_confirm_callback(cd, yesDialog, NULL);
+	if (!ARG_SET(OPT_BATCH_MODE_ID))
+		crypt_set_confirm_callback(cd, yesDialog, NULL);
 	r = crypt_header_restore(cd, NULL, ARG_STR(OPT_HEADER_BACKUP_FILE_ID));
 out:
 	crypt_free(cd);
@@ -2298,8 +2376,6 @@ static int action_luksErase(void)
 	if ((r = crypt_init(&cd, uuid_or_device_header(NULL))))
 		goto out;
 
-	crypt_set_confirm_callback(cd, yesDialog, NULL);
-
 	if ((r = crypt_load(cd, luksType(device_type), NULL))) {
 		log_err(_("Device %s is not a valid LUKS device."),
 			uuid_or_device_header(NULL));
@@ -2313,7 +2389,7 @@ static int action_luksErase(void)
 		goto out;
 	}
 
-	if (!yesDialog(msg, _("Operation aborted, keyslots were NOT wiped.\n"))) {
+	if (!ARG_SET(OPT_BATCH_MODE_ID) && !yesDialog(msg, _("Operation aborted, keyslots were NOT wiped.\n"))) {
 		r = -EPERM;
 		goto out;
 	}
@@ -2357,8 +2433,6 @@ static int action_luksConvert(void)
 	if ((r = crypt_init(&cd, uuid_or_device_header(NULL))))
 		return r;
 
-	crypt_set_confirm_callback(cd, yesDialog, NULL);
-
 	if ((r = crypt_load(cd, CRYPT_LUKS, NULL)) ||
 	    !(from_type = crypt_get_type(cd))) {
 		log_err(_("Device %s is not a valid LUKS device."),
@@ -2373,16 +2447,16 @@ static int action_luksConvert(void)
 		return -EINVAL;
 	}
 
-	if (asprintf(&msg, _("This operation will convert %s to %s format.\n"),
-			    uuid_or_device_header(NULL), to_type) == -1) {
-		crypt_free(cd);
-		return -ENOMEM;
+	r = 0;
+	if (!ARG_SET(OPT_BATCH_MODE_ID)) {
+		if (asprintf(&msg, _("This operation will convert %s to %s format.\n"),
+				    uuid_or_device_header(NULL), to_type) == -1)
+			r = -ENOMEM;
+		else if (!yesDialog(msg, _("Operation aborted, device was NOT converted.\n")))
+			r = -EPERM;
 	}
 
-	if (yesDialog(msg, _("Operation aborted, device was NOT converted.\n")))
-		r = crypt_convert(cd, to_type, NULL);
-	else
-		r = -EPERM;
+	r = r ?: crypt_convert(cd, to_type, NULL);
 
 	free(msg);
 	crypt_free(cd);
@@ -2516,7 +2590,7 @@ static int _token_import(struct crypt_device *cd)
 		}
 	}
 
-	r = tools_read_json_file(cd, ARG_STR(OPT_JSON_FILE_ID), &json, &json_length);
+	r = tools_read_json_file(cd, ARG_STR(OPT_JSON_FILE_ID), &json, &json_length, ARG_SET(OPT_BATCH_MODE_ID));
 	if (r)
 		return r;
 
@@ -2645,14 +2719,17 @@ static int _get_device_active_name(struct crypt_device *cd, const char *data_dev
 		else
 			log_err(_("Failed to auto-detect device %s holders."), data_device);
 
-		r = asprintf(&msg, _("Unable to decide if device %s is activated or not.\n"
-				     "Are you sure you want to proceed with reencryption in offline mode?\n"
-				     "It may lead to data corruption if the device is actually activated.\n"
-				     "To run reencryption in online mode, use --active-name parameter instead.\n"), data_device);
-		if (r < 0)
-			return -ENOMEM;
-		r = noDialog(msg, _("Operation aborted.\n")) ? 0 : -EINVAL;
-		free(msg);
+		r = -EINVAL;
+		if (!ARG_SET(OPT_BATCH_MODE_ID)) {
+			r = asprintf(&msg, _("Unable to decide if device %s is activated or not.\n"
+					     "Are you sure you want to proceed with reencryption in offline mode?\n"
+					     "It may lead to data corruption if the device is actually activated.\n"
+					     "To run reencryption in online mode, use --active-name parameter instead.\n"), data_device);
+			if (r < 0)
+				return -ENOMEM;
+			r = noDialog(msg, _("Operation aborted.\n")) ? 0 : -EINVAL;
+			free(msg);
+		}
 	}
 
 	return r;
@@ -2772,7 +2849,7 @@ static int action_encrypt_luks2(struct crypt_device **cd)
 	r = crypt_load(*cd, CRYPT_LUKS, NULL);
 	crypt_free(*cd);
 	*cd = NULL;
-	if (!r) {
+	if (!r && !ARG_SET(OPT_BATCH_MODE_ID)) {
 		r = asprintf(&msg, _("Detected LUKS device on %s. Do you want to encrypt that LUKS device again?"), action_argv[0]);
 		if (r == -1)
 			return -ENOMEM;
@@ -2900,6 +2977,11 @@ static int action_decrypt_luks2(struct crypt_device *cd)
 	};
 	size_t passwordLen;
 
+	if (!crypt_get_metadata_device_name(cd) || crypt_header_is_detached(cd) <= 0) {
+		log_err(_("LUKS2 decryption is supported with detached header device only."));
+		return -ENOTSUP;
+	}
+
 	_set_reencryption_flags(&params.flags);
 
 	r = tools_get_key(NULL, &password, &passwordLen,
@@ -2961,7 +3043,8 @@ static int init_passphrase(struct keyslot_passwords *kp, size_t keyslot_password
 			return -ENOENT;
 	}
 
-	retry_count = (ARG_UINT32(OPT_TRIES_ID) && !ARG_SET(OPT_KEY_FILE_ID)) ? ARG_UINT32(OPT_TRIES_ID) : 1;
+	retry_count = _set_tries_tty();
+
 	while (retry_count--) {
 		r = tools_get_key(msg,  &password, &passwordLen, 0, 0,
 				  ARG_STR(OPT_KEY_FILE_ID), 0, 0, 0 /*pwquality*/, cd);
@@ -3156,7 +3239,7 @@ static int action_reencrypt_luks2(struct crypt_device *cd)
 		goto err;
 
 	if (ARG_SET(OPT_MASTER_KEY_FILE_ID)) {
-		r = crypt_cli_read_mk(ARG_STR(OPT_MASTER_KEY_FILE_ID), &vk, key_size);
+		r = tools_read_mk(ARG_STR(OPT_MASTER_KEY_FILE_ID), &vk, key_size);
 		if (r < 0)
 			goto err;
 	}
@@ -3244,6 +3327,10 @@ static int action_reencrypt(void)
 	struct crypt_device *cd = NULL;
 	struct crypt_params_integrity ip = { 0 };
 	int r = 0;
+	struct tools_progress_params prog_parms = {
+		.frequency = ARG_UINT32(OPT_PROGRESS_FREQUENCY_ID),
+		.batch_mode = ARG_SET(OPT_BATCH_MODE_ID)
+	};
 
 	if (action_argc < 1 && (!ARG_SET(OPT_ACTIVE_NAME_ID) || ARG_SET(OPT_ENCRYPT_ID))) {
 		log_err(_("Command requires device as argument."));
@@ -3313,7 +3400,7 @@ static int action_reencrypt(void)
 
 	if (r >= 0 && !ARG_SET(OPT_INIT_ONLY_ID)) {
 		set_int_handler(0);
-		r = crypt_reencrypt(cd, tools_reencrypt_progress, NULL);
+		r = crypt_reencrypt(cd, tools_reencrypt_progress, &prog_parms);
 	}
 out:
 	crypt_free(cd);
@@ -3484,6 +3571,14 @@ static void basic_options_cb(poptContext popt_context,
 
 	/* special cases additional handling */
 	switch (key->val) {
+	case OPT_DEBUG_JSON_ID:
+		/* fall through */
+	case OPT_DEBUG_ID:
+		log_parms.debug = true;
+		/* fall through */
+	case OPT_VERBOSE_ID:
+		log_parms.verbose = true;
+		break;
 	case OPT_DEVICE_SIZE_ID:
 		if (ARG_UINT64(OPT_DEVICE_SIZE_ID) == 0)
 			usage(popt_context, EXIT_FAILURE, poptStrerror(POPT_ERROR_BADNUMBER),
@@ -3577,7 +3672,7 @@ int main(int argc, const char **argv)
 	const char *aname;
 	int r;
 
-	crypt_set_log_callback(NULL, tool_log, NULL);
+	crypt_set_log_callback(NULL, tool_log, &log_parms);
 
 	setlocale(LC_ALL, "");
 	bindtextdomain(PACKAGE, LOCALEDIR);
@@ -3651,7 +3746,7 @@ int main(int argc, const char **argv)
 		device_type = "luks2";
 	} else if (!strcmp(aname, "refresh")) {
 		aname = OPEN_ACTION;
-		ARG_SET(OPT_REFRESH_ID) = true;
+		ARG_SET_TRUE(OPT_REFRESH_ID);
 	} else if (ARG_SET(OPT_TYPE_ID))
 		device_type = ARG_STR(OPT_TYPE_ID);
 
@@ -3676,6 +3771,11 @@ int main(int argc, const char **argv)
 	if (ARG_SET(OPT_REFRESH_ID) && ARG_SET(OPT_TEST_PASSPHRASE_ID))
 		usage(popt_context, EXIT_FAILURE,
 		      _("Options --refresh and --test-passphrase are mutually exclusive."),
+		      poptGetInvocationName(popt_context));
+
+	if (ARG_SET(OPT_CANCEL_DEFERRED_ID) && ARG_SET(OPT_DEFERRED_ID))
+		usage(popt_context, EXIT_FAILURE,
+		      _("Options --cancel-deferred and --deferred cannot be used at the same time."),
 		      poptGetInvocationName(popt_context));
 
 	/* open action specific check */
@@ -3815,8 +3915,6 @@ int main(int argc, const char **argv)
 		      poptGetInvocationName(popt_context));
 
 	if (ARG_SET(OPT_DEBUG_ID) || ARG_SET(OPT_DEBUG_JSON_ID)) {
-		ARG_SET(OPT_DEBUG_ID) = true;
-		ARG_SET(OPT_VERBOSE_ID) = true;
 		crypt_set_debug_level(ARG_SET(OPT_DEBUG_JSON_ID)? CRYPT_DEBUG_JSON : CRYPT_DEBUG_ALL);
 		dbg_version_and_cmd(argc, argv);
 	}
@@ -3844,13 +3942,6 @@ int main(int argc, const char **argv)
 		poptFreeContext(popt_context);
 		return 0;
 	}
-
-	/* TODO: Remove global variables from future cli library */
-	opt_verbose = ARG_SET(OPT_VERBOSE_ID) ? 1 : 0;
-	opt_debug = ARG_SET(OPT_DEBUG_ID) ? 1 : 0;
-	opt_debug_json = ARG_SET(OPT_DEBUG_JSON_ID) ? 1 : 0;
-	opt_batch_mode = ARG_SET(OPT_BATCH_MODE_ID) ? 1 : 0;
-	opt_progress_frequency = ARG_UINT32(OPT_PROGRESS_FREQUENCY_ID);
 
 	if (ARG_SET(OPT_DISABLE_KEYRING_ID))
 		(void) crypt_volume_key_keyring(NULL, 0);

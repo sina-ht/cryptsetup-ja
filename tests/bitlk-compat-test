@@ -6,6 +6,7 @@
 CRYPTSETUP=$CRYPTSETUP_PATH/cryptsetup
 TST_DIR=bitlk-images
 MAP=bitlktst
+DUMP_MK_FILE=bitlk-test-mk
 
 CRYPTSETUP_VALGRIND=../.libs/cryptsetup
 CRYPTSETUP_LIB_VALGRIND=../.libs
@@ -36,41 +37,45 @@ function skip()
 
 function load_vars()
 {
-        local file=$(echo $1 | sed -e s/^$TST_DIR\\/// | sed -e s/\.img$//)
-        source <(grep = <(grep -A8 "\[$file\]" $TST_DIR/images.conf))
+	local file=$(echo $1 | sed -e s/^$TST_DIR\\/// | sed -e s/\.img$//)
+	source <(grep = <(grep -A8 "\[$file\]" $TST_DIR/images.conf))
 }
 
 function check_dump()
 {
-        dump=$1
-        file=$2
+	dump=$1
+	file=$2
 
-        # load variables for this image from config file
-        load_vars $file
+	# load variables for this image from config file
+	load_vars $file
 
-        # GUID
-        dump_guid=$(echo "$dump" | grep Version -A 1 | tail -1 | cut -d: -f2 | tr -d "\t\n ")
-        [ ! -z "$GUID" -a "$dump_guid" = "$GUID"  ] || fail " GUID check from dump failed."
+	# GUID
+	dump_guid=$(echo "$dump" | grep Version -A 1 | tail -1 | cut -d: -f2 | tr -d "\t\n ")
+	[ ! -z "$GUID" -a "$dump_guid" = "$GUID"  ] || fail " GUID check from dump failed."
 
-        # cipher
-        dump_cipher=$(echo "$dump" | grep "Cipher name" | cut -d: -f2 | tr -d "\t\n ")
-        dump_mode=$(echo "$dump" | grep "Cipher mode" | cut -d: -f2 | tr -d "\t\n ")
-        cipher=$(echo "$dump_cipher-$dump_mode")
-        [ ! -z "$CIPHER" -a "$cipher" = "$CIPHER" ] || fail " cipher check from dump failed."
+	# cipher
+	dump_cipher=$(echo "$dump" | grep "Cipher name" | cut -d: -f2 | tr -d "\t\n ")
+	dump_mode=$(echo "$dump" | grep "Cipher mode" | cut -d: -f2 | tr -d "\t\n ")
+	cipher=$(echo "$dump_cipher-$dump_mode")
+	[ ! -z "$CIPHER" -a "$cipher" = "$CIPHER" ] || fail " cipher check from dump failed."
 
-        if echo "$file" | grep -q -e "smart-card"; then
-                # smart card protected VMK GUID
-                dump_sc_vmk=$(echo "$dump" | grep "VMK protected with smart card" -B 1 | head -1 | cut -d: -f2 | tr -d "\t ")
-                [ ! -z "$SC_VMK_GUID" -a "$dump_sc_vmk" = "$SC_VMK_GUID" ] || fail " smart card protected VMK GUID check from dump failed."
-        else
-                # password protected VMK GUID
-                dump_pw_vmk=$(echo "$dump" | grep "VMK protected with passphrase" -B 1 | head -1 | cut -d: -f2 | tr -d "\t ")
-                [ ! -z "$PW_VMK_GUID" -a "$dump_pw_vmk" = "$PW_VMK_GUID" ] || fail " password protected VMK GUID check from dump failed."
-        fi
+	if echo "$file" | grep -q -e "smart-card"; then
+		# smart card protected VMK GUID
+		dump_sc_vmk=$(echo "$dump" | grep "VMK protected with smart card" -B 1 | head -1 | cut -d: -f2 | tr -d "\t ")
+		[ ! -z "$SC_VMK_GUID" -a "$dump_sc_vmk" = "$SC_VMK_GUID" ] || fail " smart card protected VMK GUID check from dump failed."
+	elif echo "$file" | grep -q -e "startup-key"; then
+		# startup key protected VMK GUID
+		dump_sk_vmk=$(echo "$dump" | grep "VMK protected with startup key" -B 1 | head -1 | cut -d: -f2 | tr -d "\t ")
+		[ ! -z "$SK_VMK_GUID" -a "$dump_sk_vmk" = "$SK_VMK_GUID" ] || fail " startup key protected VMK GUID check from dump failed."
+	else
+		# password protected VMK GUID
+		dump_pw_vmk=$(echo "$dump" | grep "VMK protected with passphrase" -B 1 | head -1 | cut -d: -f2 | tr -d "\t ")
+		[ ! -z "$PW_VMK_GUID" -a "$dump_pw_vmk" = "$PW_VMK_GUID" ] || fail " password protected VMK GUID check from dump failed."
+	fi
 
-        # recovery password protected VMK GUID
-        dump_rp_vmk=$(echo "$dump" | grep "VMK protected with recovery passphrase" -B 1 | head -1 | cut -d: -f2 | tr -d "\t ")
-        [ ! -z "$RP_VMK_GUID" -a "$dump_rp_vmk" = "$RP_VMK_GUID" ] || fail " recovery password protected VMK GUID check from dump failed."
+	# recovery password protected VMK GUID
+	dump_rp_vmk=$(echo "$dump" | grep "VMK protected with recovery passphrase" -B 1 | head -1 | cut -d: -f2 | tr -d "\t ")
+	[ ! -z "$RP_VMK_GUID" -a "$dump_rp_vmk" = "$RP_VMK_GUID" ] || fail " recovery password protected VMK GUID check from dump failed."
 
 }
 
@@ -95,7 +100,7 @@ echo "HEADER CHECK"
 for file in $(ls $TST_DIR/bitlk-*) ; do
 	echo -n " $file"
 	out=$($CRYPTSETUP bitlkDump $file)
-        check_dump "$out" "$file"
+	check_dump "$out" "$file"
 	echo " [OK]"
 done
 
@@ -109,7 +114,7 @@ remove_mapping
 echo "ACTIVATION FS UUID CHECK"
 for file in $(ls $TST_DIR/bitlk-*) ; do
 	# load variables for this image from config file
-        load_vars $file
+	load_vars $file
 
 	# test with both passphrase and recovery passphrase
 	for PASSPHRASE in $PW $RP ; do
@@ -134,4 +139,49 @@ for file in $(ls $TST_DIR/bitlk-*) ; do
 		[ "$sha256sum" = "$SHA256SUM" ] || fail " SHA256 sum check failed."
 		echo " [OK]"
 	done
+
+	# test with master key
+	rm -f $DUMP_MK_FILE >/dev/null 2>&1
+	echo -n " $file"
+	echo $PASSPHRASE | $CRYPTSETUP bitlkDump -r $file --dump-master-key --master-key-file $DUMP_MK_FILE >/dev/null 2>&1
+	ret=$?
+	[ $ret -eq 0 ] || fail " failed to dump master key"
+	$CRYPTSETUP bitlkOpen -r $file $MAP --master-key-file $DUMP_MK_FILE >/dev/null 2>&1
+	ret=$?
+	[ $ret -eq 1 ] && ( echo "$file" | grep -q -e "aes-cbc" ) && echo " [N/A]" && continue
+	[ $ret -eq 1 ] && ( echo "$file" | grep -q -e "aes-cbc-elephant" ) && echo " [N/A]" && continue
+	[ $ret -eq 1 ] && ( echo "$file" | grep -q -e "clearkey" ) && echo " [N/A]" && continue
+	[ $ret -eq 1 ] && ( echo "$file" | grep -q -e "eow" ) && echo " [N/A]" && continue
+	[ $ret -eq 1 ] && ( echo "$file" | grep -q -e "-4k.img" ) && echo " [N/A]" && continue
+	[ $ret -eq 0 ] || fail " failed to open $file using master key ($ret)"
+	$CRYPTSETUP status $MAP >/dev/null || fail
+	$CRYPTSETUP status /dev/mapper/$MAP >/dev/null || fail
+	uuid=$(lsblk -n -o UUID /dev/mapper/$MAP)
+	sha256sum=$(sha256sum /dev/mapper/$MAP | cut -d" " -f1)
+	$CRYPTSETUP remove $MAP || fail
+	[ "$uuid" = "$UUID" ] || fail " UUID check failed."
+	[ "$sha256sum" = "$SHA256SUM" ] || fail " SHA256 sum check failed."
+	echo " [OK]"
+	rm -f $DUMP_MK_FILE >/dev/null 2>&1
+
+	# startup key test -- we need to use BEK file from the archive
+	if echo "$file" | grep -q -e "startup-key"; then
+		echo -n " $file"
+		bek_file=$(echo $SK_VMK_GUID.BEK | tr /a-z/ /A-Z/)
+		$CRYPTSETUP bitlkOpen -r $file --test-passphrase --key-file $TST_DIR/$bek_file
+		ret=$?
+		[ $ret -eq 1 ] && echo " [N/A]" && continue
+		$CRYPTSETUP bitlkOpen -r $file $MAP --key-file $TST_DIR/$bek_file >/dev/null 2>&1
+		ret=$?
+		[ $ret -eq 0 ] || fail " failed to open $file ($ret)"
+		$CRYPTSETUP status $MAP >/dev/null || fail
+		$CRYPTSETUP status /dev/mapper/$MAP >/dev/null || fail
+		uuid=$(lsblk -n -o UUID /dev/mapper/$MAP)
+		sha256sum=$(sha256sum /dev/mapper/$MAP | cut -d" " -f1)
+		$CRYPTSETUP remove $MAP || fail
+		[ "$uuid" = "$UUID" ] || fail " UUID check failed."
+		[ "$sha256sum" = "$SHA256SUM" ] || fail " SHA256 sum check failed."
+		echo " [OK]"
+
+	fi
 done

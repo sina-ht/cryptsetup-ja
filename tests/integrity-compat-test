@@ -9,7 +9,7 @@ INTSETUP_VALGRIND=../.libs/integritysetup
 INTSETUP_LIB_VALGRIND=../.libs
 
 DEV_NAME=dmc_test
-DEV_NAME_BIG=dmc_fake
+DEV_NAME2=dmc_fake
 DEV_LOOP=""
 DEV=test123.img
 DEV2=test124.img
@@ -22,7 +22,7 @@ dmremove() { # device
 
 cleanup() {
 	[ -b /dev/mapper/$DEV_NAME ] && dmremove $DEV_NAME
-	[ -b /dev/mapper/$DEV_NAME_BIG ] && dmremove $DEV_NAME_BIG
+	[ -b /dev/mapper/$DEV_NAME2 ] && dmremove $DEV_NAME2
 	[ -n "$DEV_LOOP" ] && losetup -d "$DEV_LOOP"
 	DEV_LOOP=""
 	rm -f $DEV $DEV2 $KEY_FILE >/dev/null 2>&1
@@ -102,14 +102,14 @@ kernel_param_check() # number value
 
 function valgrind_setup()
 {
-    which valgrind >/dev/null 2>&1 || fail "Cannot find valgrind."
-    [ ! -f $INTSETUP_VALGRIND ] && fail "Unable to get location of cryptsetup executable."
-    export LD_LIBRARY_PATH="$INTSETUP_LIB_VALGRIND:$LD_LIBRARY_PATH"
+	which valgrind >/dev/null 2>&1 || fail "Cannot find valgrind."
+	[ ! -f $INTSETUP_VALGRIND ] && fail "Unable to get location of cryptsetup executable."
+	export LD_LIBRARY_PATH="$INTSETUP_LIB_VALGRIND:$LD_LIBRARY_PATH"
 }
 
 function valgrind_run()
 {
-    INFOSTRING="$(basename ${BASH_SOURCE[1]})-line-${BASH_LINENO[0]}" ./valg.sh ${INTSETUP_VALGRIND} "$@"
+	INFOSTRING="$(basename ${BASH_SOURCE[1]})-line-${BASH_LINENO[0]}" ./valg.sh ${INTSETUP_VALGRIND} "$@"
 }
 
 int_check_sum_only() # checksum
@@ -233,27 +233,27 @@ int_error_detection() # mode alg tagsize outtagsize sector_size key_file key_siz
 
 int_journal() # 1 alg, 2 tagsize, 3 sector_size, 4 watermark, 5 commit_time, 6 journal_integrity, 7 key-file, 8 key-size, 9 journal_integrity_out
 {
-    echo -n "[INTEGRITY JOURNAL:$6:${4}%:${5}ms]"
-    echo -n "[FORMAT]"
-    ARGS="--integrity $1 --journal-watermark $4 --journal-commit-time $5 --journal-integrity $6 --journal-integrity-key-file $7 --journal-integrity-key-size $8"
-    $INTSETUP format -q --tag-size $2 --sector-size $3 $ARGS $DEV || fail "Cannot format device."
+	echo -n "[INTEGRITY JOURNAL:$6:${4}%:${5}ms]"
+	echo -n "[FORMAT]"
+	ARGS="--integrity $1 --journal-watermark $4 --journal-commit-time $5 --journal-integrity $6 --journal-integrity-key-file $7 --journal-integrity-key-size $8"
+	$INTSETUP format -q --tag-size $2 --sector-size $3 $ARGS $DEV || fail "Cannot format device."
 
-    echo -n "[ACTIVATE]"
+	echo -n "[ACTIVATE]"
 
-    $INTSETUP open $DEV $DEV_NAME $ARGS || fail "Cannot activate device."
+	$INTSETUP open $DEV $DEV_NAME $ARGS || fail "Cannot activate device."
 
-    echo -n "[KEYED HASH]"
-    KEY_HEX=$(xxd -c 256 -l $8 -p $7)
-    [ -z "$KEY_HEX" ] && fail "Cannot decode key."
-    dmsetup table --showkeys $DEV_NAME | grep -q $KEY_HEX || fail "Key mismatch."
+	echo -n "[KEYED HASH]"
+	KEY_HEX=$(xxd -c 256 -l $8 -p $7)
+	[ -z "$KEY_HEX" ] && fail "Cannot decode key."
+	dmsetup table --showkeys $DEV_NAME | grep -q $KEY_HEX || fail "Key mismatch."
 
-    status_check "journal watermark" "${4}%"
-    status_check "journal commit time" "${5} ms"
-    status_check "journal integrity MAC" $9
+	status_check "journal watermark" "${4}%"
+	status_check "journal commit time" "${5} ms"
+	status_check "journal integrity MAC" $9
 
-    echo -n "[REMOVE]"
-    $INTSETUP close $DEV_NAME || fail "Cannot deactivate device."
-    echo "[OK]"
+	echo -n "[REMOVE]"
+	$INTSETUP close $DEV_NAME || fail "Cannot deactivate device."
+	echo "[OK]"
 }
 
 
@@ -420,19 +420,42 @@ echo -n "Big device:"
 add_device
 DEV_LOOP=$(losetup -f $DEV --show)
 if [ -n "$DEV_LOOP" ] ; then
-dmsetup create $DEV_NAME_BIG <<EOF
+dmsetup create $DEV_NAME2 <<EOF
 0 16284 linear $DEV_LOOP 0
 16284 80000000000 zero
 EOF
-	[ ! -b /dev/mapper/$DEV_NAME_BIG ] && fail
-	$INTSETUP format -q -s 512 --no-wipe /dev/mapper/$DEV_NAME_BIG
-	$INTSETUP open /dev/mapper/$DEV_NAME_BIG $DEV_NAME || fail
-	D_SIZE=$($INTSETUP dump /dev/mapper/$DEV_NAME_BIG | grep provided_data_sectors | sed -e 's/.*provided_data_sectors\ \+//g')
+	[ ! -b /dev/mapper/$DEV_NAME2 ] && fail
+	$INTSETUP format -q -s 512 --no-wipe /dev/mapper/$DEV_NAME2
+	$INTSETUP open /dev/mapper/$DEV_NAME2 $DEV_NAME || fail
+	D_SIZE=$($INTSETUP dump /dev/mapper/$DEV_NAME2 | grep provided_data_sectors | sed -e 's/.*provided_data_sectors\ \+//g')
 	A_SIZE=$(blockdev --getsz /dev/mapper/$DEV_NAME)
 	# Compare strings (to avoid 64bit integers), not integers
 	[ -n "$A_SIZE" -a "$D_SIZE" != "$A_SIZE" ] && fail
 	echo "[OK]"
 else
+	echo "[N/A]"
+fi
+
+echo -n "Deferred removal of device:"
+add_device
+$INTSETUP format -q $DEV || fail "Cannot format device."
+$INTSETUP open $DEV $DEV_NAME || fail "Cannot activate device."
+dmsetup create $DEV_NAME2 --table "0 8 linear /dev/mapper/$DEV_NAME 0"
+[ ! -b /dev/mapper/$DEV_NAME2 ] && fail
+$INTSETUP close $DEV_NAME >/dev/null 2>&1 && fail
+$INTSETUP -q status $DEV_NAME >/dev/null 2>&1 || fail
+$INTSETUP close --deferred $DEV_NAME >/dev/null 2>&1
+if [ $? -eq 0 ] ; then
+	dmsetup info $DEV_NAME | grep -q "DEFERRED REMOVE" || fail
+	$INTSETUP close --cancel-deferred $DEV_NAME >/dev/null 2>&1
+	dmsetup info $DEV_NAME | grep -q "DEFERRED REMOVE" >/dev/null 2>&1 && fail
+	$INTSETUP close --deferred $DEV_NAME >/dev/null 2>&1
+	dmsetup remove $DEV_NAME2 || fail
+	$INTSETUP -q status $DEV_NAME >/dev/null 2>&1 && fail
+	echo "[OK]"
+else
+	dmsetup remove $DEV_NAME2 >/dev/null 2>&1
+	$INTSETUP close $DEV_NAME >/dev/null 2>&1
 	echo "[N/A]"
 fi
 

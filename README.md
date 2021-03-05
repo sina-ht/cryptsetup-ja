@@ -44,19 +44,13 @@ Download
 --------
 All release tarballs and release notes are hosted on [kernel.org](https://www.kernel.org/pub/linux/utils/cryptsetup/).
 
-**The latest stable cryptsetup version is 2.3.3**
-  * [cryptsetup-2.3.3.tar.xz](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.3.tar.xz)
-  * Signature [cryptsetup-2.3.3.tar.sign](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.3.tar.sign)
+**The latest stable cryptsetup version is 2.3.4**
+  * [cryptsetup-2.3.4.tar.xz](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.4.tar.xz)
+  * Signature [cryptsetup-2.3.4.tar.sign](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.4.tar.sign)
     _(You need to decompress file first to check signature.)_
-  * [Cryptsetup 2.3.3 Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/v2.3.3-ReleaseNotes).
+  * [Cryptsetup 2.3.4 Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/v2.3.4-ReleaseNotes).
 
 Previous versions
- * [Version 2.3.2](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.2.tar.xz) -
-   [Signature](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.2.tar.sign) -
-   [Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/v2.3.2-ReleaseNotes).
- * [Version 2.2.2](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.2/cryptsetup-2.2.2.tar.xz) -
-   [Signature](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.2/cryptsetup-2.2.2.tar.sign) -
-   [Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.2/v2.2.2-ReleaseNotes).
  * [Version 2.0.6](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.0/cryptsetup-2.0.6.tar.xz) -
    [Signature](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.0/cryptsetup-2.0.6.tar.sign) -
    [Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.0/v2.0.6-ReleaseNotes).
@@ -82,5 +76,5 @@ For cryptsetup and LUKS related questions, please use the dm-crypt mailing list,
 
 If you want to subscribe just send an empty mail to [dm-crypt-subscribe@saout.de](mailto:dm-crypt-subscribe@saout.de).
 
-You can also browse [list archive](https://www.saout.de/pipermail/dm-crypt/) or read it through
-[web interface](https://marc.info/?l=dm-crypt).
+You can also browse [list archive](https://www.saout.de/pipermail/dm-crypt/) or read and search it through
+[web interface on lore.kernel.org](https://lore.kernel.org/dm-crypt/) or alternatively on [marc.info](https://marc.info/?l=dm-crypt).
