@@ -3,8 +3,8 @@
  *
  * Copyright (C) 2004 Jana Saout <jana@saout.de>
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2020 Milan Broz
+ * Copyright (C) 2009-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2021 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -367,7 +367,9 @@ char *crypt_get_base_device(const char *dev_path)
 	if (dm_is_dm_kernel_name(devname))
 		return NULL;
 
-	snprintf(part_path, sizeof(part_path), "/dev/%s", devname);
+	if (snprintf(part_path, sizeof(part_path), "/dev/%s", devname) < 0)
+		return NULL;
+
 	return strdup(part_path);
 }
 
@@ -406,10 +408,10 @@ int lookup_by_disk_id(const char *dm_uuid)
 	return r;
 }
 
-int lookup_by_sysfs_uuid_field(const char *dm_uuid, size_t max_len)
+int lookup_by_sysfs_uuid_field(const char *dm_uuid)
 {
 	struct dirent *entry;
-	char subpath[PATH_MAX], uuid[max_len];
+	char subpath[PATH_MAX], uuid[DM_UUID_LEN];
 	ssize_t s;
 	struct stat st;
 	int fd, len, r = 0; /* not found */
@@ -441,7 +443,7 @@ int lookup_by_sysfs_uuid_field(const char *dm_uuid, size_t max_len)
 		}
 
 		/* reads binary data */
-		s = read_buffer(fd, uuid, max_len - 1);
+		s = read_buffer(fd, uuid, sizeof(uuid) - 1);
 		if (s > 0) {
 			uuid[s] = '\0';
 			if (!strncmp(uuid, dm_uuid, strlen(dm_uuid)))

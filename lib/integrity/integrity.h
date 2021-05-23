@@ -1,7 +1,7 @@
 /*
  * Integrity header definition
  *
- * Copyright (C) 2016-2020 Milan Broz
+ * Copyright (C) 2016-2021 Milan Broz
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -35,11 +35,13 @@ struct crypt_dm_active_device;
 #define SB_VERSION_2	2
 #define SB_VERSION_3	3
 #define SB_VERSION_4	4
+#define SB_VERSION_5	5
 
 #define SB_FLAG_HAVE_JOURNAL_MAC	(1 << 0)
 #define SB_FLAG_RECALCULATING		(1 << 1) /* V2 only */
 #define SB_FLAG_DIRTY_BITMAP		(1 << 2) /* V3 only */
 #define SB_FLAG_FIXED_PADDING		(1 << 3) /* V4 only */
+#define SB_FLAG_FIXED_HMAC		(1 << 4) /* V5 only */
 
 struct superblock {
 	uint8_t magic[8];
@@ -64,8 +66,7 @@ int INTEGRITY_dump(struct crypt_device *cd, struct device *device, uint64_t offs
 int INTEGRITY_data_sectors(struct crypt_device *cd,
 			   struct device *device, uint64_t offset,
 			   uint64_t *data_sectors);
-int INTEGRITY_key_size(struct crypt_device *cd,
-		       const char *integrity);
+int INTEGRITY_key_size(struct crypt_device *cd, const char *integrity);
 int INTEGRITY_tag_size(struct crypt_device *cd,
 		       const char *integrity,
 		       const char *cipher,

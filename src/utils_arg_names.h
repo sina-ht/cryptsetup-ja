@@ -1,8 +1,8 @@
 /*
  * Command line arguments name list
  *
- * Copyright (C) 2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2020 Ondrej Kozina
+ * Copyright (C) 2020-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2020-2021 Ondrej Kozina
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -43,6 +43,7 @@
 #define OPT_DECRYPT			"decrypt"
 #define OPT_DISABLE_KEYRING		"disable-keyring"
 #define OPT_DISABLE_LOCKS		"disable-locks"
+#define OPT_DUMP_JSON			"dump-json-metadata"
 #define OPT_DUMP_MASTER_KEY		"dump-master-key"
 #define OPT_ENCRYPT			"encrypt"
 #define OPT_FEC_DEVICE			"fec-device"
@@ -64,9 +65,12 @@
 #define OPT_INTEGRITY_KEY_FILE		"integrity-key-file"
 #define OPT_INTEGRITY_KEY_SIZE		"integrity-key-size"
 #define OPT_INTEGRITY_LEGACY_PADDING	"integrity-legacy-padding"
+#define OPT_INTEGRITY_LEGACY_HMAC	"integrity-legacy-hmac"
+#define OPT_INTEGRITY_LEGACY_RECALC	"integrity-legacy-recalculate"
 #define OPT_INTEGRITY_NO_JOURNAL	"integrity-no-journal"
 #define OPT_INTEGRITY_NO_WIPE		"integrity-no-wipe"
 #define OPT_INTEGRITY_RECALCULATE	"integrity-recalculate"
+#define OPT_INTEGRITY_RECALCULATE_RESET	"integrity-recalculate-reset"
 #define OPT_INTEGRITY_RECOVERY_MODE	"integrity-recovery-mode"
 #define OPT_INTERLEAVE_SECTORS		"interleave-sectors"
 #define OPT_ITER_TIME			"iter-time"

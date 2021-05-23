@@ -1,4 +1,4 @@
-.TH INTEGRITYSETUP "8" "January 2019" "integritysetup" "Maintenance Commands"
+.TH INTEGRITYSETUP "8" "January 2021" "integritysetup" "Maintenance Commands"
 .SH NAME
 integritysetup - manage dm-integrity (block level integrity) volumes
 .SH SYNOPSIS
@@ -33,7 +33,7 @@ Open a mapping with <name> backed by device <device>.
 \fB<options>\fR can be [\-\-data\-device, \-\-batch\-mode, \-\-journal\-watermark,
 \-\-journal\-commit\-time, \-\-buffer\-sectors, \-\-integrity, \-\-integrity\-key\-size,
 \-\-integrity\-key\-file, \-\-integrity\-no\-journal, \-\-integrity\-recalculate,
-\-\-integrity\-recovery\-mode, \-\-allow\-discards]
+\-\-integrity\-recalculate-reset,\-\-integrity\-recovery\-mode, \-\-allow\-discards]
 
 .PP
 \fIclose\fR <name>
@@ -87,6 +87,12 @@ The device can be used during automatic integrity recalculation but becomes full
 integrity protected only after the background operation is finished.
 This option is available since the Linux kernel version 4.19.
 .TP
+.B "\-\-integrity\-recalculate\-reset"
+Restart recalculation from the beginning of the device.
+It can be used to change the integrity checksum function.
+Note it does not change the tag length.
+This option is available since the Linux kernel version 5.13.
+.TP
 .B "\-\-journal\-watermark PERCENT"
 Journal watermark in percents. When the size of the journal exceeds this watermark,
 the journal flush will be started.
@@ -121,7 +127,7 @@ The integrity algorithm can be CRC (crc32c/crc32) or hash function (sha1, sha256
 For HMAC (hmac-sha256) you have also to specify an integrity key and its size.
 .TP
 .B "\-\-integrity\-key\-size BYTES"
-The size of the data integrity key.
+The size of the data integrity key. Maximum is 4096 bytes.
 .TP
 .B "\-\-integrity\-key\-file FILE"
 The file with the integrity key.
@@ -161,7 +167,7 @@ Integrity algorithm for journal area.
 See \-\-integrity option for detailed specification.
 .TP
 .B "\-\-journal\-integrity\-key\-size BYTES"
-The size of the journal integrity key.
+The size of the journal integrity key. Maximum is 4096 bytes.
 .TP
 .B "\-\-journal\-integrity\-key\-file FILE"
 The file with the integrity key.
@@ -172,7 +178,7 @@ You can use a block cipher here such as cbc-aes or
 a stream cipher, for example, chacha20 or ctr-aes.
 .TP
 .B "\-\-journal\-crypt\-key\-size BYTES"
-The size of the journal encryption key.
+The size of the journal encryption key. Maximum is 4096 bytes.
 .TP
 .B "\-\-journal\-crypt\-key\-file FILE"
 The file with the journal encryption key.
@@ -192,6 +198,21 @@ The dm-integrity target is available since Linux kernel version 4.12.
 \fBNOTE:\fR
 Format and activation of an integrity device always require superuser
 privilege because the superblock is calculated and handled in dm-integrity kernel target.
+
+.SH LEGACY COMPATIBILITY OPTIONS
+.TP
+\fBWARNING:\fR
+Do not use these options until you need compatibility with specific old kernel.
+.TP
+.B "\-\-integrity\-legacy\-padding"
+Use inefficient legacy padding.
+.TP
+.B "\-\-integrity\-legacy\-hmac"
+Use old flawed HMAC calclation (also does not protect superblock).
+.TP
+.B "\-\-integrity\-legacy\-recalculate"
+Allow insecure recalculating of volumes with HMAC keys (recalcualtion offset in superblock
+is not protected).
 
 .SH RETURN CODES
 Integritysetup returns 0 on success and a non-zero value on error.
@@ -236,9 +257,9 @@ Please attach the output of the failed command with the
 The integritysetup tool is written by Milan Broz <gmazyland@gmail.com>
 and is part of the cryptsetup project.
 .SH COPYRIGHT
-Copyright \(co 2016-2020 Red Hat, Inc.
+Copyright \(co 2016-2021 Red Hat, Inc.
 .br
-Copyright \(co 2016-2020 Milan Broz
+Copyright \(co 2016-2021 Milan Broz
 
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

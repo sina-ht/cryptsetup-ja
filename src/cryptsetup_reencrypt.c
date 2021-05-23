@@ -1,8 +1,8 @@
 /*
  * cryptsetup-reencrypt - crypt utility for offline re-encryption
  *
- * Copyright (C) 2012-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2012-2020 Milan Broz All rights reserved.
+ * Copyright (C) 2012-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2012-2021 Milan Broz All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,7 +21,6 @@
 
 #include <sys/ioctl.h>
 #include <linux/fs.h>
-#include <arpa/inet.h>
 #include <uuid/uuid.h>
 
 #include "cryptsetup.h"
@@ -211,7 +210,7 @@ static int device_check(struct reenc_ctx *rc, const char *device, header_magic s
 
 	/* Be sure that we do not process new version of header */
 	memcpy((void*)&version, &buf[MAGIC_L], sizeof(uint16_t));
-	version = ntohs(version);
+	version = be16_to_cpu(version);
 
 	if (set_magic == MAKE_UNUSABLE && !memcmp(buf, MAGIC, MAGIC_L) &&
 	    version == 1) {

@@ -16,7 +16,7 @@ AC_CONFIG_HEADERS([config.h:config.h.in])
 
 # For old automake use this
 #AM_INIT_AUTOMAKE(dist-xz subdir-objects)
-AM_INIT_AUTOMAKE([dist-xz 1.12 serial-tests subdir-objects])
+AM_INIT_AUTOMAKE([dist-xz 1.12 serial-tests subdir-objects foreign])
 
 if test "x$prefix" = "xNONE"; then
 	sysconfdir=/etc
@@ -184,7 +184,15 @@ AC_DEFINE_UNQUOTED([PASSWDQC_CONFIG_FILE], ["$use_passwdqc_config"], [passwdqc l
 if test "x$enable_passwdqc" = "xyes"; then
 	AC_DEFINE(ENABLE_PASSWDQC, 1, [Enable password quality checking using passwdqc library])
 
-	PASSWDQC_LIBS="-lpasswdqc"
+	saved_LIBS="$LIBS"
+	AC_SEARCH_LIBS([passwdqc_check], [passwdqc])
+	case "$ac_cv_search_passwdqc_check" in
+		no) AC_MSG_ERROR([failed to find passwdqc_check]) ;;
+		-l*) PASSWDQC_LIBS="$ac_cv_search_passwdqc_check" ;;
+		*) PASSWDQC_LIBS= ;;
+	esac
+	AC_CHECK_FUNCS([passwdqc_params_free])
+	LIBS="$saved_LIBS"
 fi
 
 if test "x$enable_pwquality$enable_passwdqc" = "xyesyes"; then
@@ -347,6 +355,10 @@ AC_ARG_ENABLE([udev],
 	AS_HELP_STRING([--disable-udev], [disable udev support]),
 	[], [enable_udev=yes])
 
+AC_ARG_ENABLE([ssh-token],
+	AS_HELP_STRING([--enable-ssh-token], [enable build of ssh-token]))
+AM_CONDITIONAL(SSHPLUGIN_TOKEN, test "x$enable_ssh_token" = "xyes")
+
 dnl Try to use pkg-config for devmapper, but fallback to old detection
 PKG_CHECK_MODULES([DEVMAPPER], [devmapper >= 1.02.03],, [
 	AC_CHECK_LIB(devmapper, dm_task_set_name,,
@@ -379,6 +391,11 @@ dnl Check for JSON-C used in LUKS2
 PKG_CHECK_MODULES([JSON_C], [json-c])
 AC_CHECK_DECLS([json_object_object_add_ex], [], [], [#include <json-c/json.h>])
 AC_CHECK_DECLS([json_object_deep_copy], [], [], [#include <json-c/json.h>])
+
+dnl Check for libssh for SSH plugin
+if test "x$enable_ssh_token" = "xyes"; then
+	PKG_CHECK_MODULES([LIBSSH], [libssh])
+fi
 
 dnl Crypto backend configuration.
 AC_ARG_WITH([crypto_backend],
@@ -604,7 +621,8 @@ CS_STR_WITH([loopaes-cipher], [cipher for loop-AES mode], [aes])
 CS_NUM_WITH([loopaes-keybits],[key length in bits for loop-AES mode], [256])
 
 CS_NUM_WITH([keyfile-size-maxkb],[maximum keyfile size (in KiB)], [8192])
-CS_NUM_WITH([passphrase-size-max],[maximum keyfile size (in characters)], [512])
+CS_NUM_WITH([integrity-keyfile-size-maxkb],[maximum integritysetup keyfile size (in KiB)], [4])
+CS_NUM_WITH([passphrase-size-max],[maximum passphrase size (in characters)], [512])
 
 CS_STR_WITH([verity-hash],       [hash function for verity mode], [sha256])
 CS_NUM_WITH([verity-data-block], [data block size for verity mode], [4096])

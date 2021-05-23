@@ -2,8 +2,8 @@
  * LUKS - Linux Unified Key Setup
  *
  * Copyright (C) 2004-2006 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2013-2020 Milan Broz
+ * Copyright (C) 2009-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2013-2021 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,7 +22,6 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <netinet/in.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -375,8 +374,13 @@ static int _keyslot_repair(struct luks_phdr *phdr, struct crypt_device *ctx)
 		log_err(ctx, _("Non standard key size, manual repair required."));
 		return -EINVAL;
 	}
-	/* cryptsetup 1.0 did not align to 4k, cannot repair this one */
-	if (LUKS_keyslots_offset(phdr) < (LUKS_ALIGN_KEYSLOTS / SECTOR_SIZE)) {
+
+	/*
+	 * cryptsetup 1.0 did not align keyslots to 4k, cannot repair this one
+	 * Also we cannot trust possibly broken keyslots metadata here through LUKS_keyslots_offset().
+	 * Expect first keyslot is aligned, if not, then manual repair is neccessary.
+	 */
+	if (phdr->keyblock[0].keyMaterialOffset < (LUKS_ALIGN_KEYSLOTS / SECTOR_SIZE)) {
 		log_err(ctx, _("Non standard keyslots alignment, manual repair required."));
 		return -EINVAL;
 	}
@@ -468,12 +472,13 @@ static int _check_and_convert_hdr(const char *device,
 	unsigned int i;
 	char luksMagic[] = LUKS_MAGIC;
 
-	if(memcmp(hdr->magic, luksMagic, LUKS_MAGIC_L)) { /* Check magic */
+	hdr->version = be16_to_cpu(hdr->version);
+	if (memcmp(hdr->magic, luksMagic, LUKS_MAGIC_L)) { /* Check magic */
 		log_dbg(ctx, "LUKS header not detected.");
 		if (require_luks_device)
 			log_err(ctx, _("Device %s is not a valid LUKS device."), device);
 		return -EINVAL;
-	} else if((hdr->version = ntohs(hdr->version)) != 1) {	/* Convert every uint16/32_t item from network byte order */
+	} else if (hdr->version != 1) {
 		log_err(ctx, _("Unsupported LUKS version %d."), hdr->version);
 		return -EINVAL;
 	}
@@ -485,15 +490,15 @@ static int _check_and_convert_hdr(const char *device,
 	}
 
 	/* Header detected */
-	hdr->payloadOffset      = ntohl(hdr->payloadOffset);
-	hdr->keyBytes           = ntohl(hdr->keyBytes);
-	hdr->mkDigestIterations = ntohl(hdr->mkDigestIterations);
+	hdr->payloadOffset      = be32_to_cpu(hdr->payloadOffset);
+	hdr->keyBytes           = be32_to_cpu(hdr->keyBytes);
+	hdr->mkDigestIterations = be32_to_cpu(hdr->mkDigestIterations);
 
-	for(i = 0; i < LUKS_NUMKEYS; ++i) {
-		hdr->keyblock[i].active             = ntohl(hdr->keyblock[i].active);
-		hdr->keyblock[i].passwordIterations = ntohl(hdr->keyblock[i].passwordIterations);
-		hdr->keyblock[i].keyMaterialOffset  = ntohl(hdr->keyblock[i].keyMaterialOffset);
-		hdr->keyblock[i].stripes            = ntohl(hdr->keyblock[i].stripes);
+	for (i = 0; i < LUKS_NUMKEYS; ++i) {
+		hdr->keyblock[i].active             = be32_to_cpu(hdr->keyblock[i].active);
+		hdr->keyblock[i].passwordIterations = be32_to_cpu(hdr->keyblock[i].passwordIterations);
+		hdr->keyblock[i].keyMaterialOffset  = be32_to_cpu(hdr->keyblock[i].keyMaterialOffset);
+		hdr->keyblock[i].stripes            = be32_to_cpu(hdr->keyblock[i].stripes);
 	}
 
 	if (LUKS_check_keyslots(ctx, hdr))
@@ -645,15 +650,15 @@ int LUKS_write_phdr(struct luks_phdr *hdr,
 	memset(&convHdr._padding, 0, sizeof(convHdr._padding));
 
 	/* Convert every uint16/32_t item to network byte order */
-	convHdr.version            = htons(hdr->version);
-	convHdr.payloadOffset      = htonl(hdr->payloadOffset);
-	convHdr.keyBytes           = htonl(hdr->keyBytes);
-	convHdr.mkDigestIterations = htonl(hdr->mkDigestIterations);
+	convHdr.version            = cpu_to_be16(hdr->version);
+	convHdr.payloadOffset      = cpu_to_be32(hdr->payloadOffset);
+	convHdr.keyBytes           = cpu_to_be32(hdr->keyBytes);
+	convHdr.mkDigestIterations = cpu_to_be32(hdr->mkDigestIterations);
 	for(i = 0; i < LUKS_NUMKEYS; ++i) {
-		convHdr.keyblock[i].active             = htonl(hdr->keyblock[i].active);
-		convHdr.keyblock[i].passwordIterations = htonl(hdr->keyblock[i].passwordIterations);
-		convHdr.keyblock[i].keyMaterialOffset  = htonl(hdr->keyblock[i].keyMaterialOffset);
-		convHdr.keyblock[i].stripes            = htonl(hdr->keyblock[i].stripes);
+		convHdr.keyblock[i].active             = cpu_to_be32(hdr->keyblock[i].active);
+		convHdr.keyblock[i].passwordIterations = cpu_to_be32(hdr->keyblock[i].passwordIterations);
+		convHdr.keyblock[i].keyMaterialOffset  = cpu_to_be32(hdr->keyblock[i].keyMaterialOffset);
+		convHdr.keyblock[i].stripes            = cpu_to_be32(hdr->keyblock[i].stripes);
 	}
 
 	r = write_lseek_blockwise(devfd, device_block_size(ctx, device), device_alignment(device),
@@ -795,7 +800,7 @@ int LUKS_generate_phdr(struct luks_phdr *header,
 
 	if (PBKDF2_temp > (double)UINT32_MAX)
 		return -EINVAL;
-	header->mkDigestIterations = at_least((uint32_t)PBKDF2_temp, LUKS_MKD_ITERATIONS_MIN);
+	header->mkDigestIterations = AT_LEAST((uint32_t)PBKDF2_temp, LUKS_MKD_ITERATIONS_MIN);
 	assert(header->mkDigestIterations);
 
 	r = crypt_pbkdf(CRYPT_KDF_PBKDF2, header->hashSpec, vk->key,vk->keylength,
@@ -869,7 +874,7 @@ int LUKS_set_key(unsigned int keyIndex,
 	 * Final iteration count is at least LUKS_SLOT_ITERATIONS_MIN
 	 */
 	hdr->keyblock[keyIndex].passwordIterations =
-		at_least(pbkdf->iterations, LUKS_SLOT_ITERATIONS_MIN);
+		AT_LEAST(pbkdf->iterations, LUKS_SLOT_ITERATIONS_MIN);
 	log_dbg(ctx, "Key slot %d use %" PRIu32 " password iterations.", keyIndex,
 		hdr->keyblock[keyIndex].passwordIterations);
 
@@ -957,12 +962,12 @@ static int LUKS_open_key(unsigned int keyIndex,
 		  const char *password,
 		  size_t passwordLen,
 		  struct luks_phdr *hdr,
-		  struct volume_key *vk,
+		  struct volume_key **vk,
 		  struct crypt_device *ctx)
 {
 	crypt_keyslot_info ki = LUKS_keyslot_info(hdr, keyIndex);
 	struct volume_key *derived_key;
-	char *AfKey;
+	char *AfKey = NULL;
 	size_t AFEKSize;
 	int r;
 
@@ -976,8 +981,13 @@ static int LUKS_open_key(unsigned int keyIndex,
 	if (!derived_key)
 		return -ENOMEM;
 
-	assert(vk->keylength == hdr->keyBytes);
-	AFEKSize = AF_split_sectors(vk->keylength, hdr->keyblock[keyIndex].stripes) * SECTOR_SIZE;
+	*vk = crypt_alloc_volume_key(hdr->keyBytes, NULL);
+	if (!*vk) {
+		r = -ENOMEM;
+		goto out;
+	}
+
+	AFEKSize = AF_split_sectors(hdr->keyBytes, hdr->keyblock[keyIndex].stripes) * SECTOR_SIZE;
 	AfKey = crypt_safe_alloc(AFEKSize);
 	if (!AfKey) {
 		r = -ENOMEM;
@@ -1003,16 +1013,20 @@ static int LUKS_open_key(unsigned int keyIndex,
 	if (r < 0)
 		goto out;
 
-	r = AF_merge(ctx, AfKey, vk->key, vk->keylength, hdr->keyblock[keyIndex].stripes, hdr->hashSpec);
+	r = AF_merge(ctx, AfKey, (*vk)->key, (*vk)->keylength, hdr->keyblock[keyIndex].stripes, hdr->hashSpec);
 	if (r < 0)
 		goto out;
 
-	r = LUKS_verify_volume_key(hdr, vk);
+	r = LUKS_verify_volume_key(hdr, *vk);
 
 	/* Allow only empty passphrase with null cipher */
-	if (!r && !strcmp(hdr->cipherName, "cipher_null") && passwordLen)
+	if (!r && crypt_is_cipher_null(hdr->cipherName) && passwordLen)
 		r = -EPERM;
 out:
+	if (r < 0) {
+		crypt_free_volume_key(*vk);
+		*vk = NULL;
+	}
 	crypt_safe_free(AfKey);
 	crypt_free_volume_key(derived_key);
 	return r;
@@ -1028,16 +1042,14 @@ int LUKS_open_key_with_hdr(int keyIndex,
 	unsigned int i, tried = 0;
 	int r;
 
-	*vk = crypt_alloc_volume_key(hdr->keyBytes, NULL);
-
 	if (keyIndex >= 0) {
-		r = LUKS_open_key(keyIndex, password, passwordLen, hdr, *vk, ctx);
+		r = LUKS_open_key(keyIndex, password, passwordLen, hdr, vk, ctx);
 		return (r < 0) ? r : keyIndex;
 	}
 
 	for (i = 0; i < LUKS_NUMKEYS; i++) {
-		r = LUKS_open_key(i, password, passwordLen, hdr, *vk, ctx);
-		if(r == 0)
+		r = LUKS_open_key(i, password, passwordLen, hdr, vk, ctx);
+		if (r == 0)
 			return i;
 
 		/* Do not retry for errors that are no -EPERM or -ENOENT,

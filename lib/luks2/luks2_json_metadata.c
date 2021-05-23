@@ -1,9 +1,9 @@
 /*
  * LUKS - Linux Unified Key Setup v2
  *
- * Copyright (C) 2015-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2015-2020 Milan Broz
- * Copyright (C) 2015-2020 Ondrej Kozina
+ * Copyright (C) 2015-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2015-2021 Milan Broz
+ * Copyright (C) 2015-2021 Ondrej Kozina
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -403,7 +403,8 @@ static json_bool validate_intervals(struct crypt_device *cd,
 	return 1;
 }
 
-static int LUKS2_keyslot_validate(struct crypt_device *cd, json_object *hdr_jobj, json_object *hdr_keyslot, const char *key)
+static int LUKS2_keyslot_validate(struct crypt_device *cd, json_object *hdr_jobj __attribute__((unused)),
+				  json_object *hdr_keyslot, const char *key)
 {
 	json_object *jobj_key_size;
 
@@ -516,7 +517,7 @@ static int hdr_validate_tokens(struct crypt_device *cd, json_object *hdr_jobj)
 
 static int hdr_validate_crypt_segment(struct crypt_device *cd,
 				      json_object *jobj, const char *key, json_object *jobj_digests,
-	uint64_t offset, uint64_t size)
+				      uint64_t offset __attribute__((unused)), uint64_t size)
 {
 	json_object *jobj_ivoffset, *jobj_sector_size, *jobj_integrity;
 	uint32_t sector_size;
@@ -1740,6 +1741,24 @@ int LUKS2_hdr_dump(struct crypt_device *cd, struct luks2_hdr *hdr)
 	hdr_dump_keyslots(cd, hdr->jobj);
 	hdr_dump_tokens(cd, hdr->jobj);
 	hdr_dump_digests(cd, hdr->jobj);
+
+	return 0;
+}
+
+int LUKS2_hdr_dump_json(struct crypt_device *cd, struct luks2_hdr *hdr, const char **json)
+{
+	const char *json_buf;
+
+	json_buf = json_object_to_json_string_ext(hdr->jobj,
+		JSON_C_TO_STRING_PRETTY | JSON_C_TO_STRING_NOSLASHESCAPE);
+
+	if (!json_buf)
+		return -EINVAL;
+
+	if (json)
+		*json = json_buf;
+	else
+		crypt_log(cd, CRYPT_LOG_NORMAL, json_buf);
 
 	return 0;
 }

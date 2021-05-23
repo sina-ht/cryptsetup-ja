@@ -1,8 +1,8 @@
 /*
  * Cryptsetup command line arguments list
  *
- * Copyright (C) 2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2020 Ondrej Kozina
+ * Copyright (C) 2020-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2020-2021 Ondrej Kozina
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -46,6 +46,8 @@ ARG(OPT_DECRYPT, '\0', POPT_ARG_NONE, N_("Decrypt LUKS2 device (remove encryptio
 ARG(OPT_DISABLE_KEYRING, '\0', POPT_ARG_NONE, N_("Disable loading volume keys via kernel keyring"), NULL, CRYPT_ARG_BOOL, {}, {})
 
 ARG(OPT_DISABLE_LOCKS, '\0', POPT_ARG_NONE, N_("Disable locking of on-disk metadata"), NULL, CRYPT_ARG_BOOL, {}, {})
+
+ARG(OPT_DUMP_JSON, '\0', POPT_ARG_NONE, N_("Dump info in JSON format (LUKS2 only)"), NULL, CRYPT_ARG_BOOL, {}, {})
 
 ARG(OPT_DUMP_MASTER_KEY, '\0', POPT_ARG_NONE, N_("Dump volume (master) key instead of keyslots info"), NULL, CRYPT_ARG_BOOL, {}, {})
 

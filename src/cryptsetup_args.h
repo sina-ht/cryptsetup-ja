@@ -1,8 +1,8 @@
 /*
  * Command line arguments helpers
  *
- * Copyright (C) 2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2020 Ondrej Kozina
+ * Copyright (C) 2020-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2020-2021 Ondrej Kozina
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -92,16 +92,5 @@ static struct tools_arg tool_core_args[] = { { NULL, false, CRYPT_ARG_BOOL }, /*
 #include "cryptsetup_arg_list.h"
 #undef ARG
 };
-
-static inline void args_reset_default_values(struct tools_arg *args)
-{
-	struct tools_arg tmp[] = { { NULL, false, CRYPT_ARG_BOOL }, // UNUSED
-	#define ARG(A, B, C, D, E, F, G, H ) { A, false, F, G, H },
-	#include "cryptsetup_arg_list.h"
-	#undef ARG
-	};
-
-	memcpy(args, tmp, sizeof(tmp));
-}
 
 #endif

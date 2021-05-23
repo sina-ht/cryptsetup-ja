@@ -2,7 +2,7 @@
  * AFsplitter - Anti forensic information splitter
  *
  * Copyright (C) 2004 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2021 Red Hat, Inc. All rights reserved.
  *
  * AFsplitter diffuses information over a large stripe of data,
  * therefore supporting secure data destruction.
@@ -25,6 +25,9 @@
 #define INCLUDED_CRYPTSETUP_LUKS_AF_H
 
 #include <stddef.h>
+
+struct crypt_device;
+struct volume_key;
 
 /*
  * AF_split operates on src and produces information split data in

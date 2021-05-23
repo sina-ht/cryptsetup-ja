@@ -2,8 +2,8 @@
  * utils_wipe - wipe a device
  *
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2020 Milan Broz
+ * Copyright (C) 2009-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2021 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -150,7 +150,7 @@ int crypt_wipe_device(struct crypt_device *cd,
 	if (!bsize || !alignment || !wipe_block_size)
 		return -EINVAL;
 
-	/* FIXME: if wipe_block_size < bsize, then a wipe is highly ineffective */
+	/* if wipe_block_size < bsize, then a wipe is highly ineffective */
 
 	/* Everything must be aligned to SECTOR_SIZE */
 	if (MISALIGNED_512(offset) || MISALIGNED_512(length) || MISALIGNED_512(wipe_block_size))

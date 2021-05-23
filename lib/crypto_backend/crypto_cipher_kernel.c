@@ -1,8 +1,8 @@
 /*
  * Linux kernel userspace API crypto backend implementation (skcipher)
  *
- * Copyright (C) 2012-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2012-2020 Milan Broz
+ * Copyright (C) 2012-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2012-2021 Milan Broz
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -96,11 +96,14 @@ int crypt_cipher_init_kernel(struct crypt_cipher_kernel *ctx, const char *name,
 		.salg_family = AF_ALG,
 		.salg_type = "skcipher",
 	};
+	int r;
 
 	if (!strcmp(name, "cipher_null"))
 		key_length = 0;
 
-	snprintf((char *)sa.salg_name, sizeof(sa.salg_name), "%s(%s)", mode, name);
+	r = snprintf((char *)sa.salg_name, sizeof(sa.salg_name), "%s(%s)", mode, name);
+	if (r < 0 || (size_t)r >= sizeof(sa.salg_name))
+		return -EINVAL;
 
 	return _crypt_cipher_init(ctx, key, key_length, 0, &sa);
 }
@@ -164,15 +167,14 @@ static int _crypt_cipher_crypt(struct crypt_cipher_kernel *ctx,
 	}
 
 	len = sendmsg(ctx->opfd, &msg, 0);
-	if (len != (ssize_t)(in_length)) {
+	if (len != (ssize_t)(in_length))
 		r = -EIO;
-		goto bad;
+	else {
+		len = read(ctx->opfd, out, out_length);
+		if (len != (ssize_t)out_length)
+			r = -EIO;
 	}
 
-	len = read(ctx->opfd, out, out_length);
-	if (len != (ssize_t)out_length)
-		r = -EIO;
-bad:
 	crypt_backend_memzero(buffer, sizeof(buffer));
 	return r;
 }
@@ -230,7 +232,10 @@ int crypt_cipher_check_kernel(const char *name, const char *mode,
 	}
 
 	salg_type = aead ? "aead" : "skcipher";
-	snprintf((char *)sa.salg_type, sizeof(sa.salg_type), "%s", salg_type);
+	r = snprintf((char *)sa.salg_type, sizeof(sa.salg_type), "%s", salg_type);
+	if (r < 0 || (size_t)r >= sizeof(sa.salg_name))
+		return -EINVAL;
+
 	memset(tmp_salg_name, 0, sizeof(tmp_salg_name));
 
 	/* FIXME: this is duplicating a part of devmapper backend */
@@ -243,7 +248,7 @@ int crypt_cipher_check_kernel(const char *name, const char *mode,
 	else
 		r = snprintf(tmp_salg_name, sizeof(tmp_salg_name), "%s(%s)", real_mode, name);
 
-	if (r <= 0 || r > (int)(sizeof(sa.salg_name) - 1))
+	if (r < 0 || (size_t)r >= sizeof(tmp_salg_name))
 		return -EINVAL;
 
 	memcpy(sa.salg_name, tmp_salg_name, sizeof(sa.salg_name));

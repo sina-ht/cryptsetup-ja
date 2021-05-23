@@ -2,7 +2,7 @@
  * Generic wrapper for storage functions
  * (experimental only)
  *
- * Copyright (C) 2018-2020, Ondrej Kozina
+ * Copyright (C) 2018-2021, Ondrej Kozina
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -199,7 +199,7 @@ int crypt_storage_wrapper_init(struct crypt_device *cd,
 		goto err;
 	}
 
-	if (!strcmp(_cipher, "cipher_null")) {
+	if (crypt_is_cipher_null(_cipher)) {
 		log_dbg(cd, "Requested cipher_null, switching to noop wrapper.");
 		w->type = NONE;
 		*cw = w;

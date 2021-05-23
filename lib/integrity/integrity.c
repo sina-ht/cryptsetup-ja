@@ -1,7 +1,7 @@
 /*
  * Integrity volume handling
  *
- * Copyright (C) 2016-2020 Milan Broz
+ * Copyright (C) 2016-2021 Milan Broz
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -40,7 +40,7 @@ static int INTEGRITY_read_superblock(struct crypt_device *cd,
 	if (read_lseek_blockwise(devfd, device_block_size(cd, device),
 		device_alignment(device), sb, sizeof(*sb), offset) != sizeof(*sb) ||
 	    memcmp(sb->magic, SB_MAGIC, sizeof(sb->magic)) ||
-	    sb->version < SB_VERSION_1 || sb->version > SB_VERSION_4) {
+	    sb->version < SB_VERSION_1 || sb->version > SB_VERSION_5) {
 		log_std(cd, "No integrity superblock detected on %s.\n",
 			device_path(device));
 		r = -EINVAL;
@@ -95,11 +95,12 @@ int INTEGRITY_dump(struct crypt_device *cd, struct device *device, uint64_t offs
 	if (sb.version >= SB_VERSION_2 && (sb.flags & SB_FLAG_RECALCULATING))
 		log_std(cd, "recalc_sector %" PRIu64 "\n", sb.recalc_sector);
 	log_std(cd, "log2_blocks_per_bitmap %u\n", sb.log2_blocks_per_bitmap_bit);
-	log_std(cd, "flags %s%s%s%s\n",
+	log_std(cd, "flags %s%s%s%s%s\n",
 		sb.flags & SB_FLAG_HAVE_JOURNAL_MAC ? "have_journal_mac " : "",
 		sb.flags & SB_FLAG_RECALCULATING ? "recalculating " : "",
 		sb.flags & SB_FLAG_DIRTY_BITMAP ? "dirty_bitmap " : "",
-		sb.flags & SB_FLAG_FIXED_PADDING ? "fix_padding " : "");
+		sb.flags & SB_FLAG_FIXED_PADDING ? "fix_padding " : "",
+		sb.flags & SB_FLAG_FIXED_HMAC ? "fix_hmac " : "");
 
 	return 0;
 }
@@ -119,7 +120,7 @@ int INTEGRITY_data_sectors(struct crypt_device *cd,
 	return 0;
 }
 
-int INTEGRITY_key_size(struct crypt_device *cd, const char *integrity)
+int INTEGRITY_key_size(struct crypt_device *cd __attribute__((unused)), const char *integrity)
 {
 	if (!integrity)
 		return 0;
@@ -162,7 +163,7 @@ int INTEGRITY_hash_tag_size(const char *integrity)
 	return r < 0 ? 0 : r;
 }
 
-int INTEGRITY_tag_size(struct crypt_device *cd,
+int INTEGRITY_tag_size(struct crypt_device *cd __attribute__((unused)),
 		       const char *integrity,
 		       const char *cipher,
 		       const char *cipher_mode)
@@ -188,7 +189,7 @@ int INTEGRITY_tag_size(struct crypt_device *cd,
 	if (!integrity || !strcmp(integrity, "none"))
 		auth_tag_size = 0;
 	else if (!strcmp(integrity, "aead"))
-		auth_tag_size = 16; //FIXME gcm- mode only
+		auth_tag_size = 16; /* gcm- mode only */
 	else if (!strcmp(integrity, "cmac(aes)"))
 		auth_tag_size = 16;
 	else if (!strcmp(integrity, "hmac(sha1)"))
@@ -278,6 +279,15 @@ int INTEGRITY_activate_dmd_device(struct crypt_device *cd,
 		return -ENOTSUP;
 	}
 
+	if (r < 0 && (dmd->flags & CRYPT_ACTIVATE_RECALCULATE) &&
+	    !(crypt_get_compatibility(cd) & CRYPT_COMPAT_LEGACY_INTEGRITY_RECALC) &&
+	    ((sb_flags & SB_FLAG_FIXED_HMAC) ?
+	    (tgt->u.integrity.vk && !tgt->u.integrity.journal_integrity_key) :
+	    (tgt->u.integrity.vk || tgt->u.integrity.journal_integrity_key))) {
+		log_err(cd, _("Kernel refuses to activate insecure recalculate option (see legacy activation options to override)."));
+		return -ENOTSUP;
+	}
+
 	return r;
 }
 
@@ -320,7 +330,9 @@ int INTEGRITY_format(struct crypt_device *cd,
 	uuid_generate(tmp_uuid_bin);
 	uuid_unparse(tmp_uuid_bin, tmp_uuid);
 
-	snprintf(tmp_name, sizeof(tmp_name), "temporary-cryptsetup-%s", tmp_uuid);
+	r = snprintf(tmp_name, sizeof(tmp_name), "temporary-cryptsetup-%s", tmp_uuid);
+	if (r < 0 || (size_t)r >= sizeof(tmp_name))
+		return -EINVAL;
 
 	/* There is no data area, we can actually use fake zeroed key */
 	if (params && params->integrity_key_size)

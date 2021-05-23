@@ -1,8 +1,8 @@
 /*
  * Linux kernel cipher generic utilities
  *
- * Copyright (C) 2018-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2018-2020 Milan Broz
+ * Copyright (C) 2018-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2018-2021 Milan Broz
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -31,7 +31,6 @@ struct cipher_alg {
 	bool wrapped_key;
 };
 
-/* FIXME: Getting block size should be dynamic from cipher backend. */
 static const struct cipher_alg cipher_algs[] = {
 	{ "cipher_null", NULL, 16, false },
 	{ "aes",         NULL, 16, false },

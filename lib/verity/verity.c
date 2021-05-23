@@ -1,7 +1,7 @@
 /*
  * dm-verity volume handling
  *
- * Copyright (C) 2012-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2012-2021 Red Hat, Inc. All rights reserved.
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -26,7 +26,6 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <netinet/in.h>
 #include <uuid/uuid.h>
 
 #include "libcryptsetup.h"
@@ -162,6 +161,7 @@ int VERITY_write_sb(struct crypt_device *cd,
 	struct device *device = crypt_metadata_device(cd);
 	struct verity_sb sb = {};
 	ssize_t hdr_size = sizeof(struct verity_sb);
+	size_t block_size;
 	char *algorithm;
 	uuid_t uuid;
 	int r, devfd;
@@ -181,6 +181,13 @@ int VERITY_write_sb(struct crypt_device *cd,
 		return -EINVAL;
 	}
 
+	/* Avoid possible increasing of image size - FEC could fail later because of it */
+	block_size = device_block_size(cd, device);
+	if (block_size > params->hash_block_size) {
+		device_disable_direct_io(device);
+		block_size = params->hash_block_size;
+	}
+
 	devfd = device_open(cd, device, O_RDWR);
 	if (devfd < 0) {
 		log_err(cd, _("Cannot open device %s."), device_path(device));
@@ -197,14 +204,14 @@ int VERITY_write_sb(struct crypt_device *cd,
 
 	/* Kernel always use lower-case */
 	algorithm = (char *)sb.algorithm;
-	strncpy(algorithm, params->hash_name, sizeof(sb.algorithm));
+	strncpy(algorithm, params->hash_name, sizeof(sb.algorithm)-1);
 	algorithm[sizeof(sb.algorithm)-1] = '\0';
 	_to_lower(algorithm);
 
 	memcpy(sb.salt, params->salt, params->salt_size);
 	memcpy(sb.uuid, uuid, sizeof(sb.uuid));
 
-	r = write_lseek_blockwise(devfd, device_block_size(cd, device), device_alignment(device),
+	r = write_lseek_blockwise(devfd, block_size, device_alignment(device),
 				  (char*)&sb, hdr_size, sb_offset) < hdr_size ? -EIO : 0;
 	if (r)
 		log_err(cd, _("Error during update of verity header on device %s."),
@@ -229,7 +236,7 @@ uint64_t VERITY_hash_offset_block(struct crypt_params_verity *params)
 	return hash_offset / params->hash_block_size;
 }
 
-int VERITY_UUID_generate(struct crypt_device *cd, char **uuid_string)
+int VERITY_UUID_generate(struct crypt_device *cd __attribute__((unused)), char **uuid_string)
 {
 	uuid_t uuid;
 
@@ -253,7 +260,7 @@ int VERITY_activate(struct crypt_device *cd,
 {
 	uint32_t dmv_flags;
 	unsigned int fec_errors = 0;
-	int r;
+	int r, v;
 	struct crypt_dm_active_device dmd = {
 		.size = verity_hdr->data_size * verity_hdr->data_block_size / 512,
 		.flags = activation_flags,
@@ -272,14 +279,19 @@ int VERITY_activate(struct crypt_device *cd,
 		log_dbg(cd, "Verification of data in userspace required.");
 		r = VERITY_verify(cd, verity_hdr, root_hash, root_hash_size);
 
-		if (r == -EPERM && fec_device) {
+		if ((r == -EPERM || r == -EFAULT) && fec_device) {
+			v = r;
 			log_dbg(cd, "Verification failed, trying to repair with FEC device.");
 			r = VERITY_FEC_process(cd, verity_hdr, fec_device, 1, &fec_errors);
 			if (r < 0)
 				log_err(cd, _("Errors cannot be repaired with FEC device."));
-			else if (fec_errors)
+			else if (fec_errors) {
 				log_err(cd, _("Found %u repairable errors with FEC device."),
 					fec_errors);
+				/* If root hash failed, we cannot be sure it was properly repaired */
+			}
+			if (v == -EFAULT)
+				r = -EPERM;
 		}
 
 		if (r < 0)
@@ -310,7 +322,7 @@ int VERITY_activate(struct crypt_device *cd,
 			crypt_metadata_device(cd), fec_device, root_hash,
 			root_hash_size, signature_description,
 			VERITY_hash_offset_block(verity_hdr),
-			VERITY_hash_blocks(cd, verity_hdr), verity_hdr);
+			VERITY_FEC_blocks(cd, fec_device, verity_hdr), verity_hdr);
 
 	if (r)
 		return r;

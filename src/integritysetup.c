@@ -1,8 +1,8 @@
 /*
  * integritysetup - setup integrity protected volumes for dm-integrity
  *
- * Copyright (C) 2017-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2017-2020 Milan Broz
+ * Copyright (C) 2017-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2017-2021 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,7 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <assert.h>
 #include <uuid/uuid.h>
 
 #define DEFAULT_ALG_NAME "crc32c"
@@ -28,8 +27,6 @@
 #include "integritysetup_args.h"
 
 #define PACKAGE_INTEGRITY "integritysetup"
-
-#define MAX_KEY_SIZE 4096
 
 static const char **action_argv;
 static int action_argc;
@@ -118,7 +115,7 @@ static int _wipe_data_device(struct crypt_device *cd, const char *integrity_key)
 	return r;
 }
 
-static int action_format(int arg)
+static int action_format(void)
 {
 	struct crypt_device *cd = NULL;
 	struct crypt_params_integrity params = {
@@ -193,6 +190,9 @@ static int action_format(int arg)
 	if (ARG_SET(OPT_INTEGRITY_LEGACY_PADDING_ID))
 		crypt_set_compatibility(cd, CRYPT_COMPAT_LEGACY_INTEGRITY_PADDING);
 
+	if (ARG_SET(OPT_INTEGRITY_LEGACY_HMAC_ID))
+		crypt_set_compatibility(cd, CRYPT_COMPAT_LEGACY_INTEGRITY_HMAC);
+
 	r = crypt_format(cd, CRYPT_INTEGRITY, NULL, NULL, NULL, NULL, 0, &params);
 	if (r < 0) /* FIXME: call wipe signatures again */
 		goto out;
@@ -211,7 +211,7 @@ out:
 	return r;
 }
 
-static int action_open(int arg)
+static int action_open(void)
 {
 	struct crypt_device *cd = NULL;
 	struct crypt_params_integrity params = {
@@ -258,8 +258,12 @@ static int action_open(int arg)
 	if (ARG_SET(OPT_INTEGRITY_BITMAP_MODE_ID))
 		activate_flags |= CRYPT_ACTIVATE_NO_JOURNAL_BITMAP;
 
-	if (ARG_SET(OPT_INTEGRITY_RECALCULATE_ID))
+	if (ARG_SET(OPT_INTEGRITY_RECALCULATE_ID) || ARG_SET(OPT_INTEGRITY_LEGACY_RECALC_ID))
 		activate_flags |= CRYPT_ACTIVATE_RECALCULATE;
+
+	if (ARG_SET(OPT_INTEGRITY_RECALCULATE_RESET_ID))
+		activate_flags |= CRYPT_ACTIVATE_RECALCULATE_RESET;
+
 	if (ARG_SET(OPT_ALLOW_DISCARDS_ID))
 		activate_flags |= CRYPT_ACTIVATE_ALLOW_DISCARDS;
 
@@ -274,6 +278,9 @@ static int action_open(int arg)
 	if (r)
 		goto out;
 
+	if (ARG_SET(OPT_INTEGRITY_LEGACY_RECALC_ID))
+		crypt_set_compatibility(cd, CRYPT_COMPAT_LEGACY_INTEGRITY_RECALC);
+
 	r = crypt_activate_by_volume_key(cd, action_argv[1], integrity_key,
 					 ARG_UINT32(OPT_INTEGRITY_KEY_SIZE_ID), activate_flags);
 out:
@@ -284,7 +291,7 @@ out:
 	return r;
 }
 
-static int action_close(int arg)
+static int action_close(void)
 {
 	struct crypt_device *cd = NULL;
 	crypt_status_info ci;
@@ -311,7 +318,7 @@ static int action_close(int arg)
 	return r;
 }
 
-static int action_status(int arg)
+static int action_status(void)
 {
 	crypt_status_info ci;
 	struct crypt_active_device cad;
@@ -411,7 +418,7 @@ out:
 	return -EINVAL;
 }
 
-static int action_dump(int arg)
+static int action_dump(void)
 {
 	struct crypt_device *cd = NULL;
 	struct crypt_params_integrity params = {};
@@ -430,7 +437,7 @@ static int action_dump(int arg)
 
 static struct action_type {
 	const char *type;
-	int (*handler)(int);
+	int (*handler)(void);
 	int required_action_argc;
 	const char *arg_desc;
 	const char *desc;
@@ -464,7 +471,9 @@ static void help(poptContext popt_context,
 			crypt_get_dir());
 
 		log_std(_("\nDefault compiled-in dm-integrity parameters:\n"
-			  "\tChecksum algorithm: %s\n"), DEFAULT_ALG_NAME);
+			  "\tChecksum algorithm: %s\n"
+			  "\tMaximum keyfile size: %dkB\n"),
+			  DEFAULT_ALG_NAME, DEFAULT_INTEGRITY_KEYFILE_SIZE_MAXKB);
 		tools_cleanup();
 		poptFreeContext(popt_context);
 		exit(EXIT_SUCCESS);
@@ -483,7 +492,7 @@ static int run_action(struct action_type *action)
 
 	log_dbg("Running command %s.", action->type);
 
-	r = action->handler(0);
+	r = action->handler();
 
 	show_status(r);
 	return translate_errno(r);
@@ -517,8 +526,9 @@ static void basic_options_cb(poptContext popt_context,
 	case OPT_JOURNAL_INTEGRITY_KEY_SIZE_ID:
 		/* fall through */
 	case OPT_JOURNAL_CRYPT_KEY_SIZE_ID:
-		if (ARG_UINT32(key->val) > MAX_KEY_SIZE) {
-			snprintf(msg, sizeof(msg), _("Invalid --%s size."), key->longName);
+		if (ARG_UINT32(key->val) > (DEFAULT_INTEGRITY_KEYFILE_SIZE_MAXKB * 1024)) {
+			snprintf(msg, sizeof(msg), _("Invalid --%s size. Maximum is %u bytes."),
+				 key->longName, DEFAULT_INTEGRITY_KEYFILE_SIZE_MAXKB * 1024);
 			usage(popt_context, EXIT_FAILURE, msg,
 			      poptGetInvocationName(popt_context));
 		}

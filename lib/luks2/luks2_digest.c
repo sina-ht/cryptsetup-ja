@@ -1,8 +1,8 @@
 /*
  * LUKS - Linux Unified Key Setup v2, digest handling
  *
- * Copyright (C) 2015-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2015-2020 Milan Broz
+ * Copyright (C) 2015-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2015-2021 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,7 +28,7 @@ static const digest_handler *digest_handlers[LUKS2_DIGEST_MAX] = {
 	NULL
 };
 
-static const digest_handler *LUKS2_digest_handler_type(struct crypt_device *cd, const char *type)
+static const digest_handler *LUKS2_digest_handler_type(const char *type)
 {
 	int i;
 
@@ -57,10 +57,10 @@ static const digest_handler *LUKS2_digest_handler(struct crypt_device *cd, int d
 	if (!json_object_object_get_ex(jobj1, "type", &jobj2))
 		return NULL;
 
-	return LUKS2_digest_handler_type(cd, json_object_get_string(jobj2));
+	return LUKS2_digest_handler_type(json_object_get_string(jobj2));
 }
 
-static int LUKS2_digest_find_free(struct crypt_device *cd, struct luks2_hdr *hdr)
+static int LUKS2_digest_find_free(struct luks2_hdr *hdr)
 {
 	int digest = 0;
 
@@ -78,11 +78,11 @@ int LUKS2_digest_create(struct crypt_device *cd,
 	int digest;
 	const digest_handler *dh;
 
-	dh = LUKS2_digest_handler_type(cd, type);
+	dh = LUKS2_digest_handler_type(type);
 	if (!dh)
 		return -EINVAL;
 
-	digest = LUKS2_digest_find_free(cd, hdr);
+	digest = LUKS2_digest_find_free(hdr);
 	if (digest < 0)
 		return -EINVAL;
 
@@ -111,7 +111,7 @@ int LUKS2_digest_by_keyslot(struct luks2_hdr *hdr, int keyslot)
 }
 
 int LUKS2_digest_verify_by_digest(struct crypt_device *cd,
-	struct luks2_hdr *hdr,
+	struct luks2_hdr *hdr __attribute__((unused)),
 	int digest,
 	const struct volume_key *vk)
 {
@@ -219,7 +219,9 @@ static int assign_one_digest(struct crypt_device *cd, struct luks2_hdr *hdr,
 	if (!jobj_digest_keyslots)
 		return -EINVAL;
 
-	snprintf(num, sizeof(num), "%d", keyslot);
+	if (snprintf(num, sizeof(num), "%d", keyslot) < 0)
+		return -EINVAL;
+
 	if (assign) {
 		jobj1 = LUKS2_array_jobj(jobj_digest_keyslots, num);
 		if (!jobj1)
@@ -254,12 +256,11 @@ int LUKS2_digest_assign(struct crypt_device *cd, struct luks2_hdr *hdr,
 	if (r < 0)
 		return r;
 
-	// FIXME: do not write header in nothing changed
 	return commit ? LUKS2_hdr_write(cd, hdr) : 0;
 }
 
-static int assign_all_segments(struct crypt_device *cd, struct luks2_hdr *hdr,
-			     int digest, int assign)
+static int assign_all_segments(struct crypt_device *cd __attribute__((unused)),
+			       struct luks2_hdr *hdr, int digest, int assign)
 {
 	json_object *jobj1, *jobj_digest, *jobj_digest_segments;
 
@@ -304,7 +305,9 @@ static int assign_one_segment(struct crypt_device *cd, struct luks2_hdr *hdr,
 	if (!jobj_digest_segments)
 		return -EINVAL;
 
-	snprintf(num, sizeof(num), "%d", segment);
+	if (snprintf(num, sizeof(num), "%d", segment) < 0)
+		return -EINVAL;
+
 	if (assign) {
 		jobj1 = LUKS2_array_jobj(jobj_digest_segments, num);
 		if (!jobj1)
@@ -349,7 +352,6 @@ int LUKS2_digest_segment_assign(struct crypt_device *cd, struct luks2_hdr *hdr,
 	if (r < 0)
 		return r;
 
-	// FIXME: do not write header in nothing changed
 	return commit ? LUKS2_hdr_write(cd, hdr) : 0;
 }
 
@@ -441,7 +443,7 @@ int LUKS2_volume_key_load_in_keyring_by_keyslot(struct crypt_device *cd,
 }
 
 int LUKS2_volume_key_load_in_keyring_by_digest(struct crypt_device *cd,
-		struct luks2_hdr *hdr, struct volume_key *vk, int digest)
+		struct luks2_hdr *hdr __attribute__((unused)), struct volume_key *vk, int digest)
 {
 	char *desc = get_key_description_by_digest(cd, digest);
 	int r;

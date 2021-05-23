@@ -1,7 +1,7 @@
 /*
  * PBKDF performance check
- * Copyright (C) 2012-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2012-2020 Milan Broz
+ * Copyright (C) 2012-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2012-2021 Milan Broz
  * Copyright (C) 2016-2020 Ondrej Mosnacek
  *
  * This file is free software; you can redistribute it and/or
@@ -74,7 +74,7 @@ static long time_ms(struct rusage *start, struct rusage *end)
 		count_kernel_time = 1;
 
 	/*
-	 * FIXME: if there is no self usage info, count system time.
+	 * If there is no self usage info, count system time.
 	 * This seem like getrusage() bug in some hypervisors...
 	 */
 	if (!end->ru_utime.tv_sec && !start->ru_utime.tv_sec &&
@@ -412,7 +412,6 @@ int crypt_pbkdf_perf(const char *kdf, const char *hash,
 	if (!kdf || !iterations_out || !memory_out)
 		return -EINVAL;
 
-	/* FIXME: whole limits propagation should be more clear here */
 	r = crypt_pbkdf_get_limits(kdf, &pbkdf_limits);
 	if (r < 0)
 		return r;

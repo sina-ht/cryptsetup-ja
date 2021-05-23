@@ -1,8 +1,8 @@
 /*
  * TCRYPT (TrueCrypt-compatible)  header definition
  *
- * Copyright (C) 2012-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2012-2020 Milan Broz
+ * Copyright (C) 2012-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2012-2021 Milan Broz
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -75,7 +75,6 @@ struct tcrypt_phdr {
 
 struct crypt_device;
 struct crypt_params_tcrypt;
-struct crypt_dm_active_device;
 struct dm_target;
 struct volume_key;
 struct device;

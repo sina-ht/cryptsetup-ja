@@ -3,8 +3,8 @@
  *
  * Copyright (C) 2004 Jana Saout <jana@saout.de>
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2020 Milan Broz
+ * Copyright (C) 2009-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2021 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -278,7 +278,7 @@ void tools_token_msg(int token, crypt_object_op op)
  * kiB|KiB|miB|MiB|giB|GiB|tiB|TiB - 1024 base
  * kb |KB |mM |MB |gB |GB |tB |TB  - 1000 base
  */
-int tools_string_to_size(struct crypt_device *cd, const char *s, uint64_t *size)
+int tools_string_to_size(const char *s, uint64_t *size)
 {
 	char *endp = NULL;
 	size_t len;
@@ -387,7 +387,6 @@ static void tools_time_progress(uint64_t device_size, uint64_t bytes, struct too
 	mbytes = bytes  / 1024 / 1024;
 	uib = (double)(bytes - parms->start_offset) / tdiff;
 
-	/* FIXME: calculate this from last minute only. */
 	eta = (unsigned long long)(device_size / uib - tdiff);
 
 	if (uib > 1073741824.0f) {
@@ -434,14 +433,6 @@ int tools_wipe_progress(uint64_t size, uint64_t offset, void *usrptr)
 	}
 
 	return r;
-}
-
-int tools_is_cipher_null(const char *cipher)
-{
-	if (!cipher)
-		return 0;
-
-	return !strcmp(cipher, "cipher_null") ? 1 : 0;
 }
 
 /*

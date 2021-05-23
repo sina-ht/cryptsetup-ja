@@ -1,8 +1,8 @@
 /*
  * GCRYPT crypto backend implementation
  *
- * Copyright (C) 2010-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2010-2020 Milan Broz
+ * Copyright (C) 2010-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2010-2021 Milan Broz
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -51,6 +51,11 @@ struct crypt_cipher {
 	} u;
 };
 
+struct hash_alg {
+	const char *name;
+	const char *gcrypt_name;
+};
+
 /*
  * Test for wrong Whirlpool variant,
  * Ref: https://lists.gnupg.org/pipermail/gcrypt-devel/2014-January/002889.html
@@ -91,6 +96,8 @@ static void crypt_hash_test_whirlpool_bug(void)
 
 int crypt_backend_init(void)
 {
+	int r;
+
 	if (crypto_backend_initialised)
 		return 0;
 
@@ -99,7 +106,7 @@ int crypt_backend_init(void)
 			return -ENOSYS;
 		}
 
-/* FIXME: If gcrypt compiled to support POSIX 1003.1e capabilities,
+/* If gcrypt compiled to support POSIX 1003.1e capabilities,
  * it drops all privileges during secure memory initialisation.
  * For now, the only workaround is to disable secure memory in gcrypt.
  * cryptsetup always need at least cap_sys_admin privilege for dm-ioctl
@@ -120,11 +127,12 @@ int crypt_backend_init(void)
 	crypto_backend_initialised = 1;
 	crypt_hash_test_whirlpool_bug();
 
-	snprintf(version, 64, "gcrypt %s%s%s",
+	r = snprintf(version, sizeof(version), "gcrypt %s%s%s",
 		 gcry_check_version(NULL),
 		 crypto_backend_secmem ? "" : ", secmem disabled",
-		 crypto_backend_whirlpool_bug > 0 ? ", flawed whirlpool" : ""
-		);
+		 crypto_backend_whirlpool_bug > 0 ? ", flawed whirlpool" : "");
+	if (r < 0 || (size_t)r >= sizeof(version))
+		return -EINVAL;
 
 	return 0;
 }
@@ -150,15 +158,38 @@ uint32_t crypt_backend_flags(void)
 static const char *crypt_hash_compat_name(const char *name, unsigned int *flags)
 {
 	const char *hash_name = name;
+	int i;
+	static struct hash_alg hash_algs[] = {
+	{ "blake2b-160", "blake2b_160" },
+	{ "blake2b-256", "blake2b_256" },
+	{ "blake2b-384", "blake2b_384" },
+	{ "blake2b-512", "blake2b_512" },
+	{ "blake2s-128", "blake2s_128" },
+	{ "blake2s-160", "blake2s_160" },
+	{ "blake2s-224", "blake2s_224" },
+	{ "blake2s-256", "blake2s_256" },
+	{ NULL,          NULL,         }};
+
+	if (!name)
+		return NULL;
 
 	/* "whirlpool_gcryptbug" is out shortcut to flawed whirlpool
 	 * in libgcrypt < 1.6.0 */
-	if (name && !strcasecmp(name, "whirlpool_gcryptbug")) {
+	if (!strcasecmp(name, "whirlpool_gcryptbug")) {
 #if GCRYPT_VERSION_NUMBER >= 0x010601
 		if (flags)
 			*flags |= GCRY_MD_FLAG_BUGEMU1;
 #endif
 		hash_name = "whirlpool";
+	}
+
+	i = 0;
+	while (hash_algs[i].name) {
+		if (!strcasecmp(name, hash_algs[i].name)) {
+			hash_name =  hash_algs[i].gcrypt_name;
+			break;
+		}
+		i++;
 	}
 
 	return hash_name;
@@ -316,7 +347,7 @@ void crypt_hmac_destroy(struct crypt_hmac *ctx)
 }
 
 /* RNG */
-int crypt_backend_rng(char *buffer, size_t length, int quality, int fips)
+int crypt_backend_rng(char *buffer, size_t length, int quality, int fips __attribute__((unused)))
 {
 	switch(quality) {
 	case CRYPT_RND_NORMAL:

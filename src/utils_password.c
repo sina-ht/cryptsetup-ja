@@ -1,8 +1,8 @@
 /*
  * Password quality check wrapper
  *
- * Copyright (C) 2012-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2012-2020 Milan Broz
+ * Copyright (C) 2012-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2012-2021 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -60,51 +60,86 @@ static int tools_check_pwquality(const char *password)
 #elif defined ENABLE_PASSWDQC
 #include <passwdqc.h>
 
-static int tools_check_pwquality(const char *password)
+static int tools_check_passwdqc(const char *password)
 {
 	passwdqc_params_t params;
-	char *parse_reason;
+	char *parse_reason = NULL;
 	const char *check_reason;
 	const char *config = PASSWDQC_CONFIG_FILE;
+	int r = -EINVAL;
 
 	passwdqc_params_reset(&params);
 
 	if (*config && passwdqc_params_load(&params, &parse_reason, config)) {
 		log_err(_("Cannot check password quality: %s"),
 			(parse_reason ? parse_reason : "Out of memory"));
-		free(parse_reason);
-		return -EINVAL;
+		goto out;
 	}
 
 	check_reason = passwdqc_check(&params.qc, password, NULL, NULL);
 	if (check_reason) {
 		log_err(_("Password quality check failed: Bad passphrase (%s)"),
 			check_reason);
-		return -EPERM;
-	}
-
-	return 0;
-}
-#else /* !(ENABLE_PWQUALITY || ENABLE_PASSWDQC) */
-static int tools_check_pwquality(const char *password)
-{
-	return 0;
+		r = -EPERM;
+	} else
+		r = 0;
+out:
+#if HAVE_PASSWDQC_PARAMS_FREE
+	passwdqc_params_free(&params);
+#endif
+	free(parse_reason);
+	return r;
 }
 #endif /* ENABLE_PWQUALITY || ENABLE_PASSWDQC */
 
+/* coverity[ +tainted_string_sanitize_content : arg-0 ] */
+static int tools_check_password(const char *password)
+{
+#if defined ENABLE_PWQUALITY
+	return tools_check_pwquality(password);
+#elif defined ENABLE_PASSWDQC
+	return tools_check_passwdqc(password);
+#else
+	return 0;
+#endif
+}
+
 /* Password reading helpers */
+
+static ssize_t read_tty_eol(int fd, char *pass, size_t maxlen)
+{
+	bool eol = false;
+	size_t read_size = 0;
+	ssize_t r;
+
+	do {
+		r = read(fd, pass, maxlen - read_size);
+		if ((r == -1 && errno != EINTR) || quit)
+			return -1;
+		if (r >= 0) {
+			if (!r || pass[r-1] == '\n')
+				eol = true;
+			read_size += (size_t)r;
+			pass = pass + r;
+		}
+	} while (!eol && read_size != maxlen);
+
+	return (ssize_t)read_size;
+}
+
+/* The pass buffer is zeroed and has trailing \0 already " */
 static int untimed_read(int fd, char *pass, size_t maxlen)
 {
 	ssize_t i;
 
-	i = read(fd, pass, maxlen);
+	i = read_tty_eol(fd, pass, maxlen);
 	if (i > 0) {
-		pass[i-1] = '\0';
+		if (pass[i-1] == '\n')
+			pass[i-1] = '\0';
 		i = 0;
-	} else if (i == 0) { /* EOF */
-		*pass = 0;
+	} else if (i == 0) /* empty input */
 		i = -1;
-	}
+
 	return i;
 }
 
@@ -144,13 +179,13 @@ static int interactive_pass(const char *prompt, char *pass, size_t maxlen,
 		outfd = infd;
 
 	if (tcgetattr(infd, &orig))
-		goto out_err;
+		goto out;
 
 	memcpy(&tmp, &orig, sizeof(tmp));
 	tmp.c_lflag &= ~ECHO;
 
 	if (prompt && write(outfd, prompt, strlen(prompt)) < 0)
-		goto out_err;
+		goto out;
 
 	tcsetattr(infd, TCSAFLUSH, &tmp);
 	if (timeout)
@@ -158,8 +193,7 @@ static int interactive_pass(const char *prompt, char *pass, size_t maxlen,
 	else
 		failed = untimed_read(infd, pass, maxlen);
 	tcsetattr(infd, TCSAFLUSH, &orig);
-
-out_err:
+out:
 	if (!failed && write(outfd, "\n", 1)) {};
 
 	if (infd != STDIN_FILENO)
@@ -169,8 +203,7 @@ out_err:
 
 static int crypt_get_key_tty(const char *prompt,
 			     char **key, size_t *key_size,
-			     int timeout, int verify,
-			     struct crypt_device *cd)
+			     int timeout, int verify)
 {
 	int key_size_max = DEFAULT_PASSPHRASE_SIZE_MAX;
 	int r = -EINVAL;
@@ -189,35 +222,34 @@ static int crypt_get_key_tty(const char *prompt,
 
 	if (interactive_pass(prompt, pass, key_size_max, timeout)) {
 		log_err(_("Error reading passphrase from terminal."));
-		goto out_err;
+		goto out;
 	}
-	pass[key_size_max] = '\0';
 
 	if (verify) {
-		pass_verify = crypt_safe_alloc(key_size_max);
+		pass_verify = crypt_safe_alloc(key_size_max + 1);
 		if (!pass_verify) {
 			log_err(_("Out of memory while reading passphrase."));
 			r = -ENOMEM;
-			goto out_err;
+			goto out;
 		}
 
 		if (interactive_pass(_("Verify passphrase: "),
 		    pass_verify, key_size_max, timeout)) {
 			log_err(_("Error reading passphrase from terminal."));
-			goto out_err;
+			goto out;
 		}
 
 		if (strncmp(pass, pass_verify, key_size_max)) {
 			log_err(_("Passphrases do not match."));
 			r = -EPERM;
-			goto out_err;
+			goto out;
 		}
 	}
 
 	*key = pass;
 	*key_size = strlen(pass);
 	r = 0;
-out_err:
+out:
 	crypt_safe_free(pass_verify);
 	if (r)
 		crypt_safe_free(pass);
@@ -254,7 +286,7 @@ int tools_get_key(const char *prompt,
 					snprintf(tmp, sizeof(tmp), _("Enter passphrase for %s: "), backing_file ?: crypt_get_device_name(cd));
 					free(backing_file);
 				}
-				r = crypt_get_key_tty(prompt ?: tmp, key, key_size, timeout, verify, cd);
+				r = crypt_get_key_tty(prompt ?: tmp, key, key_size, timeout, verify);
 			}
 		} else {
 			log_dbg("STDIN descriptor passphrase entry requested.");
@@ -274,7 +306,7 @@ int tools_get_key(const char *prompt,
 
 	/* Check pwquality for password (not keyfile) */
 	if (pwquality && !key_file && !r)
-		r = tools_check_pwquality(*key);
+		r = tools_check_password(*key);
 
 	return r;
 }
@@ -289,7 +321,7 @@ void tools_passphrase_msg(int r)
 
 int tools_read_mk(const char *file, char **key, int keysize)
 {
-	int fd;
+	int fd = -1, r = -EINVAL;
 
 	if (keysize <= 0 || !key)
 		return -EINVAL;
@@ -301,20 +333,24 @@ int tools_read_mk(const char *file, char **key, int keysize)
 	fd = open(file, O_RDONLY);
 	if (fd == -1) {
 		log_err(_("Cannot read keyfile %s."), file);
-		goto fail;
+		goto out;
 	}
 
 	if (read_buffer(fd, *key, keysize) != keysize) {
 		log_err(_("Cannot read %d bytes from keyfile %s."), keysize, file);
-		close(fd);
-		goto fail;
+		goto out;
 	}
-	close(fd);
-	return 0;
-fail:
-	crypt_safe_free(*key);
-	*key = NULL;
-	return -EINVAL;
+	r = 0;
+out:
+	if (fd != -1)
+		close(fd);
+
+	if (r) {
+		crypt_safe_free(*key);
+		*key = NULL;
+	}
+
+	return r;
 }
 
 int tools_write_mk(const char *file, const char *key, int keysize)

@@ -1,8 +1,8 @@
 /*
  * Command line arguments parsing helpers
  *
- * Copyright (C) 2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2020 Ondrej Kozina
+ * Copyright (C) 2020-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2020-2021 Ondrej Kozina
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -61,7 +61,7 @@ void tools_parse_arg_value(poptContext popt_context, crypt_arg_type_info type, s
 	case CRYPT_ARG_UINT64:
 		/* special size strings with units converted to integers */
 		if (needs_size_conv_fn && needs_size_conv_fn(popt_val)) {
-			if (tools_string_to_size(NULL, popt_arg, &arg->u.u64_value)) {
+			if (tools_string_to_size(popt_arg, &arg->u.u64_value)) {
 				snprintf(msg, sizeof(msg), _("Invalid size specification in parameter --%s."), arg->name);
 				usage(popt_context, EXIT_FAILURE, msg,
 				      poptGetInvocationName(popt_context));

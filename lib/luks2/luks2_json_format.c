@@ -1,8 +1,8 @@
 /*
  * LUKS - Linux Unified Key Setup v2, LUKS2 header format code
  *
- * Copyright (C) 2015-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2015-2020 Milan Broz
+ * Copyright (C) 2015-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2015-2021 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,7 +30,7 @@ struct area {
 
 static size_t get_area_size(size_t keylength)
 {
-	//FIXME: calculate this properly, for now it is AF_split_sectors
+	/* for now it is AF_split_sectors */
 	return size_round_up(keylength * 4000, 4096);
 }
 
@@ -177,8 +177,11 @@ int LUKS2_find_area_gap(struct crypt_device *cd, struct luks2_hdr *hdr,
 
 	log_dbg(cd, "Found area %zu -> %zu", offset, length + offset);
 
-	*area_offset = offset;
-	*area_length = length;
+	if (area_offset)
+		*area_offset = offset;
+	if (area_length)
+		*area_length = length;
+
 	return 0;
 }
 
@@ -216,7 +219,7 @@ int LUKS2_generate_hdr(
 	struct json_object *jobj_segment, *jobj_integrity, *jobj_keyslots, *jobj_segments, *jobj_config;
 	char cipher[128];
 	uuid_t partitionUuid;
-	int digest;
+	int r, digest;
 	uint64_t mdev_size;
 
 	if (!metadata_size)
@@ -244,7 +247,8 @@ int LUKS2_generate_hdr(
 		/* Decrease keyslots_size due to metadata device being too small */
 		if (!device_size(crypt_metadata_device(cd), &mdev_size) &&
 		    ((keyslots_size + get_min_offset(hdr)) > mdev_size) &&
-		    device_fallocate(crypt_metadata_device(cd), keyslots_size + get_min_offset(hdr)))
+		    device_fallocate(crypt_metadata_device(cd), keyslots_size + get_min_offset(hdr)) &&
+		    (get_min_offset(hdr) <= mdev_size))
 			keyslots_size = mdev_size - get_min_offset(hdr);
 	}
 
@@ -289,9 +293,11 @@ int LUKS2_generate_hdr(
 	uuid_unparse(partitionUuid, hdr->uuid);
 
 	if (*cipherMode != '\0')
-		snprintf(cipher, sizeof(cipher), "%s-%s", cipherName, cipherMode);
+		r = snprintf(cipher, sizeof(cipher), "%s-%s", cipherName, cipherMode);
 	else
-		snprintf(cipher, sizeof(cipher), "%s", cipherName);
+		r = snprintf(cipher, sizeof(cipher), "%s", cipherName);
+	if (r < 0 || (size_t)r >= sizeof(cipher))
+		return -EINVAL;
 
 	hdr->jobj = json_object_new_object();
 
@@ -377,8 +383,7 @@ int LUKS2_wipe_header_areas(struct crypt_device *cd,
 				 offset, length, wipe_block, NULL, NULL);
 }
 
-/* FIXME: what if user wanted to keep original keyslots size? */
-int LUKS2_set_keyslots_size(struct crypt_device *cd,
+int LUKS2_set_keyslots_size(struct crypt_device *cd __attribute__((unused)),
 		struct luks2_hdr *hdr,
 		uint64_t data_offset)
 {

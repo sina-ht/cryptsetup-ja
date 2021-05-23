@@ -1,8 +1,8 @@
 /*
  * Metadata on-disk locking for processes serialization
  *
- * Copyright (C) 2016-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2016-2020 Ondrej Kozina
+ * Copyright (C) 2016-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2016-2021 Ondrej Kozina
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -106,7 +106,7 @@ static int open_lock_dir(struct crypt_device *cd, const char *dir, const char *b
 	lockdfd = openat(dirfd, base, O_RDONLY | O_NOFOLLOW | O_DIRECTORY | O_CLOEXEC);
 	if (lockdfd < 0) {
 		if (errno == ENOENT) {
-			log_std(cd, _("WARNING: Locking directory %s/%s is missing!\n"), dir, base);
+			log_dbg(cd, _("Locking directory %s/%s will be created with default compiled-in permissions."), dir, base);
 
 			/* success or failure w/ errno == EEXIST either way just try to open the 'base' directory again */
 			if (mkdirat(dirfd, base, DEFAULT_LUKS2_LOCK_DIR_PERMS) && errno != EEXIST)
@@ -173,7 +173,7 @@ static int acquire_lock_handle(struct crypt_device *cd, struct device *device, s
 		h->u.bdev.devno = st.st_rdev;
 		h->mode = DEV_LOCK_BDEV;
 	} else if (S_ISREG(st.st_mode)) {
-		// FIXME: workaround for nfsv4
+		/* workaround for nfsv4 */
 		fd = open(device_path(device), O_RDWR | O_NONBLOCK | O_CLOEXEC);
 		if (fd < 0)
 			h->flock_fd = dev_fd;
@@ -261,7 +261,7 @@ int device_locked_readonly(struct crypt_lock_handle *h)
 	return (h && h->type == DEV_LOCK_READ);
 }
 
-static int verify_lock_handle(const char *device_path, struct crypt_lock_handle *h)
+static int verify_lock_handle(struct crypt_lock_handle *h)
 {
 	char res[PATH_MAX];
 	struct stat lck_st, res_st;
@@ -326,7 +326,7 @@ static int acquire_and_verify(struct crypt_device *cd, struct device *device, co
 		 * check whether another libcryptsetup process removed resource file before this
 		 * one managed to flock() it. See release_lock_handle() for details
 		 */
-		r = verify_lock_handle(device_path(device), h);
+		r = verify_lock_handle(h);
 		if (r < 0) {
 			if (flock(h->flock_fd, LOCK_UN))
 				log_dbg(cd, "flock on fd %d failed.", h->flock_fd);

@@ -3,8 +3,8 @@
  *
  * Copyright (C) 2004 Jana Saout <jana@saout.de>
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2020 Milan Broz
+ * Copyright (C) 2009-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2021 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -599,7 +599,7 @@ struct crypt_params_luks2 {
 	const struct crypt_params_integrity *integrity_params; /**< Data integrity parameters or @e NULL*/
 	size_t data_alignment;   /**< data area alignment in 512B sectors, data offset is multiple of this */
 	const char *data_device; /**< detached encrypted data device or @e NULL */
-	uint32_t sector_size;    /**< encryption sector size */
+	uint32_t sector_size;    /**< encryption sector size, 0 triggers auto-detection for optimal encryption sector size */
 	const char *label;       /**< header label or @e NULL*/
 	const char *subsystem;   /**< header subsystem label or @e NULL*/
 };
@@ -661,6 +661,10 @@ uint32_t crypt_get_compatibility(struct crypt_device *cd);
 
 /** dm-integrity device uses less effective (legacy) padding (old kernels) */
 #define CRYPT_COMPAT_LEGACY_INTEGRITY_PADDING (1 << 0)
+/** dm-integrity device does not protect superblock with HMAC (old kernels) */
+#define CRYPT_COMPAT_LEGACY_INTEGRITY_HMAC (1 << 1)
+/** dm-integrity allow recalculating of volumes with HMAC keys (old kernels) */
+#define CRYPT_COMPAT_LEGACY_INTEGRITY_RECALC (1 << 2)
 
 /**
  * Convert to new type for already existing device.
@@ -1118,6 +1122,8 @@ int crypt_keyslot_destroy(struct crypt_device *cd, int keyslot);
 #define CRYPT_ACTIVATE_NO_READ_WORKQUEUE (1 << 24)
 /** dm-crypt: bypass internal workqueue and process write requests synchronously. */
 #define CRYPT_ACTIVATE_NO_WRITE_WORKQUEUE (1 << 25)
+/** dm-integrity: reset automatic recalculation */
+#define CRYPT_ACTIVATE_RECALCULATE_RESET (1 << 26)
 
 /**
  * Active device runtime attributes
@@ -1464,6 +1470,17 @@ crypt_status_info crypt_status(struct crypt_device *cd, const char *name);
  * @return @e 0 on success or negative errno value otherwise.
  */
 int crypt_dump(struct crypt_device *cd);
+
+/**
+ * Dump JSON-formatted information about LUKS2 device
+ *
+ * @param cd crypt device handle (only LUKS2 format supported)
+ * @param json buffer with JSON, if NULL use log callback for output
+ * @param flags dump flags (reserved)
+ *
+ * @return @e 0 on success or negative errno value otherwise.
+ */
+int crypt_dump_json(struct crypt_device *cd, const char **json, uint32_t flags);
 
 /**
  * Get cipher used in device.
@@ -2155,7 +2172,8 @@ typedef int (*crypt_token_open_func) (
  *
  * @param cd crypt device handle
  * @param token token id
- * @param pin passphrase (or PIN) to unlock token
+ * @param pin passphrase (or PIN) to unlock token (may be binary data)
+ * @param pin_size size of @e pin
  * @param buffer returned allocated buffer with password
  * @param buffer_len length of the buffer
  * @param usrptr user data in @link crypt_activate_by_token @endlink
@@ -2164,6 +2182,7 @@ typedef int (*crypt_token_open_pin_func) (
 	struct crypt_device *cd,
 	int token,
 	const char *pin,
+	size_t pin_size,
 	char **buffer,
 	size_t *buffer_len,
 	void *usrptr);
@@ -2206,6 +2225,16 @@ typedef int (*crypt_token_validate_func) (struct crypt_device *cd, const char *j
 typedef void (*crypt_token_dump_func) (struct crypt_device *cd, const char *json);
 
 /**
+ * Token handler version function prototype.
+ * This function is supposed to return pointer to version string information.
+ *
+ * @note The returned string is advised to contain only version.
+ *	 For example '1.0.0' or 'v1.2.3.4'.
+ *
+ */
+typedef const char * (*crypt_token_version_func) (void);
+
+/**
  * Token handler
  */
 typedef struct  {
@@ -2214,7 +2243,6 @@ typedef struct  {
 	crypt_token_buffer_free_func buffer_free; /**< token handler buffer_free function (optional) */
 	crypt_token_validate_func validate; /**< token handler validate function (optional) */
 	crypt_token_dump_func dump; /**< token handler dump function (optional) */
-	crypt_token_open_pin_func open_pin; /**< open with passphrase function (optional) */
 } crypt_token_handler;
 
 /**
@@ -2226,19 +2254,23 @@ typedef struct  {
  */
 int crypt_token_register(const crypt_token_handler *handler);
 
-/** ABI version for external token in libcryptsetup-token-<name>.so */
-#define CRYPT_TOKEN_ABI_VERSION1 "CRYPTSETUP_TOKEN_1.0"
-/** ABI exported symbol for external token */
-#define CRYPT_TOKEN_ABI_HANDLER  "cryptsetup_token_handler"
-
 /**
- * Find external library, load and register token handler
- *
- * @param name token name to register
- *
- * @return @e 0 on success or negative errno value otherwise.
+ * Report external token handlers (plugins) support
+ 
+ * @return @e 0 when enabled or negative errno value otherwise.
  */
-int crypt_token_load(struct crypt_device *cd, const char *name);
+int crypt_token_external_support(void);
+
+/** ABI version for external token in libcryptsetup-token-<name>.so */
+#define CRYPT_TOKEN_ABI_VERSION1    "CRYPTSETUP_TOKEN_1.0"
+
+/** ABI exported symbol for external token */
+#define CRYPT_TOKEN_ABI_OPEN        "cryptsetup_token_open" /* mandatory */
+#define CRYPT_TOKEN_ABI_OPEN_PIN    "cryptsetup_token_open_pin"
+#define CRYPT_TOKEN_ABI_BUFFER_FREE "cryptsetup_token_buffer_free"
+#define CRYPT_TOKEN_ABI_VALIDATE    "cryptsetup_token_validate"
+#define CRYPT_TOKEN_ABI_DUMP        "cryptsetup_token_dump"
+#define CRYPT_TOKEN_ABI_VERSION     "cryptsetup_token_version"
 
 /**
  * Activate device or check key using a token.
@@ -2251,11 +2283,45 @@ int crypt_token_load(struct crypt_device *cd, const char *name);
  *
  * @return unlocked key slot number or negative errno otherwise.
  *
+ * @note EPERM errno means token provided passphrase successfully, but
+ *       passphrase did not unlock any keyslot associated with the token.
+ *
+ * @note ENOENT errno means no token (or subsequently assigned keyslot) was
+ * 	 eligible to unlock device.
+ *
  * @note EAGAIN errno means that token is PIN protected and you should call
- *       @link crypt_activate_by_pin_token @endlink with PIN
+ *       @link crypt_activate_by_token_pin @endlink with PIN
  */
 int crypt_activate_by_token(struct crypt_device *cd,
 	const char *name,
+	int token,
+	void *usrptr,
+	uint32_t flags);
+
+/**
+ * Activate device or check key using specific token type.
+ *
+ * @param cd crypt device handle
+ * @param name name of device to create, if @e NULL only check token
+ * @param type restrict type of token, if @e NULL all types are allowed
+ * @param token requested token to check or CRYPT_ANY_TOKEN to check all
+ * @param usrptr provided identification in callback
+ * @param flags activation flags
+ *
+ * @return unlocked key slot number or negative errno otherwise.
+ *
+ * @note EPERM errno means token provided passphrase successfully, but
+ *       passphrase did not unlock any keyslot associated with the token.
+ *
+ * @note ENOENT errno means no token of given type (or subsequently assigned keyslot)
+ * 	 was eligible to unlock device.
+ *
+ * @note EAGAIN errno means that token is PIN protected and you should call
+ *       @link crypt_activate_by_token_pin @endlink with PIN
+ */
+int crypt_activate_by_token_type(struct crypt_device *cd,
+	const char *name,
+	const char *type,
 	int token,
 	void *usrptr,
 	uint32_t flags);
@@ -2265,17 +2331,28 @@ int crypt_activate_by_token(struct crypt_device *cd,
  *
  * @param cd crypt device handle
  * @param name name of device to create, if @e NULL only check token
+ * @param type restrict type of token, if @e NULL all types are allowed
  * @param token requested token to check or CRYPT_ANY_TOKEN to check all
- * @param pin passphrase (or PIN) to unlock token
+ * @param pin passphrase (or PIN) to unlock token (may be binary data)
+ * @param pin_size size of @e pin
  * @param usrptr provided identification in callback
  * @param flags activation flags
  *
  * @return unlocked key slot number or negative errno otherwise.
+ *
+ * @note EPERM errno means pin did not match or token provided passphrase
+ *       successfully, but passphrase did not unlock any keyslot associated
+ *       with the token.
+ *
+ * @note ENOENT errno means no token (or subsequently assigned keyslot) was
+ * 	 eligible to unlock device.
  */
-int crypt_activate_by_pin_token(struct crypt_device *cd,
+int crypt_activate_by_token_pin(struct crypt_device *cd,
 	const char *name,
+	const char *type,
 	int token,
 	const char *pin,
+	size_t pin_size,
 	void *usrptr,
 	uint32_t flags);
 /** @} */

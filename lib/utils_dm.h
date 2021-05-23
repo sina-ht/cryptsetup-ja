@@ -3,8 +3,8 @@
  *
  * Copyright (C) 2004 Jana Saout <jana@saout.de>
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2020 Milan Broz
+ * Copyright (C) 2009-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2021 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -72,6 +72,8 @@ static inline uint32_t act2dmflags(uint32_t act_flags)
 #define DM_INTEGRITY_DISCARDS_SUPPORTED (1 << 23) /* dm-integrity discards/TRIM option is supported */
 #define DM_VERITY_PANIC_CORRUPTION_SUPPORTED (1 << 24) /* dm-verity panic on corruption  */
 #define DM_CRYPT_NO_WORKQUEUE_SUPPORTED (1 << 25) /* dm-crypt suppot for bypassing workqueues  */
+#define DM_INTEGRITY_FIX_HMAC_SUPPORTED (1 << 26) /* hmac covers also superblock */
+#define DM_INTEGRITY_RESET_RECALC_SUPPORTED (1 << 27) /* dm-integrity automatic recalculation supported */
 
 typedef enum { DM_CRYPT = 0, DM_VERITY, DM_INTEGRITY, DM_LINEAR, DM_ERROR, DM_ZERO, DM_UNKNOWN } dm_target_type;
 enum tdirection { TARGET_SET = 1, TARGET_QUERY };
@@ -121,9 +123,8 @@ struct dm_target {
 		const char *root_hash_sig_key_desc;
 
 		uint64_t hash_offset;	/* hash offset in blocks (not header) */
-		uint64_t hash_blocks;	/* size of hash device (in hash blocks) */
 		uint64_t fec_offset;	/* FEC offset in blocks (not header) */
-		uint64_t fec_blocks;	/* size of FEC device (in hash blocks) */
+		uint64_t fec_blocks;	/* FEC blocks covering data + hash + padding (foreign metadata)*/
 		struct crypt_params_verity *vp;
 	} verity;
 	struct {
@@ -149,6 +150,8 @@ struct dm_target {
 		struct device *meta_device;
 
 		bool fix_padding;
+		bool fix_hmac;
+		bool legacy_recalc;
 	} integrity;
 	struct {
 		uint64_t offset;
@@ -188,8 +191,8 @@ int dm_crypt_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t seg
 	uint32_t tag_size, uint32_t sector_size);
 int dm_verity_target_set(struct dm_target *tgt, uint64_t seg_offset, uint64_t seg_size,
 	struct device *data_device, struct device *hash_device, struct device *fec_device,
-	const char *root_hash, uint32_t root_hash_size, const char *root_hash_sig_key_desc,
-	uint64_t hash_offset_block, uint64_t hash_blocks, struct crypt_params_verity *vp);
+	const char *root_hash, uint32_t root_hash_size, const char* root_hash_sig_key_desc,
+	uint64_t hash_offset_block, uint64_t fec_blocks, struct crypt_params_verity *vp);
 int dm_integrity_target_set(struct crypt_device *cd,
 	struct dm_target *tgt, uint64_t seg_offset, uint64_t seg_size,
 	struct device *meta_device,

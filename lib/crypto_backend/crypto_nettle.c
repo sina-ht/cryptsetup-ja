@@ -1,8 +1,8 @@
 /*
  * Nettle crypto backend implementation
  *
- * Copyright (C) 2011-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2011-2020 Milan Broz
+ * Copyright (C) 2011-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2011-2021 Milan Broz
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -301,12 +301,16 @@ int crypt_hmac_init(struct crypt_hmac **ctx, const char *name,
 
 
 	h->hash = _get_alg(name);
-	if (!h->hash)
-		goto bad;
+	if (!h->hash) {
+		free(h);
+		return -EINVAL;
+	}
 
 	h->key = malloc(key_length);
-	if (!h->key)
-		goto bad;
+	if (!h->key) {
+		free(h);
+		return -ENOMEM;
+	}
 
 	memcpy(h->key, key, key_length);
 	h->key_length = key_length;
@@ -316,9 +320,6 @@ int crypt_hmac_init(struct crypt_hmac **ctx, const char *name,
 
 	*ctx = h;
 	return 0;
-bad:
-	free(h);
-	return -EINVAL;
 }
 
 static void crypt_hmac_restart(struct crypt_hmac *ctx)
@@ -351,7 +352,10 @@ void crypt_hmac_destroy(struct crypt_hmac *ctx)
 }
 
 /* RNG - N/A */
-int crypt_backend_rng(char *buffer, size_t length, int quality, int fips)
+int crypt_backend_rng(char *buffer __attribute__((unused)),
+		      size_t length __attribute__((unused)),
+		      int quality __attribute__((unused)),
+		      int fips __attribute__((unused)))
 {
 	return -EINVAL;
 }
@@ -429,7 +433,7 @@ int crypt_cipher_decrypt(struct crypt_cipher *ctx,
 	return crypt_cipher_decrypt_kernel(&ctx->ck, in, out, length, iv, iv_length);
 }
 
-bool crypt_cipher_kernel_only(struct crypt_cipher *ctx)
+bool crypt_cipher_kernel_only(struct crypt_cipher *ctx __attribute__((unused)))
 {
 	return true;
 }

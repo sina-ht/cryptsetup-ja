@@ -1,8 +1,8 @@
 /*
  * LUKS - Linux Unified Key Setup v2, kernel keyring token
  *
- * Copyright (C) 2016-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2016-2020 Ondrej Kozina
+ * Copyright (C) 2016-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2016-2021 Ondrej Kozina
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,7 +23,7 @@
 
 #include "luks2_internal.h"
 
-static int keyring_open(struct crypt_device *cd,
+int keyring_open(struct crypt_device *cd,
 				int token,
 				char **buffer,
 				size_t *buffer_len,
@@ -45,16 +45,16 @@ static int keyring_open(struct crypt_device *cd,
 	r = keyring_get_passphrase(json_object_get_string(jobj_key), buffer, buffer_len);
 	if (r == -ENOTSUP) {
 		log_dbg(cd, "Kernel keyring features disabled.");
-		return -EINVAL;
+		return -ENOENT;
 	} else if (r < 0) {
 		log_dbg(cd, "keyring_get_passphrase failed (error %d)", r);
-		return -EINVAL;
+		return -EPERM;
 	}
 
 	return 0;
 }
 
-static int keyring_validate(struct crypt_device *cd __attribute__((unused)),
+int keyring_validate(struct crypt_device *cd __attribute__((unused)),
 				    const char *json)
 {
 	enum json_tokener_error jerr;
@@ -92,7 +92,7 @@ out:
 	return r;
 }
 
-static void keyring_dump(struct crypt_device *cd, const char *json)
+void keyring_dump(struct crypt_device *cd, const char *json)
 {
 	enum json_tokener_error jerr;
 	json_object *jobj_token, *jobj_key;
@@ -114,14 +114,18 @@ static void keyring_dump(struct crypt_device *cd, const char *json)
 int LUKS2_token_keyring_json(char *buffer, size_t buffer_size,
 	const struct crypt_token_params_luks2_keyring *keyring_params)
 {
-	snprintf(buffer, buffer_size, "{ \"type\": \"%s\", \"keyslots\":[],\"key_description\":\"%s\"}",
+	int r;
+
+	r = snprintf(buffer, buffer_size, "{ \"type\": \"%s\", \"keyslots\":[],\"key_description\":\"%s\"}",
 		 LUKS2_TOKEN_KEYRING, keyring_params->key_description);
+	if (r < 0 || (size_t)r >= buffer_size)
+		return -EINVAL;
 
 	return 0;
 }
 
-int LUKS2_token_keyring_get(struct crypt_device *cd, struct luks2_hdr *hdr, int token,
-	struct crypt_token_params_luks2_keyring *keyring_params)
+int LUKS2_token_keyring_get(struct crypt_device *cd __attribute__((unused)), struct luks2_hdr *hdr,
+	int token, struct crypt_token_params_luks2_keyring *keyring_params)
 {
 	json_object *jobj_token, *jobj;
 
@@ -135,10 +139,3 @@ int LUKS2_token_keyring_get(struct crypt_device *cd, struct luks2_hdr *hdr, int 
 
 	return token;
 }
-
-const crypt_token_handler keyring_handler = {
-	.name = LUKS2_TOKEN_KEYRING,
-	.open = keyring_open,
-	.validate = keyring_validate,
-	.dump = keyring_dump
-};

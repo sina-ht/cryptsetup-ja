@@ -1,8 +1,8 @@
 /*
  * OPENSSL crypto backend implementation
  *
- * Copyright (C) 2010-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2010-2020 Milan Broz
+ * Copyright (C) 2010-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2010-2021 Milan Broz
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -61,6 +61,11 @@ struct crypt_cipher {
 		size_t iv_length;
 	} lib;
 	} u;
+};
+
+struct hash_alg {
+	const char *name;
+	const char *openssl_name;
 };
 
 /*
@@ -147,11 +152,36 @@ const char *crypt_backend_version(void)
 	return openssl_backend_version();
 }
 
+static const char *crypt_hash_compat_name(const char *name)
+{
+	const char *hash_name = name;
+	int i;
+	static struct hash_alg hash_algs[] = {
+	{ "blake2b-512", "blake2b512" },
+	{ "blake2s-256", "blake2s256" },
+	{ NULL,          NULL,         }};
+
+	if (!name)
+		return NULL;
+
+	i = 0;
+	while (hash_algs[i].name) {
+		if (!strcasecmp(name, hash_algs[i].name)) {
+			hash_name =  hash_algs[i].openssl_name;
+			break;
+		}
+		i++;
+	}
+
+	return hash_name;
+}
+
 /* HASH */
 int crypt_hash_size(const char *name)
 {
-	const EVP_MD *hash_id = EVP_get_digestbyname(name);
+	const EVP_MD *hash_id;
 
+	hash_id = EVP_get_digestbyname(crypt_hash_compat_name(name));
 	if (!hash_id)
 		return -EINVAL;
 
@@ -172,7 +202,7 @@ int crypt_hash_init(struct crypt_hash **ctx, const char *name)
 		return -ENOMEM;
 	}
 
-	h->hash_id = EVP_get_digestbyname(name);
+	h->hash_id = EVP_get_digestbyname(crypt_hash_compat_name(name));
 	if (!h->hash_id) {
 		EVP_MD_CTX_free(h->md);
 		free(h);
@@ -257,7 +287,7 @@ int crypt_hmac_init(struct crypt_hmac **ctx, const char *name,
 		return -ENOMEM;
 	}
 
-	h->hash_id = EVP_get_digestbyname(name);
+	h->hash_id = EVP_get_digestbyname(crypt_hash_compat_name(name));
 	if (!h->hash_id) {
 		HMAC_CTX_free(h->md);
 		free(h);
@@ -311,7 +341,8 @@ void crypt_hmac_destroy(struct crypt_hmac *ctx)
 }
 
 /* RNG */
-int crypt_backend_rng(char *buffer, size_t length, int quality, int fips)
+int crypt_backend_rng(char *buffer, size_t length,
+	int quality __attribute__((unused)), int fips __attribute__((unused)))
 {
 	if (RAND_bytes((unsigned char *)buffer, length) != 1)
 		return -EINVAL;
@@ -333,7 +364,7 @@ int crypt_pbkdf(const char *kdf, const char *hash,
 		return -EINVAL;
 
 	if (!strcmp(kdf, "pbkdf2")) {
-		hash_id = EVP_get_digestbyname(hash);
+		hash_id = EVP_get_digestbyname(crypt_hash_compat_name(hash));
 		if (!hash_id)
 			return -EINVAL;
 
@@ -372,7 +403,7 @@ static int _cipher_init(EVP_CIPHER_CTX **hd_enc, EVP_CIPHER_CTX **hd_dec, const 
 		key_bits /= 2;
 
 	r = snprintf(cipher_name, sizeof(cipher_name), "%s-%d-%s", name, key_bits, mode);
-	if (r < 0 || r >= (int)sizeof(cipher_name))
+	if (r < 0 || (size_t)r >= sizeof(cipher_name))
 		return -EINVAL;
 
 	type = EVP_get_cipherbyname(cipher_name);
@@ -508,7 +539,7 @@ bool crypt_cipher_kernel_only(struct crypt_cipher *ctx)
 	return ctx->use_kernel;
 }
 
-int crypt_bitlk_decrypt_key(const void *key, size_t key_length,
+int crypt_bitlk_decrypt_key(const void *key, size_t key_length __attribute__((unused)),
 			    const char *in, char *out, size_t length,
 			    const char *iv, size_t iv_length,
 			    const char *tag, size_t tag_length)

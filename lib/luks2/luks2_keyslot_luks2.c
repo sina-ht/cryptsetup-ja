@@ -1,8 +1,8 @@
 /*
  * LUKS - Linux Unified Key Setup v2, LUKS2 type keyslot handler
  *
- * Copyright (C) 2015-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2015-2020 Milan Broz
+ * Copyright (C) 2015-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2015-2021 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -462,7 +462,7 @@ static int luks2_keyslot_alloc(struct crypt_device *cd,
 		return -EINVAL;
 
 	if (keyslot == CRYPT_ANY_SLOT)
-		keyslot = LUKS2_keyslot_find_empty(hdr);
+		keyslot = LUKS2_keyslot_find_empty(cd, hdr, 0);
 
 	if (keyslot < 0 || keyslot >= LUKS2_KEYSLOTS_MAX)
 		return -ENOMEM;
@@ -735,7 +735,7 @@ static int luks2_keyslot_update(struct crypt_device *cd,
 	return r;
 }
 
-static void luks2_keyslot_repair(struct crypt_device *cd, json_object *jobj_keyslot)
+static void luks2_keyslot_repair(struct crypt_device *cd __attribute__((unused)), json_object *jobj_keyslot)
 {
 	const char *type;
 	json_object *jobj_kdf, *jobj_type;

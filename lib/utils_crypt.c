@@ -2,8 +2,8 @@
  * utils_crypt - cipher utilities for cryptsetup
  *
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2020 Milan Broz
+ * Copyright (C) 2009-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2021 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
+#include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
 
@@ -86,7 +88,7 @@ int crypt_parse_hash_integrity_mode(const char *s, char *integrity)
 	else
 		return -EINVAL;
 
-	if (r < 0 || r == MAX_CIPHER_LEN)
+	if (r < 0 || r >= MAX_CIPHER_LEN)
 		return -EINVAL;
 
 	return 0;
@@ -99,8 +101,6 @@ int crypt_parse_integrity_mode(const char *s, char *integrity,
 
 	if (!s || !integrity)
 		return -EINVAL;
-
-	// FIXME: do not hardcode it here
 
 	/* AEAD modes */
 	if (!strcmp(s, "aead") ||
@@ -176,4 +176,11 @@ ssize_t crypt_hex_to_bytes(const char *hex, char **result, int safe_alloc)
 	}
 	*result = bytes;
 	return i;
+}
+
+bool crypt_is_cipher_null(const char *cipher_spec)
+{
+	if (!cipher_spec)
+		return false;
+	return (strstr(cipher_spec, "cipher_null") || !strcmp(cipher_spec, "null"));
 }

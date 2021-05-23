@@ -1,8 +1,8 @@
 /*
  * LUKS - Linux Unified Key Setup v2
  *
- * Copyright (C) 2015-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2015-2020 Milan Broz
+ * Copyright (C) 2015-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2015-2021 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -43,6 +43,8 @@
 
 #define LUKS2_BUILTIN_TOKEN_PREFIX "luks2-"
 #define LUKS2_BUILTIN_TOKEN_PREFIX_LEN 6
+
+#define LUKS2_TOKEN_NAME_MAX 64
 
 #define LUKS2_TOKEN_KEYRING LUKS2_BUILTIN_TOKEN_PREFIX "keyring"
 
@@ -158,6 +160,7 @@ int LUKS2_hdr_read(struct crypt_device *cd, struct luks2_hdr *hdr, int repair);
 int LUKS2_hdr_write(struct crypt_device *cd, struct luks2_hdr *hdr);
 int LUKS2_hdr_write_force(struct crypt_device *cd, struct luks2_hdr *hdr);
 int LUKS2_hdr_dump(struct crypt_device *cd, struct luks2_hdr *hdr);
+int LUKS2_hdr_dump_json(struct crypt_device *cd, struct luks2_hdr *hdr,	const char **json);
 
 int LUKS2_hdr_uuid(struct crypt_device *cd,
 	struct luks2_hdr *hdr,
@@ -224,6 +227,11 @@ int LUKS2_keyslot_priority_set(struct crypt_device *cd,
 	crypt_keyslot_priority priority,
 	int commit);
 
+int LUKS2_keyslot_swap(struct crypt_device *cd,
+	struct luks2_hdr *hdr,
+	int keyslot,
+	int keyslot2);
+
 /*
  * Generic LUKS2 token
  */
@@ -244,6 +252,12 @@ int LUKS2_token_is_assigned(struct crypt_device *cd,
 	int keyslot,
 	int token);
 
+int LUKS2_token_assignment_copy(struct crypt_device *cd,
+			struct luks2_hdr *hdr,
+			int keyslot_from,
+			int keyslot_to,
+			int commit);
+
 int LUKS2_token_create(struct crypt_device *cd,
 	struct luks2_hdr *hdr,
 	int token,
@@ -259,15 +273,11 @@ int LUKS2_token_open_and_activate(struct crypt_device *cd,
 	struct luks2_hdr *hdr,
 	int token,
 	const char *name,
+	const char *type,
 	const char *pin,
+	size_t pin_size,
 	uint32_t flags,
 	void *usrptr);
-
-int LUKS2_token_open_and_activate_any(struct crypt_device *cd,
-	struct luks2_hdr *hdr,
-	const char *name,
-	const char *pin,
-	uint32_t flags);
 
 int LUKS2_token_keyring_get(struct crypt_device *cd,
 	struct luks2_hdr *hdr,
@@ -311,6 +321,8 @@ int LUKS2_digest_segment_assign(struct crypt_device *cd,
 	int commit);
 
 int LUKS2_digest_by_keyslot(struct luks2_hdr *hdr, int keyslot);
+
+int LUKS2_digest_by_segment(struct luks2_hdr *hdr, int segment);
 
 int LUKS2_digest_create(struct crypt_device *cd,
 	const char *type,
@@ -368,7 +380,7 @@ int LUKS2_keyslot_params_default(struct crypt_device *cd, struct luks2_hdr *hdr,
 int LUKS2_get_volume_key_size(struct luks2_hdr *hdr, int segment);
 int LUKS2_get_keyslot_stored_key_size(struct luks2_hdr *hdr, int keyslot);
 const char *LUKS2_get_keyslot_cipher(struct luks2_hdr *hdr, int keyslot, size_t *key_size);
-int LUKS2_keyslot_find_empty(struct luks2_hdr *hdr);
+int LUKS2_keyslot_find_empty(struct crypt_device *cd, struct luks2_hdr *hdr, size_t keylength);
 int LUKS2_keyslot_active_count(struct luks2_hdr *hdr, int segment);
 crypt_keyslot_info LUKS2_keyslot_info(struct luks2_hdr *hdr, int keyslot);
 int LUKS2_keyslot_area(struct luks2_hdr *hdr,

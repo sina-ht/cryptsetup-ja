@@ -1,8 +1,8 @@
 /*
  * Linux kernel userspace API crypto backend implementation
  *
- * Copyright (C) 2010-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2010-2020 Milan Broz
+ * Copyright (C) 2010-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2010-2021 Milan Broz
  *
  * This file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -29,7 +29,6 @@
 #include <linux/if_alg.h>
 #include "crypto_backend_internal.h"
 
-/* FIXME: remove later */
 #ifndef AF_ALG
 #define AF_ALG 38
 #endif
@@ -62,6 +61,14 @@ static struct hash_alg hash_algs[] = {
 	{ "stribog256","streebog256", 32,  64 },
 	{ "stribog512","streebog512", 64,  64 },
 	{ "sm3",       "sm3",         32,  64 },
+	{ "blake2b-160","blake2b-160",20, 128 },
+	{ "blake2b-256","blake2b-256",32, 128 },
+	{ "blake2b-384","blake2b-384",48, 128 },
+	{ "blake2b-512","blake2b-512",64, 128 },
+	{ "blake2s-128","blake2s-128",16,  64 },
+	{ "blake2s-160","blake2s-160",20,  64 },
+	{ "blake2s-224","blake2s-224",28,  64 },
+	{ "blake2s-256","blake2s-256",32,  64 },
 	{ NULL,        NULL,           0,   0 }
 };
 
@@ -118,7 +125,7 @@ int crypt_backend_init(void)
 		.salg_type = "hash",
 		.salg_name = "sha256",
 	};
-	int tfmfd = -1, opfd = -1;
+	int r, tfmfd = -1, opfd = -1;
 
 	if (crypto_backend_initialised)
 		return 0;
@@ -126,14 +133,16 @@ int crypt_backend_init(void)
 	if (uname(&uts) == -1 || strcmp(uts.sysname, "Linux"))
 		return -EINVAL;
 
+	r = snprintf(version, sizeof(version), "%s %s kernel cryptoAPI",
+		uts.sysname, uts.release);
+	if (r < 0 || (size_t)r >= sizeof(version))
+		return -EINVAL;
+
 	if (crypt_kernel_socket_init(&sa, &tfmfd, &opfd, NULL, 0) < 0)
 		return -EINVAL;
 
 	close(tfmfd);
 	close(opfd);
-
-	snprintf(version, sizeof(version), "%s %s kernel cryptoAPI",
-		 uts.sysname, uts.release);
 
 	crypto_backend_initialised = 1;
 	return 0;
@@ -255,6 +264,7 @@ int crypt_hmac_init(struct crypt_hmac **ctx, const char *name,
 		.salg_family = AF_ALG,
 		.salg_type = "hash",
 	};
+	int r;
 
 	h = malloc(sizeof(*h));
 	if (!h)
@@ -267,8 +277,12 @@ int crypt_hmac_init(struct crypt_hmac **ctx, const char *name,
 	}
 	h->hash_len = ha->length;
 
-	snprintf((char *)sa.salg_name, sizeof(sa.salg_name),
+	r = snprintf((char *)sa.salg_name, sizeof(sa.salg_name),
 		 "hmac(%s)", ha->kernel_name);
+	if (r < 0 || (size_t)r >= sizeof(sa.salg_name)) {
+		free(h);
+		return -EINVAL;
+	}
 
 	if (crypt_kernel_socket_init(&sa, &h->tfmfd, &h->opfd, key, key_length) < 0) {
 		free(h);
@@ -315,7 +329,8 @@ void crypt_hmac_destroy(struct crypt_hmac *ctx)
 }
 
 /* RNG - N/A */
-int crypt_backend_rng(char *buffer, size_t length, int quality, int fips)
+int crypt_backend_rng(char *buffer __attribute__((unused)), size_t length __attribute__((unused)),
+	int quality __attribute__((unused)), int fips __attribute__((unused)))
 {
 	return -EINVAL;
 }
@@ -388,7 +403,7 @@ int crypt_cipher_decrypt(struct crypt_cipher *ctx,
 	return crypt_cipher_decrypt_kernel(&ctx->ck, in, out, length, iv, iv_length);
 }
 
-bool crypt_cipher_kernel_only(struct crypt_cipher *ctx)
+bool crypt_cipher_kernel_only(struct crypt_cipher *ctx __attribute__((unused)))
 {
 	return true;
 }

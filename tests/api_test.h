@@ -1,9 +1,9 @@
 /*
  * cryptsetup library API check functions
  *
- * Copyright (C) 2009-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2020 Milan Broz
- * Copyright (C) 2016-2020 Ondrej Kozina
+ * Copyright (C) 2009-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2021 Milan Broz
+ * Copyright (C) 2016-2021 Ondrej Kozina
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -61,6 +61,7 @@ void check_ok(int status, int line, const char *func);
 void check_ok_return(int status, int line, const char *func);
 void check_ko(int status, int line, const char *func);
 void check_equal(int line, const char *func, int64_t x, int64_t y);
+void check_ge_equal(int line, const char *func, int64_t x, int64_t y);
 void check_null(int line, const char *func, const void *x);
 void check_notnull(int line, const char *func, const void *x);
 void xlog(const char *msg, const char *tst, const char *func, int line, const char *txt);
@@ -79,6 +80,10 @@ void xlog(const char *msg, const char *tst, const char *func, int line, const ch
 			     xlog("(equal)  ", #x " == " #y, __FUNCTION__, __LINE__, NULL); \
 			     if (_x != _y) check_equal(__LINE__, __FUNCTION__, _x, _y); \
 			} while(0)
+#define GE_(x, y)	do { int64_t _x = (x), _y = (y); \
+			     xlog("(g_equal)", #x " == " #y, __FUNCTION__, __LINE__, NULL); \
+			     if (_x < _y) check_ge_equal(__LINE__, __FUNCTION__, _x, _y); \
+			} while(0)
 #define NULL_(x)	do { xlog("(null)   ", #x, __FUNCTION__, __LINE__, NULL); \
 			     check_null(__LINE__, __FUNCTION__, (x)); \
 			} while(0)
@@ -91,9 +96,9 @@ void xlog(const char *msg, const char *tst, const char *func, int line, const ch
 
 #define CRYPT_FREE(x) do { crypt_free(x); x = NULL; } while (0)
 
-#define SECTOR_SHIFT 9L
-#define SECTOR_SIZE 512
-#define TST_LOOP_FILE_SIZE (((1<<20)*100)>>SECTOR_SHIFT)
+#define TST_SECTOR_SHIFT 9L
+#define TST_SECTOR_SIZE 512
+#define TST_LOOP_FILE_SIZE (((1 << 20) * 100) >> TST_SECTOR_SHIFT)
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 #define DIV_ROUND_UP_MODULO(n,d) (DIV_ROUND_UP(n,d)*(d))
 

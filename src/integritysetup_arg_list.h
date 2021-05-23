@@ -1,8 +1,8 @@
 /*
  * Integritysetup command line arguments list
  *
- * Copyright (C) 2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2020 Ondrej Kozina
+ * Copyright (C) 2020-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2020-2021 Ondrej Kozina
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -47,6 +47,10 @@ ARG(OPT_INTEGRITY_KEY_SIZE, '\0', POPT_ARG_STRING, N_("The size of the data inte
 
 ARG(OPT_INTEGRITY_LEGACY_PADDING, '\0', POPT_ARG_NONE, N_("Use inefficient legacy padding (old kernels)"), NULL, CRYPT_ARG_BOOL, {}, {})
 
+ARG(OPT_INTEGRITY_LEGACY_HMAC, '\0', POPT_ARG_NONE, N_("Do not protect superblock with HMAC (old kernels)"), NULL, CRYPT_ARG_BOOL, {}, {})
+
+ARG(OPT_INTEGRITY_LEGACY_RECALC, '\0', POPT_ARG_NONE, N_("Allow recalculating of volumes with HMAC keys (old kernels)"), NULL, CRYPT_ARG_BOOL, {}, OPT_INTEGRITY_RECALCULATE_ACTIONS)
+
 ARG(OPT_INTEGRITY_NO_JOURNAL, 'D', POPT_ARG_NONE, N_("Disable journal for integrity device"), NULL, CRYPT_ARG_BOOL, {}, {})
 
 ARG(OPT_INTERLEAVE_SECTORS, '\0', POPT_ARG_STRING, N_("Interleave sectors"), N_("SECTORS"), CRYPT_ARG_UINT32, {}, OPT_INTERLEAVE_SECTORS_ACTIONS)
@@ -76,6 +80,8 @@ ARG(OPT_PROGRESS_FREQUENCY, '\0', POPT_ARG_STRING, N_("Progress line update (in 
 ARG(OPT_INTEGRITY_BITMAP_MODE, 'B', POPT_ARG_NONE, N_("Use bitmap to track changes and disable journal for integrity device"), NULL, CRYPT_ARG_BOOL, {}, {})
 
 ARG(OPT_INTEGRITY_RECALCULATE, '\0', POPT_ARG_NONE, N_("Recalculate initial tags automatically."), NULL, CRYPT_ARG_BOOL, {}, OPT_INTEGRITY_RECALCULATE_ACTIONS)
+
+ARG(OPT_INTEGRITY_RECALCULATE_RESET, '\0', POPT_ARG_NONE, N_("Reset automatic recalculate position."), NULL, CRYPT_ARG_BOOL, {}, OPT_INTEGRITY_RECALCULATE_ACTIONS)
 
 ARG(OPT_INTEGRITY_RECOVERY_MODE, 'R', POPT_ARG_NONE, N_("Recovery mode (no journal, no tag checking)"), NULL, CRYPT_ARG_BOOL, {}, {})
 

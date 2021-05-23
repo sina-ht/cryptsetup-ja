@@ -1,4 +1,4 @@
-.TH CRYPTSETUP "8" "December 2020" "cryptsetup" "Maintenance Commands"
+.TH CRYPTSETUP "8" "January 2021" "cryptsetup" "Maintenance Commands"
 .SH NAME
 cryptsetup - manage plain dm-crypt and LUKS encrypted volumes
 .SH SYNOPSIS
@@ -502,7 +502,10 @@ To dump unbound key (LUKS2 format only), \-\-unbound parameter, specific \-\-key
 id and proper passphrase has to be supplied, either interactively or via \-\-key\-file.
 Optional \-\-master\-key\-file parameter enables unbound keyslot dump to a file.
 
-\fB<options>\fR can be [\-\-dump\-master\-key, \-\-key\-file,
+To dump LUKS2 JSON metadata (without basic heade information like UUID) use
+\-\-dump\-json\-metadata option.
+
+\fB<options>\fR can be [\-\-dump\-master\-key, \-\-dump\-json\-metadata, \-\-key\-file,
 \-\-keyfile\-offset, \-\-keyfile\-size, \-\-header, \-\-disable\-locks,
 \-\-master\-key\-file, \-\-type, \-\-unbound, \-\-key-slot].
 
@@ -976,6 +979,10 @@ without having to know an existing one.
 For \fIopen\fR this allows one to open the LUKS device
 without giving a passphrase.
 .TP
+.B "\-\-dump\-json\-metadata"
+For \fIluksDump\fR (LUKS2 only) this option prints content
+of LUKS2 header JSON metadata area.
+.TP
 .B "\-\-dump\-master\-key"
 For \fIluksDump\fR this option includes the master key in the displayed
 information. Use with care, as the master key can be used to
@@ -1321,8 +1328,15 @@ action asks for passphrase to proceed further.
 .TP
 .B "\-\-sector\-size <bytes>"
 Set sector size for use with disk encryption. It must be power of two
-and in range 512 - 4096 bytes. The default is 512 bytes sectors.
-This option is available only in the LUKS2 mode.
+and in range 512 - 4096 bytes. This option is available only in the LUKS2
+or plain modes.
+
+The default for plain mode is 512 bytes. For LUKS2 devices it's established
+during luksFormat operation based on parameters provided by underlying data device.
+For native 4K block devices it's 4096 bytes. For 4K/512e (4K physical sector size
+with 512 bytes emulation) it's 4096 bytes. For drives reporting only 512 bytes
+block size it remains 512 bytes. If data device is regular file put in filesystem
+it's 4096 bytes.
 
 Note that if sector size is higher than underlying device hardware sector
 and there is not integrity protection that uses data journal, using
@@ -1708,7 +1722,10 @@ and for authentication). Both these keys are stored in one LUKS keyslot.
 \fBWARNING:\fR All support for authenticated modes is experimental
 and there are only some modes available for now. Note that there
 are a very few authenticated encryption algorithms that are suitable
-for disk encryption.
+for disk encryption. You also cannot use CRC32 or any other non-cryptographic
+checksums (other than the special integrity mode "none"). If for some reason
+you want to have integrity control without using authentication mode, then you
+should separately configure dm-integrity independently of LUKS2.
 
 .SH NOTES ON LOOPBACK DEVICE USE
 Cryptsetup is usually used directly on a block device (disk
@@ -1762,9 +1779,9 @@ Copyright \(co 2004-2006 Clemens Fruhwirth
 .br
 Copyright \(co 2012-2014 Arno Wagner
 .br
-Copyright \(co 2009-2020 Red Hat, Inc.
+Copyright \(co 2009-2021 Red Hat, Inc.
 .br
-Copyright \(co 2009-2020 Milan Broz
+Copyright \(co 2009-2021 Milan Broz
 
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

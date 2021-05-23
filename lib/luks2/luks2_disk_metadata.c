@@ -1,8 +1,8 @@
 /*
  * LUKS - Linux Unified Key Setup v2
  *
- * Copyright (C) 2015-2020 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2015-2020 Milan Broz
+ * Copyright (C) 2015-2021 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2015-2021 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -175,13 +175,13 @@ static void hdr_to_disk(struct luks2_hdr *hdr,
 	hdr_disk->hdr_offset  = cpu_to_be64(offset);
 	hdr_disk->seqid       = cpu_to_be64(hdr->seqid);
 
-	strncpy(hdr_disk->label, hdr->label, LUKS2_LABEL_L);
+	memcpy(hdr_disk->label, hdr->label, MIN(strlen(hdr->label), LUKS2_LABEL_L));
 	hdr_disk->label[LUKS2_LABEL_L - 1] = '\0';
-	strncpy(hdr_disk->subsystem, hdr->subsystem, LUKS2_LABEL_L);
+	memcpy(hdr_disk->subsystem, hdr->subsystem, MIN(strlen(hdr->subsystem), LUKS2_LABEL_L));
 	hdr_disk->subsystem[LUKS2_LABEL_L - 1] = '\0';
-	strncpy(hdr_disk->checksum_alg, hdr->checksum_alg, LUKS2_CHECKSUM_ALG_L);
+	memcpy(hdr_disk->checksum_alg, hdr->checksum_alg, MIN(strlen(hdr->checksum_alg), LUKS2_CHECKSUM_ALG_L));
 	hdr_disk->checksum_alg[LUKS2_CHECKSUM_ALG_L - 1] = '\0';
-	strncpy(hdr_disk->uuid, hdr->uuid, LUKS2_UUID_L);
+	memcpy(hdr_disk->uuid, hdr->uuid, MIN(strlen(hdr->uuid), LUKS2_UUID_L));
 	hdr_disk->uuid[LUKS2_UUID_L - 1] = '\0';
 
 	memcpy(hdr_disk->salt, secondary ? hdr->salt2 : hdr->salt1, LUKS2_SALT_L);
@@ -300,8 +300,6 @@ static int hdr_write_disk(struct crypt_device *cd,
 
 	log_dbg(cd, "Trying to write LUKS2 header (%zu bytes) at offset %" PRIu64 ".",
 		hdr->hdr_size, offset);
-
-	/* FIXME: read-only device silent fail? */
 
 	devfd = device_open_locked(cd, device, O_RDWR);
 	if (devfd < 0)
@@ -788,14 +786,11 @@ int LUKS2_hdr_version_unlocked(struct crypt_device *cd, const char *backup_file)
 		flags |= O_DIRECT;
 
 	devfd = open(device_path(device), flags);
-	if (devfd < 0)
-		goto err;
-
-	if ((read_lseek_blockwise(devfd, device_block_size(cd, device),
+	if (devfd != -1 && (read_lseek_blockwise(devfd, device_block_size(cd, device),
 	     device_alignment(device), &hdr, sizeof(hdr), 0) == sizeof(hdr)) &&
 	    !memcmp(hdr.magic, LUKS2_MAGIC_1ST, LUKS2_MAGIC_L))
 		r = (int)be16_to_cpu(hdr.version);
-err:
+
 	if (devfd != -1)
 		close(devfd);
 
