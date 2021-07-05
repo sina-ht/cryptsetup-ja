@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: cryptsetup 2.4.0-git\n"
+"Project-Id-Version: cryptsetup 2.4.0-rc0\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
-"POT-Creation-Date: 2021-05-23 20:41+0900\n"
-"PO-Revision-Date: 2021-05-23 20:47+0900\n"
+"POT-Creation-Date: 2021-07-02 13:29+0200\n"
+"PO-Revision-Date: 2021-07-03 22:03+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -200,7 +200,7 @@ msgid "Detached metadata device is not supported for this crypt type."
 msgstr "分離したメタデータデバイスはこの暗号タイプではサポートされていません。"
 
 #: lib/setup.c:1552 lib/setup.c:1754 lib/luks2/luks2_reencrypt.c:2397
-#: src/cryptsetup.c:1309 src/cryptsetup.c:3659
+#: src/cryptsetup.c:1309 src/cryptsetup.c:3668
 msgid "Unsupported encryption sector size."
 msgstr "サポートされていない暗号化セクタサイズです。"
 
@@ -412,7 +412,7 @@ msgid "Volume %s is not suspended."
 msgstr "ボリューム %s は停止されていません。"
 
 #: lib/setup.c:3381 lib/setup.c:3750 lib/setup.c:4423 lib/setup.c:4436
-#: lib/setup.c:4444 lib/setup.c:4457 lib/setup.c:4826 lib/setup.c:6011
+#: lib/setup.c:4444 lib/setup.c:4457 lib/setup.c:4826 lib/setup.c:6004
 msgid "Volume key does not match the volume."
 msgstr "ボリュームキーがボリュームに合いません。"
 
@@ -481,14 +481,14 @@ msgstr "ルートハッシュ署名が必要です。"
 msgid "Kernel keyring missing: required for passing signature to kernel."
 msgstr "署名をカーネルに渡すのに必要なカーネルキーリングをカーネルがサポートしていません。"
 
-#: lib/setup.c:4559 lib/setup.c:6087
+#: lib/setup.c:4559 lib/setup.c:6080
 msgid "Failed to load key in kernel keyring."
 msgstr "キーをカーネルキーリングにロードできません。"
 
 #: lib/setup.c:4615
 #, c-format
 msgid "Could not cancel deferred remove from device %s."
-msgstr "デバイス %s の遅延削除のキャンセルができませんでした。"
+msgstr "デバイス %s からの遅延削除をキャンセルできませんでした。"
 
 #: lib/setup.c:4622 lib/setup.c:4638 lib/luks2/luks2_json_metadata.c:2340
 #: src/cryptsetup.c:2731
@@ -532,30 +532,30 @@ msgstr "データオフセットが %u バイトの倍数である必要があ�
 msgid "Cannot convert device %s which is still in use."
 msgstr "使用中のデバイス %s を変換できません。"
 
-#: lib/setup.c:5944
+#: lib/setup.c:5937
 #, c-format
 msgid "Failed to assign keyslot %u as the new volume key."
 msgstr "新しいボリュームキー向けのキースロット %u を確保できません。"
 
-#: lib/setup.c:6017
+#: lib/setup.c:6010
 msgid "Failed to initialize default LUKS2 keyslot parameters."
 msgstr "デフォルト LUKS2 キースロットパラメータを初期化できません。"
 
-#: lib/setup.c:6023
+#: lib/setup.c:6016
 #, c-format
 msgid "Failed to assign keyslot %d to digest."
 msgstr "ダイジェストするためのキースロット %d が確保できません。"
 
-#: lib/setup.c:6154
+#: lib/setup.c:6147
 msgid "Kernel keyring is not supported by the kernel."
 msgstr "カーネルがカーネルキーリングをサポートしていません。"
 
-#: lib/setup.c:6164 lib/luks2/luks2_reencrypt.c:3058
+#: lib/setup.c:6157 lib/luks2/luks2_reencrypt.c:3058
 #, c-format
 msgid "Failed to read passphrase from keyring (error %d)."
 msgstr "キーリングからパスフレーズが読み出せません (エラー %d)。"
 
-#: lib/setup.c:6188
+#: lib/setup.c:6181
 msgid "Failed to acquire global memory-hard access serialization lock."
 msgstr "グローバル memory-hard アクセス直列化ロックが取れません。"
 
@@ -618,7 +618,7 @@ msgstr "デバイス %s は互換性がありません。"
 #: lib/utils_device.c:562
 #, c-format
 msgid "Ignoring bogus optimal-io size for data device (%u bytes)."
-msgstr "データデバイスのにせの optimal-io サイズ (%u バイト) は無視します。"
+msgstr "データデバイスのおかしな(bogus) optimal-io サイズ (%u バイト) は無視します。"
 
 #: lib/utils_device.c:720
 #, c-format
@@ -728,7 +728,7 @@ msgstr "ロックを中止します。ロックに使うパス %s/%s が使用�
 #: lib/utils_device_locking.c:109
 #, c-format
 msgid "Locking directory %s/%s will be created with default compiled-in permissions."
-msgstr "ロックディレクトリ %s/%s はコンパイル時に決められたパーミッションで作成されます。"
+msgstr "ロックディレクトリ %s/%s がコンパイル時に指定されたパーミッションで作成されます。"
 
 #: lib/utils_device_locking.c:119
 #, c-format
@@ -1119,7 +1119,7 @@ msgstr "この操作はサポートされていません。"
 
 #: lib/bitlk/bitlk.c:1079
 msgid "Unexpected key data size."
-msgstr "予期していないキーデータサイズです。"
+msgstr "予期しないキーデータサイズです。"
 
 #: lib/bitlk/bitlk.c:1205
 msgid "This BITLK device is in an unsupported state and cannot be activated."
@@ -1274,7 +1274,7 @@ msgstr "パリティのバイト数が不正です。"
 
 #: lib/verity/verity_fec.c:239
 msgid "Invalid FEC segment length."
-msgstr "FEC セグメントの長さが不正です。"
+msgstr "FEC セグメント長が不正です。"
 
 #: lib/verity/verity_fec.c:303
 #, c-format
@@ -1291,7 +1291,7 @@ msgstr "カーネルが dm-integrity 固定メタデータアラインメント�
 
 #: lib/integrity/integrity.c:287
 msgid "Kernel refuses to activate insecure recalculate option (see legacy activation options to override)."
-msgstr "カーネルは安全でない再計算オプションの有効化を拒絶しました(強行する場合はレガジーアクティベートオプションを参照してください)。"
+msgstr "カーネルが安全でない再計算オプションを拒否しました (レガジーアクティベーションオプションでオーバーライドできます)。"
 
 #: lib/luks2/luks2_disk_metadata.c:381 lib/luks2/luks2_json_metadata.c:973
 #: lib/luks2/luks2_json_metadata.c:1268
@@ -1922,7 +1922,7 @@ msgstr "キースロットのない LUKS のボリュームキーサイズが決
 
 #: src/cryptsetup.c:1542
 msgid "Enter token PIN:"
-msgstr "トークン PIN を入力してください:"
+msgstr "トークンPINを入力してください:"
 
 #: src/cryptsetup.c:1575
 msgid "Device activated but cannot make flags persistent."
@@ -1990,12 +1990,12 @@ msgstr ""
 #: src/cryptsetup.c:2242 src/cryptsetup.c:2270
 #, c-format
 msgid "%s is not active %s device name."
-msgstr "%s はアクティブな %s デバイス名ではありません。"
+msgstr "%s はアクティブな %s デバイスではありません。"
 
 #: src/cryptsetup.c:2265
 #, c-format
 msgid "%s is not active LUKS device name or header is missing."
-msgstr "%s はアクティブな LUKS デバイスでないか、ヘッダがありません。"
+msgstr "%s はアクティブな LUKS デバイス名ではないか、ヘッダがありません。"
 
 #: src/cryptsetup.c:2303 src/cryptsetup.c:2322
 msgid "Option --header-backup-file is required."
@@ -2156,7 +2156,7 @@ msgstr "%s/%s がアクティブでオンライン暗号化可能です。\n"
 
 #: src/cryptsetup.c:3000
 msgid "LUKS2 decryption is supported with detached header device only."
-msgstr "LUKS2 復号は分離ヘッダデバイスだけサポートされています。"
+msgstr "LUKS2 復号は detached ヘッダデバイスしかサポートしていません。"
 
 #: src/cryptsetup.c:3134 src/cryptsetup.c:3140
 msgid "Not enough free keyslots for reencryption."
@@ -2180,7 +2180,7 @@ msgstr "キースロット %u のパスフレーズを入力してください: 
 #: src/cryptsetup.c:3223
 #, c-format
 msgid "Switching data encryption cipher to %s.\n"
-msgstr "データ暗号化に使う暗号を %s に変更します。\n"
+msgstr "データの暗号化用の暗号アルゴリズムを %s にします。\n"
 
 #: src/cryptsetup.c:3360
 msgid "Command requires device as argument."
@@ -2348,7 +2348,7 @@ msgstr "<add|remove|import|export> <デバイス>"
 msgid "Manipulate LUKS2 tokens"
 msgstr "LUKS2 トークンを操作します"
 
-#: src/cryptsetup.c:3486 src/veritysetup.c:418 src/integritysetup.c:464
+#: src/cryptsetup.c:3488 src/veritysetup.c:418 src/integritysetup.c:464
 msgid ""
 "\n"
 "<action> is one of:\n"
@@ -2356,7 +2356,7 @@ msgstr ""
 "\n"
 "<action> は以下のうちの一つです:\n"
 
-#: src/cryptsetup.c:3492
+#: src/cryptsetup.c:3494
 msgid ""
 "\n"
 "You can also use old <action> syntax aliases:\n"
@@ -2368,7 +2368,7 @@ msgstr ""
 "\topen: create (plainOpen), luksOpen, loopaesOpen, tcryptOpen, bitlkOpen\n"
 "\tclose: remove (plainClose), luksClose, loopaesClose, tcryptClose, bitlkClose\n"
 
-#: src/cryptsetup.c:3496
+#: src/cryptsetup.c:3498
 #, c-format
 msgid ""
 "\n"
@@ -2383,7 +2383,7 @@ msgstr ""
 "<キースロット> は変更する LUKS キースロット番号\n"
 "<キーファイル> は luskAddKey でオプションで与えられる新しいキーのキーファイル\n"
 
-#: src/cryptsetup.c:3503
+#: src/cryptsetup.c:3505
 #, c-format
 msgid ""
 "\n"
@@ -2392,7 +2392,27 @@ msgstr ""
 "\n"
 "デフォルトのコンパイル時に決められたメタデータ形式は %s です(luksFormat で使われます)。\n"
 
-#: src/cryptsetup.c:3508
+#: src/cryptsetup.c:3510 src/cryptsetup.c:3513
+#, c-format
+msgid ""
+"\n"
+"LUKS2 external token plugin support is %s.\n"
+msgstr "\nLUKS2 外部トークンプラグインサポート: %s\n"
+
+#: src/cryptsetup.c:3510
+msgid "compiled-in"
+msgstr "本体に内蔵"
+
+#: src/cryptsetup.c:3511
+#, c-format
+msgid "LUKS2 external token plugin path: %s.\n"
+msgstr "LUKS2 外部トークンプラグインパス: %s.\n"
+
+#: src/cryptsetup.c:3513
+msgid "disabled"
+msgstr "利用不可"
+
+#: src/cryptsetup.c:3517
 #, c-format
 msgid ""
 "\n"
@@ -2409,7 +2429,7 @@ msgstr ""
 "デフォルト LUKS2 向け PBKDF: %s\n"
 "\t繰り返す時間: %d, 使うメモリ: %dkB, 並列スレッド: %d\n"
 
-#: src/cryptsetup.c:3519
+#: src/cryptsetup.c:3528
 #, c-format
 msgid ""
 "\n"
@@ -2424,206 +2444,206 @@ msgstr ""
 "\tplain: %s, キー: %d ビット, パスワードハッシュ: %s\n"
 "\tLUKS: %s, キー: %d ビット, LUKS ヘッダハッシュ: %s, 乱数生成: %s\n"
 
-#: src/cryptsetup.c:3528
+#: src/cryptsetup.c:3537
 msgid "\tLUKS: Default keysize with XTS mode (two internal keys) will be doubled.\n"
 msgstr "\tLUKS: XTS モードのデフォルトキーサイズは (2つの内部キーがあるため) 倍になります。\n"
 
-#: src/cryptsetup.c:3546 src/veritysetup.c:557 src/integritysetup.c:620
+#: src/cryptsetup.c:3555 src/veritysetup.c:557 src/integritysetup.c:620
 #, c-format
 msgid "%s: requires %s as arguments"
 msgstr "%s: は %s を引数で与える必要があります"
 
-#: src/cryptsetup.c:3584 src/cryptsetup_reencrypt.c:1379
+#: src/cryptsetup.c:3593 src/cryptsetup_reencrypt.c:1379
 #: src/cryptsetup_reencrypt.c:1704
 msgid "Key slot is invalid."
 msgstr "キースロットは不正です。"
 
-#: src/cryptsetup.c:3611
+#: src/cryptsetup.c:3620
 msgid "Device size must be multiple of 512 bytes sector."
 msgstr "デバイスサイズは 512 バイトセクタの倍数である必要があります。"
 
-#: src/cryptsetup.c:3616
+#: src/cryptsetup.c:3625
 msgid "Invalid max reencryption hotzone size specification."
 msgstr "再暗号化ホットゾーン最大サイズの指定が不正です。"
 
-#: src/cryptsetup.c:3630 src/cryptsetup.c:3642 src/cryptsetup_reencrypt.c:1623
+#: src/cryptsetup.c:3639 src/cryptsetup.c:3651 src/cryptsetup_reencrypt.c:1623
 msgid "Key size must be a multiple of 8 bits"
 msgstr "キーサイズは 8bit の倍数でなければなりません"
 
-#: src/cryptsetup.c:3647
+#: src/cryptsetup.c:3656
 msgid "Maximum device reduce size is 1 GiB."
 msgstr "デバイスを減らせる最大値は 1 GiB です。"
 
-#: src/cryptsetup.c:3650 src/cryptsetup_reencrypt.c:1631
+#: src/cryptsetup.c:3659 src/cryptsetup_reencrypt.c:1631
 msgid "Reduce size must be multiple of 512 bytes sector."
 msgstr "減らすサイズは 512 バイトセクタの倍数である必要があります。"
 
-#: src/cryptsetup.c:3667
+#: src/cryptsetup.c:3676
 msgid "Option --priority can be only ignore/normal/prefer."
 msgstr "--priority の引数は ignore/normal/prefer のいずれかのみです。"
 
-#: src/cryptsetup.c:3677 src/veritysetup.c:481 src/integritysetup.c:543
+#: src/cryptsetup.c:3686 src/veritysetup.c:481 src/integritysetup.c:543
 #: src/cryptsetup_reencrypt.c:1641
 msgid "Show this help message"
 msgstr "このヘルプを表示します"
 
-#: src/cryptsetup.c:3678 src/veritysetup.c:482 src/integritysetup.c:544
+#: src/cryptsetup.c:3687 src/veritysetup.c:482 src/integritysetup.c:544
 #: src/cryptsetup_reencrypt.c:1642
 msgid "Display brief usage"
 msgstr "コンパクトな使用法表示をします"
 
-#: src/cryptsetup.c:3679 src/veritysetup.c:483 src/integritysetup.c:545
+#: src/cryptsetup.c:3688 src/veritysetup.c:483 src/integritysetup.c:545
 #: src/cryptsetup_reencrypt.c:1643
 msgid "Print package version"
 msgstr "パッケージのバージョンを表示"
 
-#: src/cryptsetup.c:3690 src/veritysetup.c:494 src/integritysetup.c:556
+#: src/cryptsetup.c:3699 src/veritysetup.c:494 src/integritysetup.c:556
 #: src/cryptsetup_reencrypt.c:1654
 msgid "Help options:"
 msgstr "ヘルプオプション:"
 
-#: src/cryptsetup.c:3707 src/veritysetup.c:512 src/integritysetup.c:573
+#: src/cryptsetup.c:3716 src/veritysetup.c:512 src/integritysetup.c:573
 msgid "[OPTION...] <action> <action-specific>"
 msgstr "[オプション...] <アクション> <アクション特有>"
 
-#: src/cryptsetup.c:3716 src/veritysetup.c:521 src/integritysetup.c:584
+#: src/cryptsetup.c:3725 src/veritysetup.c:521 src/integritysetup.c:584
 msgid "Argument <action> missing."
 msgstr "<アクション> がありません。"
 
-#: src/cryptsetup.c:3786 src/veritysetup.c:552 src/integritysetup.c:615
+#: src/cryptsetup.c:3795 src/veritysetup.c:552 src/integritysetup.c:615
 msgid "Unknown action."
 msgstr "未知のアクションです。"
 
-#: src/cryptsetup.c:3797
+#: src/cryptsetup.c:3806
 msgid "Options --refresh and --test-passphrase are mutually exclusive."
 msgstr "--refresh と --test-passphrase は同時には使えません。"
 
-#: src/cryptsetup.c:3802 src/veritysetup.c:576 src/integritysetup.c:663
+#: src/cryptsetup.c:3811 src/veritysetup.c:576 src/integritysetup.c:663
 msgid "Options --cancel-deferred and --deferred cannot be used at the same time."
-msgstr "--cancel-deferred と --deferred は同時に使用できません。"
+msgstr "オプション --cancel-deferred と --deferred は同時に使えません。"
 
-#: src/cryptsetup.c:3808
+#: src/cryptsetup.c:3817
 msgid "Option --shared is allowed only for open of plain device."
 msgstr "--shared は plain デバイスの open にしか使えません。"
 
-#: src/cryptsetup.c:3813
+#: src/cryptsetup.c:3822
 msgid "Option --persistent is not allowed with --test-passphrase."
 msgstr "--persistent は --test-passphrase と一緒には使えません。"
 
-#: src/cryptsetup.c:3818
+#: src/cryptsetup.c:3827
 msgid "Option --integrity-no-wipe can be used only for format action with integrity extension."
 msgstr "--integrity-no-wipe は format で integrity extension 付きの時しか使えません。"
 
-#: src/cryptsetup.c:3825
+#: src/cryptsetup.c:3834
 msgid "Option --test-passphrase is allowed only for open of LUKS, TCRYPT and BITLK devices."
 msgstr "--test-passphrase は LUKS か TCRYPT か BITLK デバイスの open にしか使えません。."
 
-#: src/cryptsetup.c:3837
+#: src/cryptsetup.c:3846
 msgid "Option --key-file takes precedence over specified key file argument."
 msgstr "--key-file は他で指定されたキーファイルを上書きします。"
 
-#: src/cryptsetup.c:3843
+#: src/cryptsetup.c:3852
 msgid "Only one --key-file argument is allowed."
 msgstr "--key-file は一つしか使えません。"
 
-#: src/cryptsetup.c:3847 src/cryptsetup_reencrypt.c:1689
+#: src/cryptsetup.c:3856 src/cryptsetup_reencrypt.c:1689
 #: src/cryptsetup_reencrypt.c:1708
 msgid "Only one of --use-[u]random options is allowed."
 msgstr "--use-[u]random は一つしか使えません。"
 
-#: src/cryptsetup.c:3851
+#: src/cryptsetup.c:3860
 msgid "Options --align-payload and --offset cannot be combined."
 msgstr "--align-payload と --offset は一緒に使えません。"
 
-#: src/cryptsetup.c:3857
+#: src/cryptsetup.c:3866
 msgid "Option --skip is supported only for open of plain and loopaes devices."
 msgstr "--skip は plain か loopaes デバイスの open にしか使えません。"
 
-#: src/cryptsetup.c:3863
+#: src/cryptsetup.c:3872
 msgid "Option --offset with open action is only supported for plain and loopaes devices."
 msgstr "--offset は plain か loopaes デバイスの open にしか使えません。"
 
-#: src/cryptsetup.c:3869
+#: src/cryptsetup.c:3878
 msgid "Option --tcrypt-hidden, --tcrypt-system or --tcrypt-backup is supported only for TCRYPT device."
 msgstr "--tcrypt-hidden と --tcrypt-system と --tcrypt-backup は TCRYPT デバイスしか使えません。"
 
-#: src/cryptsetup.c:3874
+#: src/cryptsetup.c:3883
 msgid "Option --tcrypt-hidden cannot be combined with --allow-discards."
 msgstr "--tcrypt-hidden は --allow-discards と一緒に使えません。"
 
-#: src/cryptsetup.c:3879
-msgid "Option --veracrypt is supported only for TCRYPT device type."
-msgstr "--veracrypt は TCRYPT デバイスでしか使えません。"
+#: src/cryptsetup.c:3888
+msgid "Option --veracrypt or --disable-veracrypt is supported only for TCRYPT device type."
+msgstr "--veracrypt や --disable-veracrypt は TCRYPT デバイスでしか使えません。"
 
-#: src/cryptsetup.c:3884
+#: src/cryptsetup.c:3893
 msgid "Option --veracrypt-pim is supported only for VeraCrypt compatible devices."
 msgstr "--veracrypt-pim は VeraCrypt 互換デバイスにしか使えません。"
 
-#: src/cryptsetup.c:3890
+#: src/cryptsetup.c:3899
 msgid "Option --veracrypt-query-pim is supported only for VeraCrypt compatible devices."
 msgstr "--veracrypt-query-pim は VeraCrypt 互換デバイスにしか使えません。"
 
-#: src/cryptsetup.c:3894
+#: src/cryptsetup.c:3903
 msgid "The options --veracrypt-pim and --veracrypt-query-pim are mutually exclusive."
 msgstr "--veracrypt-pim と --veracrypt-query-pim はどちらかしか使えません。"
 
-#: src/cryptsetup.c:3902 src/cryptsetup.c:3938
+#: src/cryptsetup.c:3911 src/cryptsetup.c:3947
 msgid "Keyslot specification is required."
 msgstr "キースロットの指定が必要です。"
 
-#: src/cryptsetup.c:3907 src/cryptsetup_reencrypt.c:1694
+#: src/cryptsetup.c:3916 src/cryptsetup_reencrypt.c:1694
 msgid "Password-based key derivation function (PBKDF) can be only pbkdf2 or argon2i/argon2id."
 msgstr "パスワードからキーを作る関数 (PBKDF) は pbkdf2 argon2i argon2id のいずれかのみです。"
 
-#: src/cryptsetup.c:3912 src/cryptsetup_reencrypt.c:1699
+#: src/cryptsetup.c:3921 src/cryptsetup_reencrypt.c:1699
 msgid "PBKDF forced iterations cannot be combined with iteration time option."
 msgstr "PBKDF の繰り返し回数の強制と繰り返し時間指定オプションは共存できません。"
 
-#: src/cryptsetup.c:3919
+#: src/cryptsetup.c:3928
 msgid "Sector size option with open action is supported only for plain devices."
-msgstr "セクタサイズオプションつき open は plain デバイスでしかサポートされていません。"
+msgstr "オープン時のセクタサイズオプションは plain デバイスでしかサポートされていません。"
 
-#: src/cryptsetup.c:3926
+#: src/cryptsetup.c:3935
 msgid "Large IV sectors option is supported only for opening plain type device with sector size larger than 512 bytes."
 msgstr "大きな IV セクタオプションは plain タイプでセクタサイズが 512 バイトより大きいものをオープンする時しかサポートしていません。"
 
-#: src/cryptsetup.c:3932
+#: src/cryptsetup.c:3941
 msgid "Key size is required with --unbound option."
 msgstr "--unbound にはキーサイズが必要です。"
 
-#: src/cryptsetup.c:3948
+#: src/cryptsetup.c:3957
 msgid "LUKS2 decryption requires option --header."
 msgstr "LUKS2 復号には --header が必要です。"
 
-#: src/cryptsetup.c:3952
+#: src/cryptsetup.c:3961
 msgid "Options --reduce-device-size and --data-size cannot be combined."
 msgstr "--reduce-device-size と --data-size は一緒に使えません。"
 
-#: src/cryptsetup.c:3956
+#: src/cryptsetup.c:3965
 msgid "Options --device-size and --size cannot be combined."
 msgstr "--device-size と --size は一緒に使えません。"
 
-#: src/cryptsetup.c:3960
+#: src/cryptsetup.c:3969
 msgid "Options --keyslot-cipher and --keyslot-key-size must be used together."
-msgstr "--keyslot-cipher と --keyslot-key-size は同時に指定する必要があります。"
+msgstr "--keyslot-cipher と --keyslot-key-size は同時に使う必要があります。"
 
-#: src/cryptsetup.c:3964
+#: src/cryptsetup.c:3973
 msgid "No action taken. Invoked with --test-args option.\n"
-msgstr "アクションしません。--test-args オプションが指定されました。\n"
+msgstr "--test-args オプションつきだったため、何もしません。\n"
 
-#: src/cryptsetup.c:3976
+#: src/cryptsetup.c:3985
 msgid "Invalid token action."
-msgstr "は不正なトークンアクションです。"
+msgstr "不正なトークンアクションです。"
 
-#: src/cryptsetup.c:3981
+#: src/cryptsetup.c:3990
 msgid "--key-description parameter is mandatory for token add action."
 msgstr "--key-description はトークン追加には必須です。"
 
-#: src/cryptsetup.c:3987
+#: src/cryptsetup.c:3996
 msgid "Action requires specific token. Use --token-id parameter."
 msgstr "トークンを必要としています。--token-id を使用してください。"
 
-#: src/cryptsetup.c:3995
+#: src/cryptsetup.c:4007
 msgid "Cannot disable metadata locking."
 msgstr "メタデータロックを禁止できません。"
 
@@ -2756,7 +2776,7 @@ msgstr ""
 "\n"
 "コンパイル時に決められたデフォルトの dm-integrity のパラメータ:\n"
 "\tチェックサムアルゴリズム: %s\n"
-"\t最大キーファイルサイズ: %dkB\n"
+"        最大キーファイルサイズ: %dkB\n"
 
 #: src/integritysetup.c:530
 #, c-format
@@ -3069,7 +3089,7 @@ msgstr ""
 #: src/utils_password.c:41 src/utils_password.c:74
 #, c-format
 msgid "Cannot check password quality: %s"
-msgstr "パスワードの質をチェックできません: %s"
+msgstr "パスワードの質を確認できません: %s"
 
 #: src/utils_password.c:49
 #, c-format
@@ -3077,21 +3097,21 @@ msgid ""
 "Password quality check failed:\n"
 " %s"
 msgstr ""
-"パスワードの質のチェックに失敗しました:\n"
+"パスワードの質の確認に失敗:\n"
 " %s"
 
 #: src/utils_password.c:81
 #, c-format
 msgid "Password quality check failed: Bad passphrase (%s)"
-msgstr "パスワードの質のチェックに失敗しました: 悪いパスフレーズです (%s)"
+msgstr "パスワードの質が確認できません: 質の悪いパスフレーズ (%s)"
 
 #: src/utils_password.c:224 src/utils_password.c:238
 msgid "Error reading passphrase from terminal."
-msgstr "端末からパスフレーズを読み込み中にエラー。"
+msgstr "端末からパスフレーズを読み込めません。"
 
 #: src/utils_password.c:236
 msgid "Verify passphrase: "
-msgstr "パスフレーズを再入力してください: "
+msgstr "同じパスフレーズを入力してください: "
 
 #: src/utils_password.c:243
 msgid "Passphrases do not match."
@@ -3099,7 +3119,7 @@ msgstr "パスフレーズが一致しません。"
 
 #: src/utils_password.c:280
 msgid "Cannot use offset with terminal input."
-msgstr "端末からの入力の場合オフセットが使えません。"
+msgstr "端末からの入力でオフセットは使用できません。"
 
 #: src/utils_password.c:283
 #, c-format
@@ -3122,12 +3142,12 @@ msgstr "使用可能なキースロットがありません。"
 #: src/utils_password.c:335
 #, c-format
 msgid "Cannot read keyfile %s."
-msgstr "キーファイル %s を読めません。"
+msgstr "キーファイル %s を読みこめませんでした。"
 
 #: src/utils_password.c:340
 #, c-format
 msgid "Cannot read %d bytes from keyfile %s."
-msgstr "%d バイトをキーファイル %s から読み込めません。"
+msgstr "%d バイトをキーファイル %s から読みこめませんでした。"
 
 #: src/utils_password.c:365
 #, c-format
@@ -3214,3 +3234,13 @@ msgstr "デバイスシグネチャを消せません。"
 #, c-format
 msgid "Failed to probe device %s for a signature."
 msgstr "デバイス %s のシグネチャが検出できません。"
+
+#: src/utils_args.c:65
+#, c-format
+msgid "Invalid size specification in parameter --%s."
+msgstr "--%s のサイズの指定が不正です。"
+
+#: src/utils_args.c:121
+#, c-format
+msgid "Option --%s is not allowed with %s action."
+msgstr "オプション --%s は %s アクションと一緒には使えません。"
