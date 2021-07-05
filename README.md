@@ -44,11 +44,17 @@ Download
 --------
 All release tarballs and release notes are hosted on [kernel.org](https://www.kernel.org/pub/linux/utils/cryptsetup/).
 
-**The latest stable cryptsetup version is 2.3.5**
-  * [cryptsetup-2.3.5.tar.xz](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.5.tar.xz)
-  * Signature [cryptsetup-2.3.5.tar.sign](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.5.tar.sign)
+**The latest release candidate cryptsetup version is 2.4.0-rc0**
+  * [cryptsetup-2.4.0-rc0.tar.xz](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.4/cryptsetup-2.4.0-rc0.tar.xz)
+  * Signature [cryptsetup-2.4.0-rc0.tar.sign](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.4/cryptsetup-2.4.0-rc0.tar.sign)
     _(You need to decompress file first to check signature.)_
-  * [Cryptsetup 2.3.5 Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/v2.3.5-ReleaseNotes).
+  * [Cryptsetup 2.4.0-rc0 Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.4/v2.4.0-rc0-ReleaseNotes).
+
+**The latest stable cryptsetup version is 2.3.6**
+  * [cryptsetup-2.3.6.tar.xz](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.6.tar.xz)
+  * Signature [cryptsetup-2.3.6.tar.sign](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.6.tar.sign)
+    _(You need to decompress file first to check signature.)_
+  * [Cryptsetup 2.3.6 Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/v2.3.6-ReleaseNotes).
 
 Previous versions
  * [Version 2.0.6](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.0/cryptsetup-2.0.6.tar.xz) -
@@ -75,13 +81,9 @@ All distributions provide cryptsetup as distro package. If you need to compile c
 Fo available compile options, check ``configure --help`` for more info. If you are using a git snapshot, you need to generate configure script with ``autogen.sh`` script.
 
 Here is the list of packages needed for the compilation of project for particular distributions:
- * For Fedora:
-_git_, _gcc_, _make_, _autoconf_, _automake_, _gettext-devel_, _pkgconfig_, _openssl-devel_, _popt-devel_, _device-mapper-devel_, _libuuid-devel_, _json-c-devel_, _libblkid-devel_, _libargon2-devel_ (optional), _libpwquality-devel_ (optional).
-To run internal testsuite, you also need _sharutils_, _device-mapper_, _jq_, _xxd_, _expect_ and _keyutils_ packages.
+ * For Fedora: `git gcc make autoconf automake gettext-devel pkgconfig openssl-devel popt-devel device-mapper-devel libuuid-devel json-c-devel libblkid-devel findutils libtool libssh-devel tar`. Optionally `libargon2-devel libpwquality-devel`. To run internal testsuite you also need `sharutils device-mapper jq vim-common expect keyutils netcat shadow-utils openssh-clients openssh sshpass`.
 
- * For Debian and Ubuntu:
-_git_, _gcc_, _make_, _autoconf_, _automake_, _autopoint_, _pkg-config_, _libtool_, _gettext_, _libssl-dev_, _libdevmapper-dev_, _libpopt-dev_, _uuid-dev_, _libsepol1-dev_, _libjson-c-dev_, _libargon2-0-dev_ (optional), _libpwquality-dev_ (optional) and _libblkid-dev_.
-To run internal testsuite, you also need _sharutils_, _dmsetup_, _jq_, _xxd_, _expect_ and _keyutils_ packages.
+ * For Debian and Ubuntu: `git gcc make autoconf automake autopoint pkg-config libtool gettext libssl-dev libdevmapper-dev libpopt-dev uuid-dev libsepol1-dev libjson-c-dev libssh-dev libblkid-dev tar`. Optionally `libargon2-0-dev libpwquality-dev`. To run internal testsuite you also need `sharutils dmsetup jq xxd expect keyutils netcat passwd openssh-client sshpass`
 
 Note that the list could change as distributions evolve.
 

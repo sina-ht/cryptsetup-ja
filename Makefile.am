@@ -1,4 +1,4 @@
-EXTRA_DIST = README.md COPYING.LGPL FAQ docs misc tokens
+EXTRA_DIST = README.md COPYING.LGPL FAQ docs misc
 SUBDIRS = po tests
 CLEANFILES =
 DISTCLEAN_TARGETS =
@@ -11,7 +11,8 @@ AM_CPPFLAGS = \
         -DLIBDIR=\""$(libdir)"\"                \
         -DPREFIX=\""$(prefix)"\"                \
         -DSYSCONFDIR=\""$(sysconfdir)"\"        \
-        -DVERSION=\""$(VERSION)"\"
+        -DVERSION=\""$(VERSION)"\"              \
+        -DEXTERNAL_LUKS2_TOKENS_PATH=\"${EXTERNAL_LUKS2_TOKENS_PATH}\"
 AM_CFLAGS = -Wall
 AM_LDFLAGS =
 
@@ -44,7 +45,8 @@ ACLOCAL_AMFLAGS = -I m4
 
 DISTCHECK_CONFIGURE_FLAGS = 	\
 	--with-tmpfilesdir=$$dc_install_base/usr/lib/tmpfiles.d \
-	--enable-internal-argon2 --enable-internal-sse-argon2
+	--enable-internal-argon2 --enable-internal-sse-argon2 \
+	--enable-external-tokens --enable-ssh-token
 
 distclean-local:
 	-find . -name \*~ -o -name \*.orig -o -name \*.rej | xargs rm -f

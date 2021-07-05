@@ -1,9 +1,9 @@
 AC_PREREQ([2.67])
-AC_INIT([cryptsetup],[2.4.0-git])
+AC_INIT([cryptsetup],[2.4.0-rc0])
 
 dnl library version from <major>.<minor>.<release>[-<suffix>]
 LIBCRYPTSETUP_VERSION=$(echo $PACKAGE_VERSION | cut -f1 -d-)
-LIBCRYPTSETUP_VERSION_INFO=18:0:6
+LIBCRYPTSETUP_VERSION_INFO=19:0:7
 
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR(src/cryptsetup.c)
@@ -116,11 +116,22 @@ AC_PROG_GCC_TRADITIONAL
 AC_FUNC_STRERROR_R
 
 dnl ==========================================================================
+dnl LUKS2 external tokens
 
 AC_ARG_ENABLE([external-tokens],
-	AS_HELP_STRING([--enable-external-tokens], [enable external LUKS2 tokens]))
+	AS_HELP_STRING([--disable-external-tokens], [disable external LUKS2 tokens]),
+	[], [enable_external_tokens=yes])
 if test "x$enable_external_tokens" = "xyes"; then
 	AC_DEFINE(USE_EXTERNAL_TOKENS, 1, [Use external tokens])
+fi
+
+AC_ARG_ENABLE([ssh-token],
+	AS_HELP_STRING([--disable-ssh-token], [disable LUKS2 ssh-token]),
+	[], [enable_ssh_token=yes])
+AM_CONDITIONAL(SSHPLUGIN_TOKEN, test "x$enable_ssh_token" = "xyes")
+
+if test "x$enable_ssh_token" = "xyes" -a "x$enable_external_tokens" = "xno"; then
+	AC_MSG_ERROR([Requested LUKS2 ssh-token build, but external tokens are disabled.])
 fi
 
 dnl ==========================================================================
@@ -355,10 +366,6 @@ AC_ARG_ENABLE([udev],
 	AS_HELP_STRING([--disable-udev], [disable udev support]),
 	[], [enable_udev=yes])
 
-AC_ARG_ENABLE([ssh-token],
-	AS_HELP_STRING([--enable-ssh-token], [enable build of ssh-token]))
-AM_CONDITIONAL(SSHPLUGIN_TOKEN, test "x$enable_ssh_token" = "xyes")
-
 dnl Try to use pkg-config for devmapper, but fallback to old detection
 PKG_CHECK_MODULES([DEVMAPPER], [devmapper >= 1.02.03],, [
 	AC_CHECK_LIB(devmapper, dm_task_set_name,,
@@ -553,6 +560,8 @@ AC_SUBST([JSON_C_LIBS])
 AC_SUBST([LIBARGON2_LIBS])
 AC_SUBST([BLKID_LIBS])
 
+AC_SUBST([LIBSSH_LIBS])
+
 AC_SUBST([LIBCRYPTSETUP_VERSION])
 AC_SUBST([LIBCRYPTSETUP_VERSION_INFO])
 
@@ -608,7 +617,7 @@ if test "x$enable_luks_adjust_xts_keysize" = "xyes"; then
 	AC_DEFINE(ENABLE_LUKS_ADJUST_XTS_KEYSIZE, 1, [XTS mode - double default LUKS keysize if needed])
 fi
 
-CS_STR_WITH([luks2-pbkdf],           [Default PBKDF algorithm (pbkdf2 or argon2i/argon2id) for LUKS2], [argon2i])
+CS_STR_WITH([luks2-pbkdf],           [Default PBKDF algorithm (pbkdf2 or argon2i/argon2id) for LUKS2], [argon2id])
 CS_NUM_WITH([luks1-iter-time],       [PBKDF2 iteration time for LUKS1 (in ms)], [2000])
 CS_NUM_WITH([luks2-iter-time],       [Argon2 PBKDF iteration time for LUKS2 (in ms)], [2000])
 CS_NUM_WITH([luks2-memory-kb],       [Argon2 PBKDF memory cost for LUKS2 (in kB)], [1048576])
@@ -649,6 +658,15 @@ CS_NUM_WITH([luks2-lock-dir-perms], [default luks2 locking directory permissions
 test -z "$with_luks2_lock_dir_perms" && with_luks2_lock_dir_perms=0700
 DEFAULT_LUKS2_LOCK_DIR_PERMS=$with_luks2_lock_dir_perms
 AC_SUBST(DEFAULT_LUKS2_LOCK_DIR_PERMS)
+
+CS_STR_WITH([luks2-external-tokens-path], [path to directory with LUKSv2 external token handlers (plugins)], [LIBDIR/cryptsetup])
+if test -n "$with_luks2_external_tokens_path"; then
+	CS_ABSPATH([${with_luks2_external_tokens_path}],[with-luks2-external-tokens-path])
+	EXTERNAL_LUKS2_TOKENS_PATH=$with_luks2_external_tokens_path
+else
+	EXTERNAL_LUKS2_TOKENS_PATH="\${libdir}/cryptsetup"
+fi
+AC_SUBST(EXTERNAL_LUKS2_TOKENS_PATH)
 
 dnl Override default LUKS format version (for cryptsetup or cryptsetup-reencrypt format actions only).
 AC_ARG_WITH([default_luks_format],

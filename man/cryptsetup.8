@@ -130,7 +130,7 @@ The kernel keyring is used by default for LUKS2 devices.
 
 With LUKS2 device additional \fB<options>\fR can be [\-\-token\-id, \-\-token\-only,
 \-\-key\-slot, \-\-key\-file, \-\-keyfile\-size, \-\-keyfile\-offset, \-\-timeout,
-\-\-disable\-locks, \-\-disable\-keyring].
+\-\-disable\-external\-tokens, \-\-disable\-locks, \-\-disable\-keyring].
 
 .PP
 \fIrefresh\fR <name>
@@ -320,8 +320,8 @@ the command prompts for it interactively.
 \fB<options>\fR can be [\-\-key\-file, \-\-keyfile\-offset,
 \-\-keyfile\-size, \-\-readonly, \-\-test\-passphrase,
 \-\-allow\-discards, \-\-header, \-\-key-slot, \-\-master\-key\-file, \-\-token\-id,
-\-\-token\-only, \-\-disable\-keyring, \-\-disable\-locks, \-\-type, \-\-refresh,
-\-\-serialize\-memory\-hard\-pbkdf].
+\-\-token\-only, \-\-disable\-external\-tokens, \-\-disable\-keyring, \-\-disable\-locks,
+\-\-type, \-\-refresh, \-\-serialize\-memory\-hard\-pbkdf].
 .PP
 \fIluksSuspend\fR <name>
 .IP
@@ -571,7 +571,7 @@ Action \fIexport\fR writes requested token json to a file passed with \-\-json\-
 to standard output.
 
 \fB<options>\fR can be [\-\-header, \-\-token\-id, \-\-key\-slot, \-\-key\-description,
-\-\-disable\-locks, \-\-disable\-keyring, \-\-json\-file].
+\-\-disable\-external\-tokens, \-\-disable\-locks, \-\-disable\-keyring, \-\-json\-file].
 .PP
 \fIconvert\fR <device> \-\-type <format>
 .IP
@@ -645,8 +645,7 @@ See also section 7 of the FAQ and \fBhttp://loop-aes.sourceforge.net\fR
 for more information regarding loop-AES.
 .SH TCRYPT (TrueCrypt-compatible and VeraCrypt) EXTENSION
 cryptsetup supports mapping of TrueCrypt, tcplay or VeraCrypt
-(with \fB\-\-veracrypt\fR option) encrypted partition
-using a native Linux kernel API.
+encrypted partition using a native Linux kernel API.
 Header formatting and TCRYPT header change is not supported, cryptsetup
 never changes TCRYPT header on-device.
 
@@ -663,19 +662,20 @@ Cryptsetup should recognize all header variants, except legacy cipher chains
 using LRW encryption mode with 64 bits encryption block (namely Blowfish
 in LRW mode is not recognized, this is limitation of kernel crypto API).
 
-To recognize a VeraCrypt device use the \fB\-\-veracrypt\fR option.
 VeraCrypt is just extension of TrueCrypt header with increased
 iteration count so unlocking can take quite a lot of time (in comparison
 with TCRYPT device).
 
 To open a VeraCrypt device with a custom Personal Iteration Multiplier (PIM)
-value, \fBadditionally to \-\-veracrypt \fR use either the
-\fB\-\-veracrypt\-pim=<PIM>\fR option to directly specify the PIM on the command-
-line or use \fB\-\-veracrypt\-query\-pim\fR to be prompted for the PIM.
+value, use either the \fB\-\-veracrypt\-pim=<PIM>\fR option to directly specify
+the PIM on the command- line or use \fB\-\-veracrypt\-query\-pim\fR to be
+prompted for the PIM.
 
 The PIM value affects the number of iterations applied during key derivation. Please refer to
 \fBhttps://www.veracrypt.fr/en/Personal%20Iterations%20Multiplier%20%28PIM%29.html\fR
 for more detailed information.
+
+If you need to disable VeraCrypt device support, use \fB\-\-disable\-veracrypt\fR option.
 
 \fBNOTE:\fR Activation with \fBtcryptOpen\fR is supported only for cipher chains
 using LRW or XTS encryption modes.
@@ -720,7 +720,7 @@ a mapping <name>.
 
 \fB<options>\fR can be [\-\-key\-file, \-\-tcrypt\-hidden,
 \-\-tcrypt\-system, \-\-tcrypt\-backup, \-\-readonly, \-\-test\-passphrase,
-\-\-allow-discards, \-\-veracrypt, \-\-veracrypt\-pim, \-\-veracrypt\-query\-pim,
+\-\-allow-discards, \-\-disable\-veracrypt, \-\-veracrypt\-pim, \-\-veracrypt\-query\-pim,
 \-\-header, \-\-cipher, \-\-hash].
 
 The keyfile parameter allows a combination of file content with the
@@ -730,6 +730,10 @@ with TCRYPT and is different from LUKS keyfile logic.
 If \fB\-\-\cipher\fR or  \fB\-\-hash\fR options are used, only cipher chains or
 PBKDF2 variants with the specified hash algorithms are checked. This could speed
 up unlocking the device (but also it reveals some information about the container).
+
+If you use \fB\-\-header\fR in combination with hidden or system options,
+the header file must contain specific headers on the same positions as the original
+encrypted container.
 
 \fBWARNING:\fR Option \fB\-\-allow\-discards\fR cannot be combined with
 option \fB\-\-tcrypt\-hidden\fR. For normal mapping, it can cause
@@ -1107,9 +1111,8 @@ parameter values are measured by a benchmark. The benchmark
 tries to find iteration time (\fI\-\-iter\-time\fR) with required
 memory cost \fI\-\-pbkdf\-memory\fR. If it is not possible,
 the memory cost is decreased as well.
-The parallel cost \fI\-\-pbkdf\-parallel\fR is constant, is is checked
-against available CPU cores (if not available, it is decreased) and the maximum
-parallel cost is 4.
+The parallel cost \fI\-\-pbkdf\-parallel\fR is constant and is checked
+against available CPU cores.
 
 You can see all PBKDF parameters for particular LUKS2 keyslot with
 \fIluksDump\fR command.
@@ -1121,7 +1124,19 @@ This will override the values without benchmarking.
 Note it can cause extremely long unlocking time. Use only in specific
 cases, for example, if you know that the formatted device will
 be used on some small embedded system.
-In this case, the LUKS PBKDF2 digest will be set to the minimum iteration count.
+
+\fBMINIMAL AND MAXIMAL PBKDF COSTS:\fR
+For \fBPBKDF2\fR, the minimum iteration count is 1000 and
+maximum is 4294967295 (maximum for 32bit unsigned integer).
+Memory and parallel costs are unused for PBKDF2.
+For \fBArgon2i\fR and \fBArgon2id\fR, minimum iteration count (CPU cost) is 4 and
+maximum is 4294967295 (maximum for 32bit unsigned integer).
+Minimum memory cost is 32 KiB and maximum is 4 GiB. (Limited by addresable
+memory on some CPU platforms.)
+If the memory cost parameter is benchmarked (not specified by a parameter)
+it is always in range from 64 MiB to 1 GiB.
+The parallel cost minimum is 1 and maximum 4 (if enough CPUs cores are available,
+otherwise it is decreased).
 .TP
 .B "\-\-iter\-time, \-i <number of milliseconds>"
 The number of milliseconds to spend with PBKDF passphrase processing.
@@ -1294,6 +1309,9 @@ Defers device removal in \fIclose\fR command until the last user closes it.
 .B "\-\-cancel\-deferred"
 Removes a previously configured deferred device removal in \fIclose\fR command.
 .TP
+.B "\-\-disable\-external\-tokens"
+Disable loading of plugins for external LUKS2 tokens.
+.TP
 .B "\-\-disable\-locks"
 Disable lock protection for metadata on disk.
 This option is valid only for LUKS2 and ignored for other formats.
@@ -1443,8 +1461,11 @@ Specify which TrueCrypt on-disk header will be used to open the device.
 See \fITCRYPT\fR section for more info.
 .TP
 .B "\-\-veracrypt"
-Allow VeraCrypt compatible mode. Only for TCRYPT extension.
-See \fITCRYPT\fR section for more info.
+This option is ignored as VeraCrypt compatible mode is supported by default.
+.TP
+.B "\-\-disable\-veracrypt"
+This option can be used to disable VeraCrypt compatible mode (only TrueCrypt devices
+are recognized). Only for TCRYPT extension. See \fITCRYPT\fR section for more info.
 .TP
 .B "\-\-veracrypt\-pim"
 .B "\-\-veracrypt\-query\-pim"
@@ -1482,7 +1503,7 @@ new reencryption operation.
 Reencryption resilience mode can be one of \fIchecksum\fR, \fIjournal\fR or \fInone\fR.
 
 \fIchecksum\fR: default mode, where individual checksums of ciphertext hotzone sectors are stored,
-so the recovery process can detect which sectors where already reencrypted.
+so the recovery process can detect which sectors were already reencrypted.
 It requires that the device sector write is atomic.
 
 \fIjournal\fR: the hotzone is journaled in the binary area (so the data are written twice).

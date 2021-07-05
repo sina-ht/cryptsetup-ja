@@ -36,6 +36,14 @@ endif
 
 if SSHPLUGIN_TOKEN
 TESTS += ssh-plugin-test
+
+ssh-plugin-test: fake_token_path.so
+
+fake_token_path.so:
+	$(CC) $(CFLAGS) -I $(top_srcdir)/lib -fPIC -shared \
+	-Wl,--version-script=$(top_srcdir)/lib/libcryptsetup.sym \
+	-o fake_token_path.so  $(top_srcdir)/tests/fake_token_path.c \
+	-DBUILD_DIR=\"$(abs_top_srcdir)/.libs/\"
 endif
 
 EXTRA_DIST = compatimage.img.xz compatv10image.img.xz \
@@ -80,9 +88,10 @@ EXTRA_DIST = compatimage.img.xz compatv10image.img.xz \
 	bitlk-images.tar.xz \
 	ssh-plugin-test \
 	generate-symbols-list \
-	run-all-symbols
+	run-all-symbols \
+	fake_token_path.c
 
-CLEANFILES = cryptsetup-tst* valglog* *-fail-*.log test-symbols-list.h
+CLEANFILES = cryptsetup-tst* valglog* *-fail-*.log test-symbols-list.h fake_token_path.so
 clean-local:
 	-rm -rf tcrypt-images luks1-images luks2-images bitlk-images conversion_imgs luks2_valid_hdr.img blkid-luks2-pv-img blkid-luks2-pv-img.bcp
 
@@ -145,6 +154,7 @@ valgrind-check: api-test api-test-2 differ
 	@INFOSTRING="api-test-002" ./valg-api.sh ./api-test-2
 	@VALG=1 ./luks2-reencryption-test
 	@VALG=1 ./bitlk-compat-test
+	@VALG=1 ./tcrypt-compat-test
 	@grep -l "ERROR SUMMARY: [^0] errors" valglog* || echo "No leaks detected."
 
 .PHONY: valgrind-check

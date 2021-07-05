@@ -25,6 +25,12 @@
 
 #include "luks2_internal.h"
 
+#if USE_EXTERNAL_TOKENS
+static bool external_tokens_enabled = true;
+#else
+static bool external_tokens_enabled = false;
+#endif
+
 static struct crypt_token_handler_internal token_handlers[LUKS2_TOKENS_MAX] = {
 	/* keyring builtin token */
 	{
@@ -38,13 +44,14 @@ static struct crypt_token_handler_internal token_handlers[LUKS2_TOKENS_MAX] = {
 	}
 };
 
-int crypt_token_external_support(void)
+void crypt_token_external_disable(void)
 {
-#if USE_EXTERNAL_TOKENS
-	return 0;
-#else
-	return -ENOTSUP;
-#endif
+	external_tokens_enabled = false;
+}
+
+const char *crypt_token_external_path(void)
+{
+	return external_tokens_enabled ? EXTERNAL_LUKS2_TOKENS_PATH : NULL;
 }
 
 #if USE_EXTERNAL_TOKENS
@@ -124,8 +131,11 @@ crypt_token_load_external(struct crypt_device *cd, const char *name, struct cryp
 #if USE_EXTERNAL_TOKENS
 	struct crypt_token_handler_v2 *token;
 	void *h;
-	char buf[512];
+	char buf[PATH_MAX];
 	int r;
+
+	if (!external_tokens_enabled)
+		return -ENOTSUP;
 
 	if (!ret || !name)
 		return -EINVAL;
@@ -137,9 +147,11 @@ crypt_token_load_external(struct crypt_device *cd, const char *name, struct cryp
 
 	token = &ret->u.v2;
 
-	r = snprintf(buf, sizeof(buf), "libcryptsetup-token-%s.so", name);
+	r = snprintf(buf, sizeof(buf), "%s/libcryptsetup-token-%s.so", crypt_token_external_path(), name);
 	if (r < 0 || (size_t)r >= sizeof(buf))
 		return -EINVAL;
+
+	assert(*buf == '/');
 
 	log_dbg(cd, "Trying to load %s.", buf);
 

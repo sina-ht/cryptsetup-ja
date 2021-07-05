@@ -448,7 +448,7 @@ static int action_open_tcrypt(void)
 		.keyfiles = CONST_CAST(const char **)keyfiles,
 		.keyfiles_count = keyfiles_count,
 		.flags = CRYPT_TCRYPT_LEGACY_MODES |
-			 (ARG_SET(OPT_VERACRYPT_ID) ? CRYPT_TCRYPT_VERA_MODES : 0),
+			 (ARG_SET(OPT_DISABLE_VERACRYPT_ID) ? 0 : CRYPT_TCRYPT_VERA_MODES),
 		.veracrypt_pim = ARG_UINT32(OPT_VERACRYPT_PIM_ID),
 		.hash_name = ARG_STR(OPT_HASH_ID),
 		.cipher = ARG_STR(OPT_CIPHER_ID),
@@ -586,7 +586,7 @@ static int action_tcryptDump(void)
 		.keyfiles = CONST_CAST(const char **)keyfiles,
 		.keyfiles_count = keyfiles_count,
 		.flags = CRYPT_TCRYPT_LEGACY_MODES |
-			 (ARG_SET(OPT_VERACRYPT_ID) ? CRYPT_TCRYPT_VERA_MODES : 0),
+			 (ARG_SET(OPT_DISABLE_VERACRYPT_ID) ? 0: CRYPT_TCRYPT_VERA_MODES),
 		.veracrypt_pim = ARG_UINT32(OPT_VERACRYPT_PIM_ID),
 		.hash_name = ARG_STR(OPT_HASH_ID),
 		.cipher = ARG_STR(OPT_CIPHER_ID),
@@ -3475,6 +3475,8 @@ static void help(poptContext popt_context,
 		 const char *arg __attribute__((unused)),
 		 void *data __attribute__((unused)))
 {
+	const char *path;
+
 	if (key->shortName == '?') {
 		struct action_type *action;
 		const struct crypt_pbkdf_type *pbkdf_luks1, *pbkdf_luks2;
@@ -3502,6 +3504,13 @@ static void help(poptContext popt_context,
 
 		log_std(_("\nDefault compiled-in metadata format is %s (for luksFormat action).\n"),
 			  crypt_get_default_type());
+
+		path = crypt_token_external_path();
+		if (path) {
+			log_std(_("\nLUKS2 external token plugin support is %s.\n"), _("compiled-in"));
+			log_std(_("LUKS2 external token plugin path: %s.\n"), path);
+		} else
+			log_std(_("\nLUKS2 external token plugin support is %s.\n"), _("disabled"));
 
 		pbkdf_luks1 = crypt_get_pbkdf_default(CRYPT_LUKS1);
 		pbkdf_luks2 = crypt_get_pbkdf_default(CRYPT_LUKS2);
@@ -3874,18 +3883,18 @@ int main(int argc, const char **argv)
 		_("Option --tcrypt-hidden cannot be combined with --allow-discards."),
 		poptGetInvocationName(popt_context));
 
-	if (ARG_SET(OPT_VERACRYPT_ID) && (!device_type || strcmp(device_type, "tcrypt")))
+	if ((ARG_SET(OPT_VERACRYPT_ID) || ARG_SET(OPT_DISABLE_VERACRYPT_ID)) && (!device_type || strcmp(device_type, "tcrypt")))
 		usage(popt_context, EXIT_FAILURE,
-		_("Option --veracrypt is supported only for TCRYPT device type."),
+		_("Option --veracrypt or --disable-veracrypt is supported only for TCRYPT device type."),
 		poptGetInvocationName(popt_context));
 
-	if (ARG_SET(OPT_VERACRYPT_PIM_ID) && !ARG_SET(OPT_VERACRYPT_ID))
+	if (ARG_SET(OPT_VERACRYPT_PIM_ID) && ARG_SET(OPT_DISABLE_VERACRYPT_ID))
 		usage(popt_context, EXIT_FAILURE,
 		_("Option --veracrypt-pim is supported only for VeraCrypt compatible devices."),
 		poptGetInvocationName(popt_context));
 
 	if (ARG_SET(OPT_VERACRYPT_QUERY_PIM_ID)) {
-		if (!ARG_SET(OPT_VERACRYPT_ID)) {
+		if (ARG_SET(OPT_DISABLE_VERACRYPT_ID)) {
 			usage(popt_context, EXIT_FAILURE,
 			_("Option --veracrypt-query-pim is supported only for VeraCrypt compatible devices."),
 			poptGetInvocationName(popt_context));
@@ -3990,6 +3999,9 @@ int main(int argc, const char **argv)
 
 	if (ARG_SET(OPT_DISABLE_KEYRING_ID))
 		(void) crypt_volume_key_keyring(NULL, 0);
+
+	if (ARG_SET(OPT_DISABLE_EXTERNAL_TOKENS_ID))
+		(void) crypt_token_external_disable();
 
 	if (ARG_SET(OPT_DISABLE_LOCKS_ID) && crypt_metadata_locking(NULL, 0)) {
 		log_std(_("Cannot disable metadata locking."));
