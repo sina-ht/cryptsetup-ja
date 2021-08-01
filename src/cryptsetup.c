@@ -180,6 +180,45 @@ static int _set_tries_tty(void)
 	return (tools_is_stdin(ARG_STR(OPT_KEY_FILE_ID)) && isatty(STDIN_FILENO)) ? ARG_UINT32(OPT_TRIES_ID) : 1;
 }
 
+static int _try_token_pin_unlock(struct crypt_device *cd,
+				 int token_id,
+				 const char *activated_name,
+				 const char *token_type,
+				 uint32_t activate_flags,
+				 int tries)
+{
+	size_t pin_len;
+	char msg[64], *pin = NULL;
+	int r;
+
+	assert(tries >= 1);
+	assert(token_id >= 0 || token_id == CRYPT_ANY_TOKEN);
+
+	if (token_id == CRYPT_ANY_TOKEN)
+		r = snprintf(msg, sizeof(msg), _("Enter token PIN:"));
+	else
+		r = snprintf(msg, sizeof(msg), _("Enter token %d PIN:"), token_id);
+	if (r < 0 || (size_t)r >= sizeof(msg))
+		return -EINVAL;
+
+	do {
+		r = tools_get_key(msg, &pin, &pin_len, 0, 0, NULL,
+				ARG_UINT32(OPT_TIMEOUT_ID), _verify_passphrase(0), 0, cd);
+		if (r < 0)
+			break;
+
+		r = crypt_activate_by_token_pin(cd, activated_name, token_type, ARG_INT32(OPT_TOKEN_ID_ID),
+						pin, pin_len, NULL, activate_flags);
+		crypt_safe_free(pin);
+		pin = NULL;
+		tools_keyslot_msg(r, UNLOCKED);
+		tools_token_error_msg(r, ARG_STR(OPT_TOKEN_TYPE_ID), ARG_INT32(OPT_TOKEN_ID_ID), true);
+		check_signal(&r);
+	} while (r == -ENOANO && (--tries > 0));
+
+	return r;
+}
+
 static int action_open_plain(void)
 {
 	struct crypt_device *cd = NULL, *cd1 = NULL;
@@ -754,9 +793,15 @@ static int action_resize(void)
 		}
 
 		/* try load VK in kernel keyring using token */
-		r = crypt_activate_by_token(cd, NULL, ARG_INT32(OPT_TOKEN_ID_ID), NULL,
-					    CRYPT_ACTIVATE_KEYRING_KEY);
+		r = crypt_activate_by_token_pin(cd, NULL, ARG_STR(OPT_TOKEN_TYPE_ID),
+						ARG_INT32(OPT_TOKEN_ID_ID), NULL, 0, NULL,
+						CRYPT_ACTIVATE_KEYRING_KEY);
 		tools_keyslot_msg(r, UNLOCKED);
+		tools_token_error_msg(r, ARG_STR(OPT_TOKEN_TYPE_ID), ARG_INT32(OPT_TOKEN_ID_ID), false);
+
+		/* Token requires PIN, but ask only if there is no password query later */
+		if (ARG_SET(OPT_TOKEN_ONLY_ID) && r == -ENOANO)
+			r = _try_token_pin_unlock(cd, ARG_INT32(OPT_TOKEN_ID_ID), NULL, ARG_STR(OPT_TOKEN_TYPE_ID), CRYPT_ACTIVATE_KEYRING_KEY, 1);
 
 		if (r >= 0 || ARG_SET(OPT_TOKEN_ONLY_ID))
 			goto out;
@@ -1534,21 +1579,16 @@ static int action_open_luks(void)
 		r = crypt_activate_by_volume_key(cd, activated_name,
 						 key, keysize, activate_flags);
 	} else {
-		r = crypt_activate_by_token(cd, activated_name, ARG_INT32(OPT_TOKEN_ID_ID), NULL, activate_flags);
+		r = crypt_activate_by_token_pin(cd, activated_name, ARG_STR(OPT_TOKEN_TYPE_ID),
+						ARG_INT32(OPT_TOKEN_ID_ID), NULL, 0, NULL, activate_flags);
 		tools_keyslot_msg(r, UNLOCKED);
+		tools_token_error_msg(r, ARG_STR(OPT_TOKEN_TYPE_ID), ARG_INT32(OPT_TOKEN_ID_ID), false);
 
-		/* Token requires PIN, but ask only there will be no password query later */
-		if (ARG_SET(OPT_TOKEN_ONLY_ID) && r == -EAGAIN) {
-			r = tools_get_key(_("Enter token PIN:"), &password, &passwordLen, 0, 0, NULL,
-					ARG_UINT32(OPT_TIMEOUT_ID), _verify_passphrase(0), 0, cd);
-			if (r < 0)
-				goto out;
-			r = crypt_activate_by_token_pin(cd, activated_name, NULL, ARG_INT32(OPT_TOKEN_ID_ID),
-							password, passwordLen, NULL, activate_flags);
-			tools_keyslot_msg(r, UNLOCKED);
-		}
+		/* Token requires PIN, but ask only if there is no password query later */
+		if (ARG_SET(OPT_TOKEN_ONLY_ID) && r == -ENOANO)
+			r = _try_token_pin_unlock(cd, ARG_INT32(OPT_TOKEN_ID_ID), activated_name, ARG_STR(OPT_TOKEN_TYPE_ID), activate_flags, _set_tries_tty());
 
-		if (r >= 0 || ARG_SET(OPT_TOKEN_ONLY_ID))
+		if (r >= 0 || r == -EEXIST || ARG_SET(OPT_TOKEN_ONLY_ID))
 			goto out;
 
 		tries = _set_tries_tty();
@@ -3424,7 +3464,7 @@ static int action_reencrypt(void)
 
 	if (r >= 0 && !ARG_SET(OPT_INIT_ONLY_ID)) {
 		set_int_handler(0);
-		r = crypt_reencrypt(cd, tools_reencrypt_progress, &prog_parms);
+		r = crypt_reencrypt_run(cd, tools_reencrypt_progress, &prog_parms);
 	}
 out:
 	crypt_free(cd);

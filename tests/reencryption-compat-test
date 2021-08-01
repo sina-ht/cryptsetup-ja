@@ -20,7 +20,7 @@ START_DIR=$(pwd)
 
 function del_scsi_device()
 {
-	rmmod scsi_debug 2>/dev/null
+	rmmod scsi_debug >/dev/null 2>&1
 	sleep 2
 }
 
@@ -54,7 +54,11 @@ function skip()
 
 function add_scsi_device() {
 	del_scsi_device
-	modprobe scsi_debug $@ delay=0
+	if [ -d /sys/module/scsi_debug ] ; then
+		echo "Cannot use scsi_debug module (in use or compiled-in), test skipped."
+		exit 77
+	fi
+	modprobe scsi_debug $@ delay=0 >/dev/null 2>&1
 	if [ $? -ne 0 ] ; then
 		echo "This kernel seems to not support proper scsi_debug module, test skipped."
 		exit 77

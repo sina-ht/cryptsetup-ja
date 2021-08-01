@@ -129,8 +129,8 @@ to unlock a keyslot (LUKS) or to derive a volume key again (plain mode).
 The kernel keyring is used by default for LUKS2 devices.
 
 With LUKS2 device additional \fB<options>\fR can be [\-\-token\-id, \-\-token\-only,
-\-\-key\-slot, \-\-key\-file, \-\-keyfile\-size, \-\-keyfile\-offset, \-\-timeout,
-\-\-disable\-external\-tokens, \-\-disable\-locks, \-\-disable\-keyring].
+\-\-token-type, \-\-key\-slot, \-\-key\-file, \-\-keyfile\-size, \-\-keyfile\-offset,
+\-\-timeout, \-\-disable\-external\-tokens, \-\-disable\-locks, \-\-disable\-keyring].
 
 .PP
 \fIrefresh\fR <name>
@@ -320,8 +320,8 @@ the command prompts for it interactively.
 \fB<options>\fR can be [\-\-key\-file, \-\-keyfile\-offset,
 \-\-keyfile\-size, \-\-readonly, \-\-test\-passphrase,
 \-\-allow\-discards, \-\-header, \-\-key-slot, \-\-master\-key\-file, \-\-token\-id,
-\-\-token\-only, \-\-disable\-external\-tokens, \-\-disable\-keyring, \-\-disable\-locks,
-\-\-type, \-\-refresh, \-\-serialize\-memory\-hard\-pbkdf].
+\-\-token\-only, \-\-token-type, \-\-disable\-external\-tokens, \-\-disable\-keyring,
+\-\-disable\-locks, \-\-type, \-\-refresh, \-\-serialize\-memory\-hard\-pbkdf].
 .PP
 \fIluksSuspend\fR <name>
 .IP
@@ -1015,7 +1015,7 @@ Using /dev/random can block a long time, potentially
 forever, if not enough entropy can be harvested by
 the kernel.
 .TP
-.B "\-\-key\-slot, \-S <0\-7>"
+.B "\-\-key\-slot, \-S <0\-N>"
 For LUKS operations that add key material, this options allows you
 to specify which key slot is selected for the new key.
 This option can be used for \fIluksFormat\fR,
@@ -1025,6 +1025,11 @@ In addition, for \fIopen\fR, this option selects a
 specific key-slot to compare the passphrase against.
 If the given passphrase would only match a different key-slot,
 the operation fails.
+
+Maximum number of key slots depends on LUKS version. LUKS1 can have
+up to 8 key slots. LUKS2 can have up to 32 key slots based on key slot
+area size and key size, but a valid key slot ID can always be between 0
+and 31 for LUKS2.
 .TP
 .B "\-\-key\-size, \-s <bits>"
 Sets key size in bits. The argument has to be a multiple of
@@ -1343,6 +1348,10 @@ passphrase prompt.
 Do not proceed further with action (any of \fItoken\fR, \fIopen\fR or
 \fIresize\fR) if token activation failed. Without the option,
 action asks for passphrase to proceed further.
+.TP
+.B "\-\-token\-type"
+Restrict tokens eligible for operation to specific token type (name). Mostly
+useful when no \-\-token\-id is specified.
 .TP
 .B "\-\-sector\-size <bytes>"
 Set sector size for use with disk encryption. It must be power of two

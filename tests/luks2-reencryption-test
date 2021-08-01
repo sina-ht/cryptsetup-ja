@@ -62,14 +62,14 @@ scsi_debug_teardown() {
 	local _tries=15;
 
 	while [ -b "$1" -a $_tries -gt 0 ]; do
-		rmmod scsi_debug 2> /dev/null
+		rmmod scsi_debug >/dev/null 2>&1
 		if [ -b "$1" ]; then
 			sleep .1
 			_tries=$((_tries-1))
 		fi
 	done
 
-	test ! -b "$1" || rmmod scsi_debug 2> /dev/null
+	test ! -b "$1" || rmmod scsi_debug >/dev/null 2>&1
 }
 
 function remove_mapping()
@@ -99,7 +99,7 @@ function remove_mapping()
 	[ -n "$LOOPDEV" ] && losetup -d $LOOPDEV
 	unset LOOPDEV
 	rm -f $IMG $IMG_HDR $KEY1 $VKEY1 $DEVBIG $DEV_LINK >/dev/null 2>&1
-	rmmod scsi_debug 2> /dev/null
+	rmmod scsi_debug >/dev/null 2>&1
 	scsi_debug_teardown $DEV
 }
 
@@ -126,7 +126,11 @@ function fips_mode()
 
 function add_scsi_device() {
 	scsi_debug_teardown $DEV
-	modprobe scsi_debug $@ delay=0
+	if [ -d /sys/module/scsi_debug ] ; then
+		echo "Cannot use scsi_debug module (in use or compiled-in), test skipped."
+		exit 77
+	fi
+	modprobe scsi_debug $@ delay=0 >/dev/null 2>&1
 	if [ $? -ne 0 ] ; then
 		echo "This kernel seems to not support proper scsi_debug module, test skipped."
 		exit 77
@@ -683,8 +687,8 @@ function valgrind_run()
 [ $(id -u) != 0 ] && skip "WARNING: You must be root to run this test, test skipped."
 [ ! -x "$CRYPTSETUP" ] && skip "Cannot find $CRYPTSETUP, test skipped."
 fips_mode && skip "This test cannot be run in FIPS mode."
-modprobe --dry-run scsi_debug || exit 77
-modprobe dm-crypt || fail "dm-crypt failed to load"
+modprobe --dry-run scsi_debug >/dev/null 2>&1 || skip "This kernel seems to not support proper scsi_debug module, test skipped."
+modprobe dm-crypt >/dev/null 2>&1 || fail "dm-crypt failed to load"
 modprobe dm-delay > /dev/null 2>&1
 dm_crypt_features
 

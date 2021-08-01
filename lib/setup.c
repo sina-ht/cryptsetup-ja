@@ -429,7 +429,7 @@ static int keyslot_verify_or_find_empty(struct crypt_device *cd, int *keyslot)
 	switch (ki) {
 		case CRYPT_SLOT_INVALID:
 			log_err(cd, _("Key slot %d is invalid, please select between 0 and %d."),
-				*keyslot, LUKS_NUMKEYS - 1);
+				*keyslot, crypt_keyslot_max(cd->type) - 1);
 			return -EINVAL;
 		case CRYPT_SLOT_INACTIVE:
 			break;
@@ -5689,6 +5689,10 @@ int crypt_activate_by_token_pin(struct crypt_device *cd, const char *name,
 
 	if ((flags & CRYPT_ACTIVATE_ALLOW_UNBOUND_KEY) && name)
 		return -EINVAL;
+
+	r = _activate_check_status(cd, name, flags & CRYPT_ACTIVATE_REFRESH);
+	if (r < 0)
+		return r;
 
 	return LUKS2_token_open_and_activate(cd, &cd->u.luks2.hdr, token, name, type, pin, pin_size, flags, usrptr);
 }

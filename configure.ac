@@ -1,5 +1,5 @@
 AC_PREREQ([2.67])
-AC_INIT([cryptsetup],[2.4.0-rc0])
+AC_INIT([cryptsetup],[2.4.0-rc1])
 
 dnl library version from <major>.<minor>.<release>[-<suffix>]
 LIBCRYPTSETUP_VERSION=$(echo $PACKAGE_VERSION | cut -f1 -d-)
@@ -402,6 +402,7 @@ AC_CHECK_DECLS([json_object_deep_copy], [], [], [#include <json-c/json.h>])
 dnl Check for libssh for SSH plugin
 if test "x$enable_ssh_token" = "xyes"; then
 	PKG_CHECK_MODULES([LIBSSH], [libssh])
+	AC_CHECK_DECLS([ssh_session_is_known_server], [], [], [#include <libssh/libssh.h>])
 fi
 
 dnl Crypto backend configuration.

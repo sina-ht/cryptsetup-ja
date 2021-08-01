@@ -239,6 +239,9 @@ static int _setup(void)
 	char cmd[128];
 
 	test_loop_file = strdup(THE_LFILE_TEMPLATE);
+	if (!test_loop_file)
+		return 1;
+
 	if ((fd=mkstemp(test_loop_file)) == -1) {
 		printf("cannot create temporary file with template %s\n", test_loop_file);
 		return 1;
@@ -253,6 +256,9 @@ static int _setup(void)
 	close(fd);
 
 	tmp_file_1 = strdup(THE_LFILE_TEMPLATE);
+	if (!tmp_file_1)
+		return 1;
+
 	if ((fd=mkstemp(tmp_file_1)) == -1) {
 		printf("cannot create temporary file with template %s\n", tmp_file_1);
 		return 1;
@@ -292,8 +298,8 @@ static int _setup(void)
 	/* Prepare tcrypt images */
 	_system("tar xJf tcrypt-images.tar.xz 2>/dev/null", 1);
 
-	_system("modprobe dm-crypt", 0);
-	_system("modprobe dm-verity", 0);
+	_system("modprobe dm-crypt >/dev/null 2>&1", 0);
+	_system("modprobe dm-verity >/dev/null 2>&1", 0);
 
 	_fips_mode = fips_mode();
 	if (_debug)
