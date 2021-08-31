@@ -434,10 +434,12 @@ $CRYPTSETUP -q luksFormat --type luks1 $FAST_PBKDF_OPT --master-key-file /dev/ur
 $CRYPTSETUP luksOpen -d $KEY1 $LOOPDEV $DEV_NAME || fail
 $CRYPTSETUP -q luksClose  $DEV_NAME || fail
 # open by UUID
-force_uevent # some systems do not update loop by-uuid
-$CRYPTSETUP luksOpen -d $KEY1 UUID=X$TEST_UUID $DEV_NAME 2>/dev/null && fail
-$CRYPTSETUP luksOpen -d $KEY1 UUID=$TEST_UUID $DEV_NAME || fail
-$CRYPTSETUP -q luksClose  $DEV_NAME || fail
+if [ -d /dev/disk/by-uuid ] ; then
+	force_uevent # some systems do not update loop by-uuid
+	$CRYPTSETUP luksOpen -d $KEY1 UUID=X$TEST_UUID $DEV_NAME 2>/dev/null && fail
+	$CRYPTSETUP luksOpen -d $KEY1 UUID=$TEST_UUID $DEV_NAME || fail
+	$CRYPTSETUP -q luksClose  $DEV_NAME || fail
+fi
 # empty keyfile
 $CRYPTSETUP -q luksFormat --type luks1 $FAST_PBKDF_OPT $LOOPDEV $KEYE || fail
 $CRYPTSETUP luksOpen -d $KEYE $LOOPDEV $DEV_NAME || fail
@@ -785,6 +787,17 @@ $CRYPTSETUP -q luksFormat --type luks1 $FAST_PBKDF_OPT $LOOPDEV $KEY1 --key-slot
 # second sector overwrite should corrupt keyslot 6+7
 dd if=/dev/urandom of=$LOOPDEV bs=512 seek=1 count=1 >/dev/null 2>&1
 $CRYPTSETUP luksOpen -d $KEY1 $LOOPDEV $DEV_NAME >/dev/null 2>&1 && fail
+$CRYPTSETUP -q repair $LOOPDEV >/dev/null 2>&1 || fail
+$CRYPTSETUP luksOpen -d $KEY1 $LOOPDEV $DEV_NAME || fail
+$CRYPTSETUP luksClose $DEV_NAME || fail
+# fix ecb-plain
+$CRYPTSETUP -q luksFormat --type luks1 $FAST_PBKDF_OPT $LOOPDEV $KEY1 --hash sha256 -c aes-ecb || fail
+echo -n "ecb-xxx" | dd of=$LOOPDEV bs=1 seek=40 >/dev/null 2>&1
+$CRYPTSETUP -q repair $LOOPDEV >/dev/null 2>&1 || fail
+$CRYPTSETUP luksOpen -d $KEY1 $LOOPDEV $DEV_NAME || fail
+$CRYPTSETUP luksClose $DEV_NAME || fail
+# fix uppercase hash
+echo -n "SHA256" | dd of=$LOOPDEV bs=1 seek=72 >/dev/null 2>&1
 $CRYPTSETUP -q repair $LOOPDEV >/dev/null 2>&1 || fail
 $CRYPTSETUP luksOpen -d $KEY1 $LOOPDEV $DEV_NAME || fail
 $CRYPTSETUP luksClose $DEV_NAME || fail

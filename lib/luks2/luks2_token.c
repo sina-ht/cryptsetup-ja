@@ -63,9 +63,13 @@ static void *token_dlvsym(struct crypt_device *cd,
 	char *error;
 	void *sym;
 
+#ifdef HAVE_DLVSYM
 	log_dbg(cd, "Loading symbol %s@%s.", symbol, version);
-
 	sym = dlvsym(handle, symbol, version);
+#else
+	log_dbg(cd, "Loading default version of symbol %s.", symbol);
+	sym = dlsym(handle, symbol);
+#endif
 	error = dlerror();
 
 	if (error)
@@ -182,7 +186,7 @@ crypt_token_load_external(struct crypt_device *cd, const char *name, struct cryp
 	if (r < 0 || (size_t)r >= sizeof(buf))
 		*buf = '\0';
 
-	log_dbg(cd, "Token handler %s-%s loaded sucessfuly.", token->name, buf);
+	log_dbg(cd, "Token handler %s-%s loaded successfully.", token->name, buf);
 
 	token->dlhandle = h;
 	ret->version = 2;

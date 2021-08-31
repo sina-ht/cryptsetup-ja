@@ -36,6 +36,7 @@ endif
 
 if SSHPLUGIN_TOKEN
 TESTS += ssh-plugin-test
+endif
 
 ssh-plugin-test: fake_token_path.so
 
@@ -44,7 +45,6 @@ fake_token_path.so:
 	-Wl,--version-script=$(top_srcdir)/lib/libcryptsetup.sym \
 	-o fake_token_path.so  $(top_srcdir)/tests/fake_token_path.c \
 	-DBUILD_DIR=\"$(abs_top_srcdir)/.libs/\"
-endif
 
 EXTRA_DIST = compatimage.img.xz compatv10image.img.xz \
 	compatimage2.img.xz \
@@ -95,19 +95,17 @@ CLEANFILES = cryptsetup-tst* valglog* *-fail-*.log test-symbols-list.h fake_toke
 clean-local:
 	-rm -rf tcrypt-images luks1-images luks2-images bitlk-images conversion_imgs luks2_valid_hdr.img blkid-luks2-pv-img blkid-luks2-pv-img.bcp
 
-LDADD = $(LTLIBINTL)
-
 differ_SOURCES = differ.c
 differ_CFLAGS = $(AM_CFLAGS) -Wall -O2
 
 api_test_SOURCES = api-test.c api_test.h test_utils.c
-api_test_LDADD = $(LDADD) ../libcryptsetup.la
+api_test_LDADD = ../libcryptsetup.la
 api_test_LDFLAGS = $(AM_LDFLAGS) -static
 api_test_CFLAGS = -g -Wall -O0 $(AM_CFLAGS) -I$(top_srcdir)/lib
 api_test_CPPFLAGS = $(AM_CPPFLAGS) -include config.h
 
 api_test_2_SOURCES = api-test-2.c api_test.h test_utils.c
-api_test_2_LDADD = $(LDADD) ../libcryptsetup.la
+api_test_2_LDADD = ../libcryptsetup.la
 api_test_2_LDFLAGS = $(AM_LDFLAGS) -static
 api_test_2_CFLAGS = -g -Wall -O0 $(AM_CFLAGS) -I$(top_srcdir)/lib
 api_test_2_CPPFLAGS = $(AM_CPPFLAGS) -include config.h
@@ -132,10 +130,13 @@ test-symbols-list.h: $(top_srcdir)/lib/libcryptsetup.sym generate-symbols-list
 all_symbols_test_SOURCES = all-symbols-test.c
 nodist_all_symbols_test_SOURCES = test-symbols-list.h
 all_symbols_test.$(OBJEXT): test-symbols-list.h
-all_symbols_test_CFLAGS = -ldl
+all_symbols_test_LDFLAGS = $(AM_LDFLAGS) -ldl
+all_symbols_test_CFLAGS = $(AM_CFLAGS)
 all_symbols_test_CPPFLAGS = $(AM_CPPFLAGS) -D_GNU_SOURCE
 
 check_PROGRAMS = api-test api-test-2 differ vectors-test unit-utils-io all-symbols-test
+
+check-programs: $(check_PROGRAMS) fake_token_path.so
 
 conversion_imgs:
 	@tar xJf conversion_imgs.tar.xz

@@ -20,6 +20,8 @@ LUKS Design
 only facilitate compatibility among distributions, but also provides secure management of multiple user passwords.  
 LUKS stores all necessary setup information in the partition header, enabling to transport or migrate data seamlessly.
 
+### Specifications
+
 Last version of the LUKS2 format specification is
 [available here](https://gitlab.com/cryptsetup/LUKS2-docs).
 
@@ -44,22 +46,16 @@ Download
 --------
 All release tarballs and release notes are hosted on [kernel.org](https://www.kernel.org/pub/linux/utils/cryptsetup/).
 
-**The latest release candidate cryptsetup version is 2.4.0-rc1**
-  * [cryptsetup-2.4.0-rc1.tar.xz](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.4/cryptsetup-2.4.0-rc1.tar.xz)
-  * Signature [cryptsetup-2.4.0-rc1.tar.sign](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.4/cryptsetup-2.4.0-rc1.tar.sign)
+**The latest stable cryptsetup version is 2.4.0**
+  * [cryptsetup-2.4.0.tar.xz](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.4/cryptsetup-2.4.0.tar.xz)
+  * Signature [cryptsetup-2.4.0.tar.sign](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.4/cryptsetup-2.4.0.tar.sign)
     _(You need to decompress file first to check signature.)_
-  * [Cryptsetup 2.4.0-rc1 Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.4/v2.4.0-rc1-ReleaseNotes).
-
-**The latest stable cryptsetup version is 2.3.6**
-  * [cryptsetup-2.3.6.tar.xz](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.6.tar.xz)
-  * Signature [cryptsetup-2.3.6.tar.sign](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.6.tar.sign)
-    _(You need to decompress file first to check signature.)_
-  * [Cryptsetup 2.3.6 Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/v2.3.6-ReleaseNotes).
+  * [Cryptsetup 2.4.0 Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.4/v2.4.0-ReleaseNotes).
 
 Previous versions
- * [Version 2.0.6](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.0/cryptsetup-2.0.6.tar.xz) -
-   [Signature](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.0/cryptsetup-2.0.6.tar.sign) -
-   [Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.0/v2.0.6-ReleaseNotes).
+ * [Version 2.3.6](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.6.tar.xz) -
+   [Signature](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/cryptsetup-2.3.6.tar.sign) -
+   [Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v2.3/v2.3.6-ReleaseNotes).
  * [Version 1.7.5](https://www.kernel.org/pub/linux/utils/cryptsetup/v1.7/cryptsetup-1.7.5.tar.xz) -
    [Signature](https://www.kernel.org/pub/linux/utils/cryptsetup/v1.7/cryptsetup-1.7.5.tar.sign) -
    [Release Notes](https://www.kernel.org/pub/linux/utils/cryptsetup/v1.7/v1.7.5-ReleaseNotes).
@@ -89,10 +85,23 @@ Note that the list could change as distributions evolve.
 
 Help!
 -----
-Please always read [FAQ](https://gitlab.com/cryptsetup/cryptsetup/wikis/FrequentlyAskedQuestions) first.
-For cryptsetup and LUKS related questions, please use the dm-crypt mailing list, [dm-crypt@saout.de](mailto:dm-crypt@saout.de).
 
-If you want to subscribe just send an empty mail to [dm-crypt-subscribe@saout.de](mailto:dm-crypt-subscribe@saout.de).
+### Documentation
 
-You can also browse [list archive](https://www.saout.de/pipermail/dm-crypt/) or read and search it through
-[web interface on lore.kernel.org](https://lore.kernel.org/dm-crypt/) or alternatively on [marc.info](https://marc.info/?l=dm-crypt).
+Please read the following documentation before posting questions in the mailing list.   You will be able to ask better questions and better understand the answers.  
+
+* [FAQ](https://gitlab.com/cryptsetup/cryptsetup/wikis/FrequentlyAskedQuestions) 
+* LUKS Specifications
+* manuals (aka man page, man pages, man-page) 
+
+The FAQ is online and in the source code for the project.  The Specifications are referenced above in this document.  The man pages are in source and should be available after installation using standard man commands.  e.g.  man cryptsetup
+
+### Mailing List
+
+For cryptsetup and LUKS related questions, please use the dm-crypt mailing list, [dm-crypt@saout.de](mailto:dm-crypt@saout.de).  To subscribe send an empty mail to [dm-crypt-subscribe@saout.de](mailto:dm-crypt-subscribe@saout.de).
+
+You can also browse and/or search the mailing list archives using the following resources:
+
+* [list archive](https://www.saout.de/pipermail/dm-crypt/) 
+* [web interface on lore.kernel.org](https://lore.kernel.org/dm-crypt/) 
+* [marc.info](https://marc.info/?l=dm-crypt).
