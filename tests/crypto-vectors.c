@@ -124,6 +124,27 @@ static struct kdf_test_vector kdf_test_vectors[] = {
 //		"\xd0\x1e\xf0\x45\x2d\x75\xb6\x5e"
 //		"\xb5\x25\x20\xe9\x6b\x01\xe6\x59", 32
 	},
+	/* empty password */
+	{
+		"argon2i", NULL, 0, 3, 128, 1,
+		"", 0,
+		"\x00\x01\x02\x03\x04\x05\x06\x07"
+		"\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f", 16,
+		"\xbb\x1f\xf2\xb9\x9f\xd4\x4a\xd9"
+		"\xdf\x7f\xb9\x54\x55\x9e\xb8\xeb"
+		"\xb5\x9d\xab\xce\x2e\x62\x9f\x9b"
+		"\x89\x09\xfe\xde\x57\xcc\x63\x86", 32
+	},
+	{
+		"argon2id", NULL, 0, 3, 128, 1,
+		"", 0,
+		"\x00\x01\x02\x03\x04\x05\x06\x07"
+		"\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f", 16,
+		"\x09\x2f\x38\x35\xac\xb2\x43\x92"
+		"\x93\xeb\xcd\xe8\x04\x16\x6a\x31"
+		"\xce\x14\xd4\x55\xdb\xd8\xf7\xe6"
+		"\xb4\xf5\x9d\x64\x8e\xd0\x3a\xdb", 32
+	},
 	/* RFC 3962 */
 	{
 		"pbkdf2", "sha1", 64, 1, 0, 0,
@@ -938,7 +959,7 @@ static int pbkdf_test_vectors(void)
 	unsigned int i;
 	const struct kdf_test_vector *vec;
 
-	for (i = 0; i < (sizeof(kdf_test_vectors) / sizeof(*kdf_test_vectors)); i++) {
+	for (i = 0; i < ARRAY_SIZE(kdf_test_vectors); i++) {
 		crypt_backend_memzero(result, sizeof(result));
 		vec = &kdf_test_vectors[i];
 		printf("PBKDF vector %02d %s ", i, vec->type);
@@ -1032,17 +1053,37 @@ static int hash_test(void)
 			if (!r)
 				r = crypt_hash_final(h, result, vector->out[j].length);
 
-			crypt_hash_destroy(h);
 
-			if (r)
+			if (r) {
+				crypt_hash_destroy(h);
 				return EXIT_FAILURE;
+			}
 
 			if (memcmp(result, vector->out[j].out, vector->out[j].length)) {
 				printf("[FAILED]\n");
 				printhex(" got", result, vector->out[j].length);
 				printhex("want", vector->out[j].out, vector->out[j].length);
+				crypt_hash_destroy(h);
 				return EXIT_FAILURE;
 			}
+
+			/*
+			 * After crypt_hash_final() the context must be reset, repeat
+			 */
+			crypt_backend_memzero(result, sizeof(result));
+			r = crypt_hash_write(h, vector->data, vector->data_length);
+			if (!r)
+				r = crypt_hash_final(h, result, vector->out[j].length);
+
+			if (r || memcmp(result, vector->out[j].out, vector->out[j].length)) {
+				printf("[FAILED (RESET CONTEXT)]\n");
+				printhex(" got", result, vector->out[j].length);
+				printhex("want", vector->out[j].out, vector->out[j].length);
+				crypt_hash_destroy(h);
+				return EXIT_FAILURE;
+			}
+
+			crypt_hash_destroy(h);
 		}
 		printf("\n");
 	}
@@ -1085,17 +1126,36 @@ static int hmac_test(void)
 			if (!r)
 				r = crypt_hmac_final(hmac, result, vector->out[j].length);
 
-			crypt_hmac_destroy(hmac);
-
-			if (r)
+			if (r) {
+				crypt_hmac_destroy(hmac);
 				return EXIT_FAILURE;
+			}
 
 			if (memcmp(result, vector->out[j].out, vector->out[j].length)) {
 				printf("[FAILED]\n");
 				printhex(" got", result, vector->out[j].length);
 				printhex("want", vector->out[j].out, vector->out[j].length);
+				crypt_hmac_destroy(hmac);
 				return EXIT_FAILURE;
 			}
+
+			/*
+			 * After crypt_hmac_final() the context must be reset, repeat
+			 */
+			crypt_backend_memzero(result, sizeof(result));
+			r = crypt_hmac_write(hmac, vector->data, vector->data_length);
+			if (!r)
+				r = crypt_hmac_final(hmac, result, vector->out[j].length);
+
+			if (r || memcmp(result, vector->out[j].out, vector->out[j].length)) {
+				printf("[FAILED (RESET CONTEXT)]\n");
+				printhex(" got", result, vector->out[j].length);
+				printhex("want", vector->out[j].out, vector->out[j].length);
+				crypt_hmac_destroy(hmac);
+				return EXIT_FAILURE;
+			}
+
+			crypt_hmac_destroy(hmac);
 		}
 		printf("\n");
 	}
@@ -1301,7 +1361,7 @@ int main(__attribute__ ((unused)) int argc, __attribute__ ((unused))char *argv[]
 		exit(77);
 	}
 
-	if (crypt_backend_init())
+	if (crypt_backend_init(fips_mode()))
 		exit_test("Crypto backend init error.", EXIT_FAILURE);
 
 	printf("Test vectors using %s crypto backend.\n", crypt_backend_version());
@@ -1323,9 +1383,9 @@ int main(__attribute__ ((unused)) int argc, __attribute__ ((unused))char *argv[]
 
 	if (default_alg_test()) {
 		if (fips_mode())
-			printf("Default compiled-in algorithms test ignoder (FIPS mode on).");
+			printf("\nDefault compiled-in algorithms test ignored (FIPS mode on).\n");
 		else
-			exit_test("Default compiled-in algorithms test failed.", EXIT_FAILURE);
+			exit_test("\nDefault compiled-in algorithms test failed.", EXIT_FAILURE);
 	}
 
 	exit_test(NULL, EXIT_SUCCESS);

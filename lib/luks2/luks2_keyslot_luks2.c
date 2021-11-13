@@ -248,6 +248,7 @@ static int luks2_keyslot_set_key(struct crypt_device *cd,
 	/*
 	 * Calculate keyslot content, split and store it to keyslot area.
 	 */
+	log_dbg(cd, "Running keyslot key derivation.");
 	r = crypt_pbkdf(pbkdf.type, pbkdf.hash, password, passwordLen,
 			salt, LUKS_SALTSIZE,
 			derived_key->key, derived_key->keylength,
@@ -269,7 +270,7 @@ static int luks2_keyslot_set_key(struct crypt_device *cd,
 	r = AF_split(cd, volume_key, AfKey, volume_key_len, LUKS_STRIPES, af_hash);
 
 	if (r == 0) {
-		log_dbg(cd, "Updating keyslot area [0x%04x].", (unsigned)area_offset);
+		log_dbg(cd, "Updating keyslot area [0x%04" PRIx64 "].", area_offset);
 		/* FIXME: sector_offset should be size_t, fix LUKS_encrypt... accordingly */
 		r = luks2_encrypt_to_storage(AfKey, AFEKSize, cipher, cipher_mode,
 				    derived_key, (unsigned)(area_offset / SECTOR_SIZE), cd);
@@ -350,6 +351,7 @@ static int luks2_keyslot_get_key(struct crypt_device *cd,
 	/*
 	 * Calculate derived key, decrypt keyslot content and merge it.
 	 */
+	log_dbg(cd, "Running keyslot key derivation.");
 	r = crypt_pbkdf(pbkdf.type, pbkdf.hash, password, passwordLen,
 			salt, LUKS_SALTSIZE,
 			derived_key->key, derived_key->keylength,
@@ -360,7 +362,7 @@ static int luks2_keyslot_get_key(struct crypt_device *cd,
 		crypt_serialize_unlock(cd);
 
 	if (r == 0) {
-		log_dbg(cd, "Reading keyslot area [0x%04x].", (unsigned)area_offset);
+		log_dbg(cd, "Reading keyslot area [0x%04" PRIx64 "].", area_offset);
 		/* FIXME: sector_offset should be size_t, fix LUKS_decrypt... accordingly */
 		r = luks2_decrypt_from_storage(AfKey, AFEKSize, cipher, cipher_mode,
 				      derived_key, (unsigned)(area_offset / SECTOR_SIZE), cd);
