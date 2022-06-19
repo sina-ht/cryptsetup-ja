@@ -234,13 +234,19 @@ int LUKS2_keyslot_reencrypt_store(struct crypt_device *cd,
 	const void *buffer,
 	size_t buffer_length);
 
-int LUKS2_keyslot_reencrypt_create(struct crypt_device *cd,
+int LUKS2_keyslot_reencrypt_allocate(struct crypt_device *cd,
 	struct luks2_hdr *hdr,
 	int keyslot,
 	const struct crypt_params_reencrypt *params);
 
+int LUKS2_keyslot_reencrypt_digest_create(struct crypt_device *cd,
+	struct luks2_hdr *hdr,
+	struct volume_key *vks);
+
 int LUKS2_keyslot_dump(struct crypt_device *cd,
 	int keyslot);
+
+int LUKS2_keyslot_jobj_area(json_object *jobj_keyslot, uint64_t *offset, uint64_t *length);
 
 /* JSON helpers */
 uint64_t json_segment_get_offset(json_object *jobj_segment, unsigned blockwise);
@@ -257,6 +263,8 @@ uint64_t json_segments_get_minimal_offset(json_object *jobj_segments, unsigned b
 json_object *json_segment_create_linear(uint64_t offset, const uint64_t *length, unsigned reencryption);
 json_object *json_segment_create_crypt(uint64_t offset, uint64_t iv_offset, const uint64_t *length, const char *cipher, uint32_t sector_size, unsigned reencryption);
 int json_segments_segment_in_reencrypt(json_object *jobj_segments);
+bool json_segment_cmp(json_object *jobj_segment_1, json_object *jobj_segment_2);
+bool json_segment_contains_flag(json_object *jobj_segment, const char *flag_str, size_t len);
 
 int LUKS2_assembly_multisegment_dmd(struct crypt_device *cd,
 	struct luks2_hdr *hdr,

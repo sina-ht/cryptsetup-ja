@@ -40,8 +40,8 @@ test-mergerq-job-debian-noroot:
   stage: test
   interruptible: true
   rules:
-#   - if: $CI_PROJECT_PATH != "cryptsetup/cryptsetup"
-#     when: never
+    - if: $CI_PROJECT_PATH != "cryptsetup/cryptsetup"
+      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     - make -j
@@ -62,7 +62,7 @@ test-main-commit-job-debian:
   rules:
     - if: $CI_PROJECT_PATH != "cryptsetup/cryptsetup"
       when: never
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_COMMIT_BRANCH =~ /v2\..\.x$/
   script:
     - make -j
     - make -j -C tests check-programs
@@ -82,7 +82,7 @@ test-main-commit-job-dnf:
   rules:
     - if: $CI_PROJECT_PATH != "cryptsetup/cryptsetup"
       when: never
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_COMMIT_BRANCH =~ /v2\..\.x$/
   script:
     - make -j
     - make -j -C tests check-programs
@@ -99,10 +99,15 @@ test-mergerq-job-dnf:
   variables:
     RUN_SSH_PLUGIN_TEST: "1"
   rules:
-#   - if: $CI_PROJECT_PATH != "cryptsetup/cryptsetup"
-#     when: never
+    - if: $CI_PROJECT_PATH != "cryptsetup/cryptsetup"
+      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     - make -j
     - make -j -C tests check-programs
     - sudo -E make check
+
+include:
+  - local: .gitlab/ci/gitlab-shared-docker.yml
+  - local: .gitlab/ci/compilation-gcc.gitlab-ci.yml
+  - local: .gitlab/ci/compilation-clang.gitlab-ci.yml

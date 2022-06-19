@@ -123,7 +123,7 @@ static json_object *json_segment_get_flags(json_object *jobj_segment)
 	return jobj;
 }
 
-static bool json_segment_contains_flag(json_object *jobj_segment, const char *flag_str, size_t len)
+bool json_segment_contains_flag(json_object *jobj_segment, const char *flag_str, size_t len)
 {
 	int r, i;
 	json_object *jobj, *jobj_flags = json_segment_get_flags(jobj_segment);
@@ -409,4 +409,24 @@ json_object *LUKS2_get_segment_by_flag(struct luks2_hdr *hdr, const char *flag)
 		_get_segment_or_id_by_flag(jobj_segments, flag, 0, &jobj_segment);
 
 	return jobj_segment;
+}
+
+/* compares key characteristics of both segments */
+bool json_segment_cmp(json_object *jobj_segment_1, json_object *jobj_segment_2)
+{
+	const char *type = json_segment_type(jobj_segment_1);
+	const char *type2 = json_segment_type(jobj_segment_2);
+
+	if (!type || !type2)
+		return false;
+
+	if (strcmp(type, type2))
+		return false;
+
+	if (!strcmp(type, "crypt"))
+		return (json_segment_get_sector_size(jobj_segment_1) == json_segment_get_sector_size(jobj_segment_2) &&
+			!strcmp(json_segment_get_cipher(jobj_segment_1),
+			        json_segment_get_cipher(jobj_segment_2)));
+
+	return true;
 }

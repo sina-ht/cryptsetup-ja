@@ -592,6 +592,78 @@ static bool validate_segment_intervals(struct crypt_device *cd,
 	return true;
 }
 
+static int reqs_unknown(uint32_t reqs)
+{
+	return reqs & CRYPT_REQUIREMENT_UNKNOWN;
+}
+
+static int reqs_reencrypt(uint32_t reqs)
+{
+	return reqs & CRYPT_REQUIREMENT_OFFLINE_REENCRYPT;
+}
+
+static int reqs_reencrypt_online(uint32_t reqs)
+{
+	return reqs & CRYPT_REQUIREMENT_ONLINE_REENCRYPT;
+}
+
+/*
+ * Config section requirements object must be valid.
+ * Also general segments section must be validated first.
+ */
+static int validate_reencrypt_segments(struct crypt_device *cd, json_object *hdr_jobj, json_object *jobj_segments, int first_backup, int segments_count)
+{
+	json_object *jobj, *jobj_backup_previous = NULL, *jobj_backup_final = NULL;
+	uint32_t reqs;
+	int i, r;
+	struct luks2_hdr dummy = {
+		.jobj = hdr_jobj
+	};
+
+	r = LUKS2_config_get_requirements(cd, &dummy, &reqs);
+	if (r)
+		return 1;
+
+	if (reqs_reencrypt_online(reqs)) {
+		for (i = first_backup; i < segments_count; i++) {
+			jobj = json_segments_get_segment(jobj_segments, i);
+			if (!jobj)
+				return 1;
+			if (json_segment_contains_flag(jobj, "backup-final", 0))
+				jobj_backup_final = jobj;
+			else if (json_segment_contains_flag(jobj, "backup-previous", 0))
+				jobj_backup_previous = jobj;
+		}
+
+		if (!jobj_backup_final || !jobj_backup_previous) {
+			log_dbg(cd, "Backup segment is missing.");
+			return 1;
+		}
+
+		for (i = 0; i < first_backup; i++) {
+			jobj = json_segments_get_segment(jobj_segments, i);
+			if (!jobj)
+				return 1;
+
+			if (json_segment_contains_flag(jobj, "in-reencryption", 0)) {
+				if (!json_segment_cmp(jobj, jobj_backup_final)) {
+					log_dbg(cd, "Segment in reencryption does not match backup final segment.");
+					return 1;
+				}
+				continue;
+			}
+
+			if (!json_segment_cmp(jobj, jobj_backup_final) &&
+			    !json_segment_cmp(jobj, jobj_backup_previous)) {
+				log_dbg(cd, "Segment does not match neither backup final or backup previous segment.");
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static int hdr_validate_segments(struct crypt_device *cd, json_object *hdr_jobj)
 {
 	json_object *jobj_segments, *jobj_digests, *jobj_offset, *jobj_size, *jobj_type, *jobj_flags, *jobj;
@@ -718,7 +790,7 @@ static int hdr_validate_segments(struct crypt_device *cd, json_object *hdr_jobj)
 		}
 	}
 
-	return 0;
+	return validate_reencrypt_segments(cd, hdr_jobj, jobj_segments, first_backup, count);
 }
 
 static uint64_t LUKS2_metadata_size_jobj(json_object *jobj)
@@ -841,9 +913,10 @@ static int hdr_validate_digests(struct crypt_device *cd, json_object *hdr_jobj)
 	return 0;
 }
 
+/* requirements being validated in stand-alone routine */
 static int hdr_validate_config(struct crypt_device *cd, json_object *hdr_jobj)
 {
-	json_object *jobj_config, *jobj, *jobj1;
+	json_object *jobj_config, *jobj;
 	int i;
 	uint64_t keyslots_size, metadata_size, segment_offset;
 
@@ -898,6 +971,19 @@ static int hdr_validate_config(struct crypt_device *cd, json_object *hdr_jobj)
 				return 1;
 	}
 
+	return 0;
+}
+
+static int hdr_validate_requirements(struct crypt_device *cd, json_object *hdr_jobj)
+{
+	int i;
+	json_object *jobj_config, *jobj, *jobj1;
+
+	if (!json_object_object_get_ex(hdr_jobj, "config", &jobj_config)) {
+		log_dbg(cd, "Missing config section.");
+		return 1;
+	}
+
 	/* Requirements object is optional */
 	if (json_object_object_get_ex(jobj_config, "requirements", &jobj)) {
 		if (!json_contains(cd, jobj_config, "section", "Config", "requirements", json_type_object))
@@ -923,6 +1009,7 @@ int LUKS2_hdr_validate(struct crypt_device *cd, json_object *hdr_jobj, uint64_t 
 	struct {
 		int (*validate)(struct crypt_device *, json_object *);
 	} checks[] = {
+		{ hdr_validate_requirements },
 		{ hdr_validate_tokens   },
 		{ hdr_validate_digests  },
 		{ hdr_validate_segments },
@@ -1137,21 +1224,6 @@ int LUKS2_hdr_backup(struct crypt_device *cd, struct luks2_hdr *hdr,
 
 	crypt_safe_free(buffer);
 	return r;
-}
-
-static int reqs_unknown(uint32_t reqs)
-{
-	return reqs & CRYPT_REQUIREMENT_UNKNOWN;
-}
-
-static int reqs_reencrypt(uint32_t reqs)
-{
-	return reqs & CRYPT_REQUIREMENT_OFFLINE_REENCRYPT;
-}
-
-static int reqs_reencrypt_online(uint32_t reqs)
-{
-	return reqs & CRYPT_REQUIREMENT_ONLINE_REENCRYPT;
 }
 
 int LUKS2_hdr_restore(struct crypt_device *cd, struct luks2_hdr *hdr,
@@ -1389,24 +1461,106 @@ int LUKS2_config_set_flags(struct crypt_device *cd, struct luks2_hdr *hdr, uint3
  */
 
 /* LUKS2 library requirements */
-static const struct  {
+struct requirement_flag {
 	uint32_t flag;
+	uint32_t version;
 	const char *description;
-} requirements_flags[] = {
-	{ CRYPT_REQUIREMENT_OFFLINE_REENCRYPT, "offline-reencrypt" },
-	{ CRYPT_REQUIREMENT_ONLINE_REENCRYPT, "online-reencrypt" },
-	{ 0, NULL }
 };
 
-static uint32_t get_requirement_by_name(const char *requirement)
+static const struct requirement_flag unknown_requirement_flag = { CRYPT_REQUIREMENT_UNKNOWN, 0, NULL };
+
+static const struct requirement_flag requirements_flags[] = {
+	{ CRYPT_REQUIREMENT_OFFLINE_REENCRYPT,1, "offline-reencrypt" },
+	{ CRYPT_REQUIREMENT_ONLINE_REENCRYPT, 2, "online-reencrypt-v2" },
+	{ CRYPT_REQUIREMENT_ONLINE_REENCRYPT, 1, "online-reencrypt" },
+	{ 0, 0, NULL }
+};
+
+static const struct requirement_flag *get_requirement_by_name(const char *requirement)
 {
 	int i;
 
 	for (i = 0; requirements_flags[i].description; i++)
 		if (!strcmp(requirement, requirements_flags[i].description))
-			return requirements_flags[i].flag;
+			return requirements_flags + i;
 
-	return CRYPT_REQUIREMENT_UNKNOWN;
+	return &unknown_requirement_flag;
+}
+
+int LUKS2_config_get_reencrypt_version(struct luks2_hdr *hdr, uint32_t *version)
+{
+	json_object *jobj_config, *jobj_requirements, *jobj_mandatory, *jobj;
+	int i, len;
+	const struct requirement_flag *req;
+
+	assert(hdr && version);
+	if (!hdr || !version)
+		return -EINVAL;
+
+	if (!json_object_object_get_ex(hdr->jobj, "config", &jobj_config))
+		return -EINVAL;
+
+	if (!json_object_object_get_ex(jobj_config, "requirements", &jobj_requirements))
+		return -ENOENT;
+
+	if (!json_object_object_get_ex(jobj_requirements, "mandatory", &jobj_mandatory))
+		return -ENOENT;
+
+	len = (int) json_object_array_length(jobj_mandatory);
+	if (len <= 0)
+		return -ENOENT;
+
+	for (i = 0; i < len; i++) {
+		jobj = json_object_array_get_idx(jobj_mandatory, i);
+
+		/* search for requirements prefixed with "online-reencrypt" */
+		if (strncmp(json_object_get_string(jobj), "online-reencrypt", 16))
+			continue;
+
+		/* check current library is aware of the requirement */
+		req = get_requirement_by_name(json_object_get_string(jobj));
+		if (req->flag == (uint32_t)CRYPT_REQUIREMENT_UNKNOWN)
+			continue;
+
+		*version = req->version;
+
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
+static const struct requirement_flag *stored_requirement_name_by_id(struct crypt_device *cd, struct luks2_hdr *hdr, uint32_t req_id)
+{
+	json_object *jobj_config, *jobj_requirements, *jobj_mandatory, *jobj;
+	int i, len;
+	const struct requirement_flag *req;
+
+	assert(hdr);
+	if (!hdr)
+		return NULL;
+
+	if (!json_object_object_get_ex(hdr->jobj, "config", &jobj_config))
+		return NULL;
+
+	if (!json_object_object_get_ex(jobj_config, "requirements", &jobj_requirements))
+		return NULL;
+
+	if (!json_object_object_get_ex(jobj_requirements, "mandatory", &jobj_mandatory))
+		return NULL;
+
+	len = (int) json_object_array_length(jobj_mandatory);
+	if (len <= 0)
+		return 0;
+
+	for (i = 0; i < len; i++) {
+		jobj = json_object_array_get_idx(jobj_mandatory, i);
+		req = get_requirement_by_name(json_object_get_string(jobj));
+		if (req->flag == req_id)
+			return req;
+	}
+
+	return NULL;
 }
 
 /*
@@ -1416,7 +1570,7 @@ int LUKS2_config_get_requirements(struct crypt_device *cd, struct luks2_hdr *hdr
 {
 	json_object *jobj_config, *jobj_requirements, *jobj_mandatory, *jobj;
 	int i, len;
-	uint32_t req;
+	const struct requirement_flag *req;
 
 	assert(hdr);
 	if (!hdr || !reqs)
@@ -1443,8 +1597,8 @@ int LUKS2_config_get_requirements(struct crypt_device *cd, struct luks2_hdr *hdr
 		jobj = json_object_array_get_idx(jobj_mandatory, i);
 		req = get_requirement_by_name(json_object_get_string(jobj));
 		log_dbg(cd, "%s - %sknown", json_object_get_string(jobj),
-				        reqs_unknown(req) ? "un" : "");
-		*reqs |= req;
+				        reqs_unknown(req->flag) ? "un" : "");
+		*reqs |= req->flag;
 	}
 
 	return 0;
@@ -1454,6 +1608,8 @@ int LUKS2_config_set_requirements(struct crypt_device *cd, struct luks2_hdr *hdr
 {
 	json_object *jobj_config, *jobj_requirements, *jobj_mandatory, *jobj;
 	int i, r = -EINVAL;
+	const struct requirement_flag *req;
+	uint32_t req_id;
 
 	if (!hdr)
 		return -EINVAL;
@@ -1463,8 +1619,14 @@ int LUKS2_config_set_requirements(struct crypt_device *cd, struct luks2_hdr *hdr
 		return -ENOMEM;
 
 	for (i = 0; requirements_flags[i].description; i++) {
-		if (reqs & requirements_flags[i].flag) {
-			jobj = json_object_new_string(requirements_flags[i].description);
+		req_id = reqs & requirements_flags[i].flag;
+		if (req_id) {
+			/* retain already stored version of requirement flag */
+			req = stored_requirement_name_by_id(cd, hdr, req_id);
+			if (req)
+				jobj = json_object_new_string(req->description);
+			else
+				jobj = json_object_new_string(requirements_flags[i].description);
 			if (!jobj) {
 				r = -ENOMEM;
 				goto err;

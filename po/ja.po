@@ -5,9 +5,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: cryptsetup 2.4.1-rc0\n"
+"Project-Id-Version: cryptsetup 2.4.2-rc0\n"
 "Report-Msgid-Bugs-To: dm-crypt@saout.de\n"
-"POT-Creation-Date: 2021-11-13 11:17+0900\n"
+"POT-Creation-Date: 2021-11-11 19:08+0100\n"
 "PO-Revision-Date: 2021-11-13 11:23+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"

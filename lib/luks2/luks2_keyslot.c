@@ -27,7 +27,9 @@ extern const keyslot_handler reenc_keyslot;
 
 static const keyslot_handler *keyslot_handlers[LUKS2_KEYSLOTS_MAX] = {
 	&luks2_keyslot,
+#if USE_LUKS2_REENCRYPTION
 	&reenc_keyslot,
+#endif
 	NULL
 };
 
@@ -288,19 +290,9 @@ crypt_keyslot_info LUKS2_keyslot_info(struct luks2_hdr *hdr, int keyslot)
 	return CRYPT_SLOT_ACTIVE;
 }
 
-int LUKS2_keyslot_area(struct luks2_hdr *hdr,
-	int keyslot,
-	uint64_t *offset,
-	uint64_t *length)
+int LUKS2_keyslot_jobj_area(json_object *jobj_keyslot, uint64_t *offset, uint64_t *length)
 {
-	json_object *jobj_keyslot, *jobj_area, *jobj;
-
-	if(LUKS2_keyslot_info(hdr, keyslot) == CRYPT_SLOT_INVALID)
-		return -EINVAL;
-
-	jobj_keyslot = LUKS2_get_keyslot_jobj(hdr, keyslot);
-	if (!jobj_keyslot)
-		return -ENOENT;
+	json_object *jobj_area, *jobj;
 
 	if (!json_object_object_get_ex(jobj_keyslot, "area", &jobj_area))
 		return -EINVAL;
@@ -314,6 +306,23 @@ int LUKS2_keyslot_area(struct luks2_hdr *hdr,
 	*length = crypt_jobj_get_uint64(jobj);
 
 	return 0;
+}
+
+int LUKS2_keyslot_area(struct luks2_hdr *hdr,
+	int keyslot,
+	uint64_t *offset,
+	uint64_t *length)
+{
+	json_object *jobj_keyslot;
+
+	if (LUKS2_keyslot_info(hdr, keyslot) == CRYPT_SLOT_INVALID)
+		return -EINVAL;
+
+	jobj_keyslot = LUKS2_get_keyslot_jobj(hdr, keyslot);
+	if (!jobj_keyslot)
+		return -ENOENT;
+
+	return LUKS2_keyslot_jobj_area(jobj_keyslot, offset, length);
 }
 
 static int _open_and_verify(struct crypt_device *cd,
@@ -596,7 +605,7 @@ int LUKS2_keyslot_open(struct crypt_device *cd,
 	return r;
 }
 
-int LUKS2_keyslot_reencrypt_create(struct crypt_device *cd,
+int LUKS2_keyslot_reencrypt_allocate(struct crypt_device *cd,
 	struct luks2_hdr *hdr,
 	int keyslot,
 	const struct crypt_params_reencrypt *params)
@@ -624,9 +633,6 @@ int LUKS2_keyslot_reencrypt_create(struct crypt_device *cd,
 		log_dbg(cd, "Keyslot validation failed.");
 		return r;
 	}
-
-	if (LUKS2_hdr_validate(cd, hdr->jobj, hdr->hdr_size - LUKS2_HDR_BIN_LEN))
-		return -EINVAL;
 
 	return 0;
 }
@@ -878,8 +884,15 @@ int LUKS2_keyslots_validate(struct crypt_device *cd, json_object *hdr_jobj)
 	const keyslot_handler *h;
 	int keyslot;
 	json_object *jobj_keyslots, *jobj_type;
+	uint32_t reqs, reencrypt_count = 0;
+	struct luks2_hdr dummy = {
+		.jobj = hdr_jobj
+	};
 
 	if (!json_object_object_get_ex(hdr_jobj, "keyslots", &jobj_keyslots))
+		return -EINVAL;
+
+	if (LUKS2_config_get_requirements(cd, &dummy, &reqs))
 		return -EINVAL;
 
 	json_object_object_foreach(jobj_keyslots, slot, val) {
@@ -897,6 +910,24 @@ int LUKS2_keyslots_validate(struct crypt_device *cd, json_object *hdr_jobj)
 			log_dbg(cd, "Keyslot %d is not assigned to exactly 1 digest.", keyslot);
 			return -EINVAL;
 		}
+
+		if (!strcmp(h->name, "reencrypt"))
+			reencrypt_count++;
+	}
+
+	if ((reqs & CRYPT_REQUIREMENT_ONLINE_REENCRYPT) && reencrypt_count == 0) {
+		log_dbg(cd, "Missing reencryption keyslot.");
+		return -EINVAL;
+	}
+
+	if (!(reqs & CRYPT_REQUIREMENT_ONLINE_REENCRYPT) && reencrypt_count) {
+		log_dbg(cd, "Missing reencryption requirement flag.");
+		return -EINVAL;
+	}
+
+	if (reencrypt_count > 1) {
+		log_dbg(cd, "Too many reencryption keyslots.");
+		return -EINVAL;
 	}
 
 	return 0;
