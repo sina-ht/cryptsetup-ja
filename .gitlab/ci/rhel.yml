@@ -27,6 +27,8 @@ test-main-commit-rhel8:
   variables:
     RUN_SSH_PLUGIN_TEST: "1"
   rules:
+    - if: $RUN_SYSTEMD_PLUGIN_TEST != null
+      when: never
     - if: $CI_PROJECT_PATH != "cryptsetup/cryptsetup"
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_COMMIT_BRANCH =~ /v2\..\.x$/
@@ -46,6 +48,8 @@ test-main-commit-rhel9:
   variables:
     RUN_SSH_PLUGIN_TEST: "1"
   rules:
+    - if: $RUN_SYSTEMD_PLUGIN_TEST != null
+      when: never
     - if: $CI_PROJECT_PATH != "cryptsetup/cryptsetup"
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_COMMIT_BRANCH =~ /v2\..\.x$/
@@ -67,10 +71,13 @@ test-main-commit-rhel8-fips:
   variables:
     RUN_SSH_PLUGIN_TEST: "1"
   rules:
+    - if: $RUN_SYSTEMD_PLUGIN_TEST != null
+      when: never
     - if: $CI_PROJECT_PATH != "cryptsetup/cryptsetup"
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_COMMIT_BRANCH =~ /v2\..\.x$/
   script:
+    - fips-mode-setup --check || exit 1
     - make -j
     - make -j -C tests check-programs
     - sudo -E make check
@@ -87,10 +94,13 @@ test-main-commit-rhel9-fips:
   variables:
     RUN_SSH_PLUGIN_TEST: "1"
   rules:
+    - if: $RUN_SYSTEMD_PLUGIN_TEST != null
+      when: never
     - if: $CI_PROJECT_PATH != "cryptsetup/cryptsetup"
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_COMMIT_BRANCH =~ /v2\..\.x$/
   script:
+    - fips-mode-setup --check || exit 1
     - make -j
     - make -j -C tests check-programs
     - sudo -E make check

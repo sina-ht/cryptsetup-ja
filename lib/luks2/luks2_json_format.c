@@ -21,7 +21,6 @@
 
 #include "luks2_internal.h"
 #include <uuid/uuid.h>
-#include <assert.h>
 
 struct area {
 	uint64_t offset;
@@ -362,6 +361,10 @@ int LUKS2_wipe_header_areas(struct crypt_device *cd,
 		length = 4096;
 		wipe_block = 4096;
 	}
+
+	r = device_check_size(cd, crypt_metadata_device(cd), length, 1);
+	if (r)
+		return r;
 
 	log_dbg(cd, "Wiping LUKS areas (0x%06" PRIx64 " - 0x%06" PRIx64") with zeroes.",
 		offset, length + offset);

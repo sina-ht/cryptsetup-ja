@@ -31,6 +31,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <fcntl.h>
+#include <assert.h>
 
 #include "nls.h"
 #include "bitops.h"
@@ -38,7 +39,6 @@
 #include "utils_crypt.h"
 #include "utils_loop.h"
 #include "utils_dm.h"
-#include "utils_fips.h"
 #include "utils_keyring.h"
 #include "utils_io.h"
 #include "crypto_backend/crypto_backend.h"
@@ -178,8 +178,7 @@ int init_crypto(struct crypt_device *ctx);
 
 int crypt_get_debug_level(void);
 
-int crypt_memlock_inc(struct crypt_device *ctx);
-int crypt_memlock_dec(struct crypt_device *ctx);
+void crypt_process_priority(struct crypt_device *cd, int *priority, bool raise);
 
 int crypt_metadata_locking_enabled(void);
 

@@ -10,11 +10,14 @@ PWD1="93R4P4pIqAH8"
 PWD2="mymJeD8ivEhE"
 FAST_PBKDF="--pbkdf-force-iterations 1000"
 
+CRYPTSETUP_VALGRIND=../.libs/cryptsetup
+CRYPTSETUP_LIB_VALGRIND=../.libs
+
 cleanup() {
 	udevadm settle >/dev/null 2>&1
 	if [ -d "$MNT_DIR" ] ; then
-	    umount -f $MNT_DIR 2>/dev/null
-	    rmdir $MNT_DIR 2>/dev/null
+		umount -f $MNT_DIR 2>/dev/null
+		rmdir $MNT_DIR 2>/dev/null
 	fi
 	[ -b /dev/mapper/$DEV_STACKED ] && dmsetup remove --retry $DEV_STACKED >/dev/null 2>&1
 	[ -b /dev/mapper/$DEV_NAME ] && dmsetup remove --retry $DEV_NAME >/dev/null 2>&1
@@ -38,6 +41,18 @@ skip()
 	echo "TEST SKIPPED: $1"
 	cleanup
 	exit 77
+}
+
+function valgrind_setup()
+{
+	command -v valgrind >/dev/null || fail "Cannot find valgrind."
+	[ ! -f $CRYPTSETUP_VALGRIND ] && fail "Unable to get location of cryptsetup executable."
+	export LD_LIBRARY_PATH="$CRYPTSETUP_LIB_VALGRIND:$LD_LIBRARY_PATH"
+}
+
+function valgrind_run()
+{
+	INFOSTRING="$(basename ${BASH_SOURCE[1]})-line-${BASH_LINENO[0]}" ./valg.sh ${CRYPTSETUP_VALGRIND} "$@"
 }
 
 function dm_crypt_features()
@@ -104,7 +119,7 @@ format() # key_bits expected [forced]
 	[ $ALIGN -ne $2 ] && fail "Expected alignment differs: expected $2 != detected $ALIGN"
 
 	# test some operation, just in case
-	echo -e "$PWD1\n$PWD2" | $CRYPTSETUP luksAddKey $DEV $FAST_PBKDF --key-slot 1
+	echo -e "$PWD1\n$PWD2" | $CRYPTSETUP luksAddKey $DEV $FAST_PBKDF --new-key-slot 1
 	[ $? -ne 0 ] && fail "Keyslot add failed."
 
 	$CRYPTSETUP -q luksKillSlot $DEV 1
@@ -137,7 +152,7 @@ format_null()
 	[ $POFF != $2 ] && fail "Expected data offset differs: expected $2 != detected $POFF"
 	if [ -n "$4" ] ; then
 		for j in 1 2 3 4 5 6 7 ; do
-			echo -e "\n" | $CRYPTSETUP luksAddKey $DEV -q $FAST_PBKDF --key-slot $j -c null $PARAMS
+			echo -e "\n" | $CRYPTSETUP luksAddKey $DEV -q $FAST_PBKDF --new-key-slot $j -c null $PARAMS
 			echo -n $j
 			[ $? -ne 0 ] && fail
 		done
@@ -174,6 +189,7 @@ format_plain_fail() # sector size
 }
 
 [ ! -x "$CRYPTSETUP" ] && skip "Cannot find $CRYPTSETUP, test skipped."
+[ -n "$VALG" ] && valgrind_setup && CRYPTSETUP=valgrind_run
 if [ $(id -u) != 0 ]; then
 	echo "WARNING: You must be root to run this test, test skipped."
 	exit 77

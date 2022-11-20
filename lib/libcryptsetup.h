@@ -46,6 +46,7 @@ extern "C" {
  */
 
 struct crypt_device; /* crypt device handle */
+struct crypt_keyslot_context;
 
 /**
  * Initialize crypt device handle and check if the provided device exists.
@@ -344,6 +345,7 @@ void crypt_set_iteration_time(struct crypt_device *cd, uint64_t iteration_time_m
 
 /**
  * Helper to lock/unlock memory to avoid swap sensitive data to disk.
+ * \b Deprecated, only for backward compatibility. Memory with keys are locked automatically.
  *
  * @param cd crypt device handle, can be @e NULL
  * @param lock 0 to unlock otherwise lock memory
@@ -353,7 +355,7 @@ void crypt_set_iteration_time(struct crypt_device *cd, uint64_t iteration_time_m
  * @note Only root can do this.
  * @note It locks/unlocks all process memory, not only crypt context.
  */
-int crypt_memory_lock(struct crypt_device *cd, int lock);
+int crypt_memory_lock(struct crypt_device *cd, int lock) __attribute__((deprecated));
 
 /**
  * Set global lock protection for on-disk metadata (file-based locking).
@@ -427,6 +429,8 @@ int crypt_get_metadata_size(struct crypt_device *cd,
 #define CRYPT_INTEGRITY "INTEGRITY"
 /** BITLK (BitLocker-compatible mode) */
 #define CRYPT_BITLK "BITLK"
+/** FVAULT2 (FileVault2-compatible mode) */
+#define CRYPT_FVAULT2 "FVAULT2"
 
 /** LUKS any version */
 #define CRYPT_LUKS NULL
@@ -1107,6 +1111,189 @@ int crypt_keyslot_add_by_key(struct crypt_device *cd,
 	uint32_t flags);
 
 /**
+ * @defgroup crypt-keyslot-context Crypt keyslot context
+ * @addtogroup crypt-keyslot-context
+ * @{
+ */
+
+/**
+ * Release crypt keyslot context and used memory.
+ *
+ * @param kc crypt keyslot context
+ */
+void crypt_keyslot_context_free(struct crypt_keyslot_context *kc);
+
+/**
+ * Initialize keyslot context via passphrase.
+ *
+ * @param cd crypt device handle initialized to LUKS device context
+ * @param passphrase passphrase for a keyslot
+ * @param passphrase_size size of passphrase
+ * @param kc returns crypt keyslot context handle type CRYPT_KC_TYPE_PASSPHRASE
+ *
+ * @return zero on success or negative errno otherwise.
+ */
+int crypt_keyslot_context_init_by_passphrase(struct crypt_device *cd,
+	const char *passphrase,
+	size_t passphrase_size,
+	struct crypt_keyslot_context **kc);
+
+/**
+ * Initialize keyslot context via key file path.
+ *
+ * @param cd crypt device handle initialized to LUKS device context
+ *
+ * @param keyfile key file with passphrase for a keyslot
+ * @param keyfile_size number of bytes to read from keyfile, @e 0 is unlimited
+ * @param keyfile_offset number of bytes to skip at start of keyfile
+ * @param kc returns crypt keyslot context handle type CRYPT_KC_TYPE_KEYFILE
+ *
+ * @return zero on success or negative errno otherwise.
+ */
+int crypt_keyslot_context_init_by_keyfile(struct crypt_device *cd,
+	const char *keyfile,
+	size_t keyfile_size,
+	uint64_t keyfile_offset,
+	struct crypt_keyslot_context **kc);
+
+/**
+ * Initialize keyslot context via LUKS2 token.
+ *
+ * @param cd crypt device handle initialized to LUKS2 device context
+ *
+ * @param token token providing passphrase for a keyslot or CRYPT_ANY_TOKEN
+ * @param type restrict type of token, if @e NULL all types are allowed
+ * @param pin passphrase (or PIN) to unlock token (may be binary data)
+ * @param pin_size size of @e pin
+ * @param usrptr provided identification in callback
+ * @param kc returns crypt keyslot context handle type CRYPT_KC_TYPE_TOKEN
+ *
+ * @return zero on success or negative errno otherwise.
+ */
+int crypt_keyslot_context_init_by_token(struct crypt_device *cd,
+	int token,
+	const char *type,
+	const char *pin, size_t pin_size,
+	void *usrptr,
+	struct crypt_keyslot_context **kc);
+
+/**
+ * Initialize keyslot context via key.
+ *
+ * @param cd crypt device handle initialized to LUKS device context
+ *
+ * @param volume_key provided volume key or @e NULL if used after crypt_format
+ *        or with CRYPT_VOLUME_KEY_NO_SEGMENT flag
+ * @param volume_key_size size of volume_key
+ * @param kc returns crypt keyslot context handle type CRYPT_KC_TYPE_KEY
+ *
+ * @return zero on success or negative errno otherwise.
+ */
+int crypt_keyslot_context_init_by_volume_key(struct crypt_device *cd,
+	const char *volume_key,
+	size_t volume_key_size,
+	struct crypt_keyslot_context **kc);
+
+/**
+ * Get error code per keyslot context from last failed call.
+ *
+ * @note If @link crypt_keyslot_add_by_keyslot_context @endlink passed with
+ * 	 no negative return code. The return value of this function is undefined.
+ *
+ * @param kc keyslot context involved in failed @link crypt_keyslot_add_by_keyslot_context @endlink
+ *
+ * @return Negative errno if keyslot context caused a failure, zero otherwise.
+ */
+int crypt_keyslot_context_get_error(struct crypt_keyslot_context *kc);
+
+/**
+ * Set new pin to token based keyslot context.
+ *
+ * @note Use when @link crypt_keyslot_add_by_keyslot_context @endlink failed
+ *	 and token keyslot context returned -ENOANO error code via
+ *	 @link crypt_keyslot_context_get_error @endlink.
+ *
+ * @param cd crypt device handle initialized to LUKS2 device context
+ * @param pin passphrase (or PIN) to unlock token (may be binary data)
+ * @param pin_size size of @e pin
+ * @param kc LUKS2 keyslot context (only @link CRYPT_KC_TYPE_TOKEN @endlink is allowed)
+ *
+ * @return zero on success or negative errno otherwise
+ */
+int crypt_keyslot_context_set_pin(struct crypt_device *cd,
+	const char *pin, size_t pin_size,
+	struct crypt_keyslot_context *kc);
+
+/**
+ * @defgroup crypt-keyslot-context-types Crypt keyslot context
+ * @addtogroup crypt-keyslot-context-types
+ * @{
+ */
+/** keyslot context is not properly initialized */
+#define CRYPT_KC_TYPE_UNDEFINED  INT16_C(0)
+/** keyslot context initialized by passphrase (@link crypt_keyslot_context_init_by_passphrase @endlink) */
+#define CRYPT_KC_TYPE_PASSPHRASE INT16_C(1)
+/** keyslot context initialized by keyfile (@link crypt_keyslot_context_init_by_keyfile @endlink) */
+#define CRYPT_KC_TYPE_KEYFILE    INT16_C(2)
+/** keyslot context initialized by token (@link crypt_keyslot_context_init_by_token @endlink) */
+#define CRYPT_KC_TYPE_TOKEN      INT16_C(3)
+/** keyslot context initialized by volume key or unbound key (@link crypt_keyslot_context_init_by_volume_key @endlink) */
+#define CRYPT_KC_TYPE_KEY        INT16_C(4)
+/** @} */
+
+/**
+ * Get type identifier for crypt keyslot context.
+ *
+ * @param kc keyslot context
+ *
+ * @return crypt keyslot context type id (see @link crypt-keyslot-context-types @endlink) or negative errno otherwise.
+ */
+int crypt_keyslot_context_get_type(const struct crypt_keyslot_context *kc);
+/** @} */
+
+/**
+ * Add key slot by volume key provided by keyslot context (kc). New
+ * keyslot will be protected by passphrase provided by new keyslot context (new_kc).
+ * See @link crypt-keyslot-context @endlink for context initialization routines.
+ *
+ * @pre @e cd contains initialized and formatted LUKS device context.
+ *
+ * @param cd crypt device handle
+ * @param keyslot_existing existing keyslot or CRYPT_ANY_SLOT to get volume key from.
+ * @param kc keyslot context providing volume key.
+ * @param keyslot_new new keyslot or CRYPT_ANY_SLOT (first free number is used).
+ * @param new_kc keyslot context providing passphrase for new keyslot.
+ * @param flags key flags to set
+ *
+ * @return allocated key slot number or negative errno otherwise.
+ *
+ * @note new_kc can not be @e CRYPT_KC_TYPE_KEY type keyslot context.
+ *
+ * @note For kc parameter with type @e CRYPT_KC_TYPE_KEY the keyslot_existing
+ *       parameter is ignored.
+ *
+ * @note in case there is no active LUKS keyslot to get existing volume key from, one of following must apply:
+ * 	 @li @e cd must be device handle used in crypt_format() by current process (it holds reference to generated volume key)
+ * 	 @li kc must be of @e CRYPT_KC_TYPE_KEY type with valid volume key.
+ *
+ * @note With CRYPT_VOLUME_KEY_NO_SEGMENT flag raised and kc of type @e CRYPT_KC_TYPE_KEY with @e volume_key set to @e NULL
+ *     the new volume_key will be generated and stored in new keyslot. The keyslot will become unbound (unusable to
+ *     dm-crypt device activation).
+ *
+ * @warning CRYPT_VOLUME_KEY_SET flag force updates volume key. It is @b not @b reencryption!
+ * 	    By doing so you will most probably destroy your ciphertext data device. It's supposed
+ * 	    to be used only in wrapped keys scheme for key refresh process where real (inner) volume
+ * 	    key stays untouched. It may be involed on active @e keyslot which makes the (previously
+ * 	    unbound) keyslot new regular keyslot.
+ */
+int crypt_keyslot_add_by_keyslot_context(struct crypt_device *cd,
+	int keyslot_existing,
+	struct crypt_keyslot_context *kc,
+	int keyslot_new,
+	struct crypt_keyslot_context *new_kc,
+	uint32_t flags);
+
+/**
  * Destroy (and disable) key slot.
  *
  * @pre @e cd contains initialized and formatted LUKS device context
@@ -1182,6 +1369,8 @@ int crypt_keyslot_destroy(struct crypt_device *cd, int keyslot);
 #define CRYPT_ACTIVATE_NO_WRITE_WORKQUEUE (UINT32_C(1) << 25)
 /** dm-integrity: reset automatic recalculation */
 #define CRYPT_ACTIVATE_RECALCULATE_RESET (UINT32_C(1) << 26)
+/** dm-verity: try to use tasklets */
+#define CRYPT_ACTIVATE_TASKLETS (UINT32_C(1) << 27)
 
 /**
  * Active device runtime attributes
@@ -1471,6 +1660,9 @@ int crypt_deactivate(struct crypt_device *cd, const char *name);
  * @note For TCRYPT cipher chain is the volume key concatenated
  * 	 for all ciphers in chain.
  * @note For VERITY the volume key means root hash used for activation.
+ * @note For LUKS devices, if passphrase is @e NULL and volume key is cached in
+ * 	 device context it returns the volume key generated in preceding
+ * 	 @link crypt_format @endlink call.
  */
 int crypt_volume_key_get(struct crypt_device *cd,
 	int keyslot,
@@ -1478,6 +1670,41 @@ int crypt_volume_key_get(struct crypt_device *cd,
 	size_t *volume_key_size,
 	const char *passphrase,
 	size_t passphrase_size);
+
+/**
+ * Get volume key from crypt device by keyslot context.
+ *
+ * @param cd crypt device handle
+ * @param keyslot use this keyslot or @e CRYPT_ANY_SLOT
+ * @param volume_key buffer for volume key
+ * @param volume_key_size on input, size of buffer @e volume_key,
+ *        on output size of @e volume_key
+ * @param kc keyslot context used to unlock volume key
+ *
+ * @return unlocked key slot number or negative errno otherwise.
+ *
+ * @note See @link crypt-keyslot-context-types @endlink for info on keyslot
+ * 	 context initialization.
+ * @note For TCRYPT cipher chain is the volume key concatenated
+ * 	 for all ciphers in chain (kc may be NULL).
+ * @note For VERITY the volume key means root hash used for activation
+ * 	 (kc may be NULL).
+ * @note For LUKS devices, if kc is @e NULL and volume key is cached in
+ * 	 device context it returns the volume key generated in preceding
+ * 	 @link crypt_format @endlink call.
+ * @note @link CRYPT_KC_TYPE_TOKEN @endlink keyslot context is usable only with LUKS2 devices.
+ * @note @link CRYPT_KC_TYPE_KEY @endlink keyslot context can not be used.
+ * @note To get LUKS2 unbound key, keyslot parameter must not be @e CRYPT_ANY_SLOT.
+ * @note EPERM errno means provided keyslot context could not unlock any (or selected)
+ * 	 keyslot.
+ * @note ENOENT errno means no LUKS keyslot is available to retrieve volume key from
+ * 	 and there's no cached volume key in device handle.
+ */
+int crypt_volume_key_get_by_keyslot_context(struct crypt_device *cd,
+	int keyslot,
+	char *volume_key,
+	size_t *volume_key_size,
+	struct crypt_keyslot_context *kc);
 
 /**
  * Verify that provided volume key is valid for crypt device.

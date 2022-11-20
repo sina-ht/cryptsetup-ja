@@ -11,11 +11,14 @@ PWD1="93R4P4pIqAH8"
 PWD2="mymJeD8ivEhE"
 FAST_PBKDF="--pbkdf pbkdf2 --pbkdf-force-iterations 1000"
 
+CRYPTSETUP_VALGRIND=../.libs/cryptsetup
+CRYPTSETUP_LIB_VALGRIND=../.libs
+
 cleanup() {
 	udevadm settle >/dev/null 2>&1
 	if [ -d "$MNT_DIR" ] ; then
-	    umount -f $MNT_DIR 2>/dev/null
-	    rmdir $MNT_DIR 2>/dev/null
+		umount -f $MNT_DIR 2>/dev/null
+		rmdir $MNT_DIR 2>/dev/null
 	fi
 	[ -b /dev/mapper/$DEV_STACKED ] && dmsetup remove --retry $DEV_STACKED >/dev/null 2>&1
 	[ -b /dev/mapper/$DEV_NAME ] && dmsetup remove --retry $DEV_NAME >/dev/null 2>&1
@@ -42,6 +45,18 @@ skip()
 	exit 77
 }
 
+function valgrind_setup()
+{
+	command -v valgrind >/dev/null || fail "Cannot find valgrind."
+	[ ! -f $CRYPTSETUP_VALGRIND ] && fail "Unable to get location of cryptsetup executable."
+	export LD_LIBRARY_PATH="$CRYPTSETUP_LIB_VALGRIND:$LD_LIBRARY_PATH"
+}
+
+function valgrind_run()
+{
+	INFOSTRING="$(basename ${BASH_SOURCE[1]})-line-${BASH_LINENO[0]}" ./valg.sh ${CRYPTSETUP_VALGRIND} "$@"
+}
+
 function dm_crypt_features()
 {
 	VER_STR=$(dmsetup targets | grep crypt | cut -f2 -dv)
@@ -60,7 +75,7 @@ function dm_crypt_features()
 
 	[ $VER_MIN -lt 14 ] && return
 	DM_PERF_CPU=1
-	if [ $VER_MIN -ge 17 -o \( $VER_MIN -eq 14 -a $VER_PTC -ge 5 \) ]; then
+	if [ $VER_MIN -ge 17 ]; then
 		DM_SECTOR_SIZE=1
 	fi
 }
@@ -122,7 +137,7 @@ format() # expected [forced] [encryption_sector_size]
 	[ $ALIGN -ne $_exp ] && fail "Expected alignment differs: expected $_exp != detected $ALIGN"
 
 	# test some operation, just in case
-	echo -e "$PWD1\n$PWD2" | $CRYPTSETUP luksAddKey $DEV $FAST_PBKDF --key-slot 1
+	echo -e "$PWD1\n$PWD2" | $CRYPTSETUP luksAddKey $DEV $FAST_PBKDF --new-key-slot 1
 	[ $? -ne 0 ] && fail "Keyslot add failed."
 
 	$CRYPTSETUP -q luksKillSlot $DEV 1
@@ -193,6 +208,7 @@ auto_sector() # expected device header
 }
 
 [ ! -x "$CRYPTSETUP" ] && skip "Cannot find $CRYPTSETUP, test skipped."
+[ -n "$VALG" ] && valgrind_setup && CRYPTSETUP=valgrind_run
 if [ $(id -u) != 0 ]; then
 	echo "WARNING: You must be root to run this test, test skipped."
 	exit 77

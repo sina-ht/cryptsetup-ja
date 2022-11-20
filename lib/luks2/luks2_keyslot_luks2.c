@@ -31,6 +31,7 @@
 /* Serialize memory-hard keyslot access: optional workaround for parallel processing */
 #define MIN_MEMORY_FOR_SERIALIZE_LOCK_KB 32*1024 /* 32MB */
 
+/* coverity[ -taint_source : arg-0 ] */
 static int luks2_encrypt_to_storage(char *src, size_t srcLength,
 	const char *cipher, const char *cipher_mode,
 	struct volume_key *vk, unsigned int sector,
@@ -275,7 +276,11 @@ static int luks2_keyslot_set_key(struct crypt_device *cd,
 		return -ENOMEM;
 	}
 
-	r = AF_split(cd, volume_key, AfKey, volume_key_len, LUKS_STRIPES, af_hash);
+	r = crypt_hash_size(af_hash);
+	if (r < 0)
+		log_err(cd, _("Hash algorithm %s is not available."), af_hash);
+	else
+		r = AF_split(cd, volume_key, AfKey, volume_key_len, LUKS_STRIPES, af_hash);
 
 	if (r == 0) {
 		log_dbg(cd, "Updating keyslot area [0x%04" PRIx64 "].", area_offset);
@@ -379,8 +384,13 @@ static int luks2_keyslot_get_key(struct crypt_device *cd,
 				      derived_key, (unsigned)(area_offset / SECTOR_SIZE), cd);
 	}
 
-	if (r == 0)
-		r = AF_merge(AfKey, volume_key, volume_key_len, LUKS_STRIPES, af_hash);
+	if (r == 0) {
+		r = crypt_hash_size(af_hash);
+		if (r < 0)
+			log_err(cd, _("Hash algorithm %s is not available."), af_hash);
+		else
+			r = AF_merge(AfKey, volume_key, volume_key_len, LUKS_STRIPES, af_hash);
+	}
 out:
 	free(salt);
 	crypt_free_volume_key(derived_key);

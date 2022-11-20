@@ -1,9 +1,9 @@
 AC_PREREQ([2.67])
-AC_INIT([cryptsetup],[2.5.0-rc1])
+AC_INIT([cryptsetup],[2.6.0-rc0])
 
 dnl library version from <major>.<minor>.<release>[-<suffix>]
 LIBCRYPTSETUP_VERSION=$(echo $PACKAGE_VERSION | cut -f1 -d-)
-LIBCRYPTSETUP_VERSION_INFO=20:0:8
+LIBCRYPTSETUP_VERSION_INFO=21:0:9
 
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR(src/cryptsetup.c)
@@ -28,6 +28,7 @@ AC_USE_SYSTEM_EXTENSIONS
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_CPP
+AC_PROG_CXX
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_PROG_MKDIR_P
@@ -150,6 +151,7 @@ if test "x$enable_external_tokens" = "xyes"; then
 	AC_SUBST(DL_LIBS, $LIBS)
 	LIBS=$saved_LIBS
 fi
+AM_CONDITIONAL(EXTERNAL_TOKENS, test "x$enable_external_tokens" = "xyes")
 
 AC_ARG_ENABLE([ssh-token],
 	AS_HELP_STRING([--disable-ssh-token], [disable LUKS2 ssh-token]),
@@ -211,6 +213,17 @@ if test "x$enable_pwquality" = "xyes"; then
 
 	dnl FIXME: this is really hack for now
 	PWQUALITY_STATIC_LIBS="$PWQUALITY_LIBS -lcrack -lz"
+fi
+
+dnl ==========================================================================
+dnl fuzzers, it requires own static library compilation later
+AC_ARG_ENABLE([fuzz-targets],
+	AS_HELP_STRING([--enable-fuzz-targets], [enable building fuzz targets]))
+AM_CONDITIONAL(ENABLE_FUZZ_TARGETS, test "x$enable_fuzz_targets" = "xyes")
+
+if test "x$enable_fuzz_targets" = "xyes"; then
+	AX_CHECK_COMPILE_FLAG([-fsanitize=fuzzer-no-link],,
+		AC_MSG_ERROR([Required compiler options not supported; use clang.]), [-Werror])
 fi
 
 dnl ==========================================================================
@@ -617,6 +630,22 @@ AC_SUBST([LIBSSH_LIBS])
 AC_SUBST([LIBCRYPTSETUP_VERSION])
 AC_SUBST([LIBCRYPTSETUP_VERSION_INFO])
 
+dnl Set Requires.private for libcryptsetup.pc
+dnl pwquality is used only by tools
+PKGMODULES="uuid devmapper json-c"
+case $with_crypto_backend in
+	gcrypt)  PKGMODULES+=" libgcrypt" ;;
+	openssl) PKGMODULES+=" openssl" ;;
+	nss)     PKGMODULES+=" nss" ;;
+	nettle)  PKGMODULES+=" nettle" ;;
+esac
+if test "x$enable_libargon2" = "xyes"; then
+	PKGMODULES+=" libargon2"
+fi
+if test "x$enable_blkid" = "xyes"; then
+	PKGMODULES+=" blkid"
+fi
+AC_SUBST([PKGMODULES])
 dnl ==========================================================================
 AC_ARG_ENABLE([dev-random],
 	AS_HELP_STRING([--enable-dev-random], [use /dev/random by default for key generation (otherwise use /dev/urandom)]))
@@ -739,5 +768,6 @@ lib/libcryptsetup.pc
 po/Makefile.in
 scripts/cryptsetup.conf
 tests/Makefile
+tests/fuzz/Makefile
 ])
 AC_OUTPUT

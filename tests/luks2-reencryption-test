@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PS4='$LINENO:'
+#PS4='$LINENO:'
 [ -z "$CRYPTSETUP_PATH" ] && CRYPTSETUP_PATH=".."
 CRYPTSETUP=$CRYPTSETUP_PATH/cryptsetup
 
@@ -27,7 +27,7 @@ PWD2="1cND4319812f"
 PWD3="1-9Qu5Ejfnqv"
 DEV_LINK="reenc-test-link"
 
-[ -f /etc/system-fips ] && FIPS_MODE=$(cat /proc/sys/crypto/fips_enabled 2>/dev/null)
+FIPS_MODE=$(cat /proc/sys/crypto/fips_enabled 2>/dev/null)
 
 function dm_crypt_features()
 {
@@ -47,7 +47,7 @@ function dm_crypt_features()
 
 	[ $VER_MIN -lt 14 ] && return
 	DM_PERF_CPU=1
-	if [ $VER_MIN -ge 17 -o \( $VER_MIN -eq 14 -a $VER_PTC -ge 5 \) ]; then
+	if [ $VER_MIN -ge 17 ]; then
 		DM_SECTOR_SIZE=1
 	fi
 }
@@ -222,7 +222,7 @@ function preparebig() # $1 dev1_siz
 
 function check_hash_dev() # $1 dev, $2 hash
 {
-	HASH=$(sha256sum $1 | cut -d' ' -f 1)
+	HASH=$(sha1sum $1 | cut -d' ' -f 1)
 	[ $HASH != "$2" ] && fail "HASH differs (expected: $2) (result $HASH)"
 }
 
@@ -235,7 +235,7 @@ function check_hash() # $1 pwd, $2 hash, $3 hdr
 
 function check_hash_dev_head() # $1 dev, $2 len, $3 hash
 {
-	local hash=$(dd if=$1 bs=512 count=$2 2>/dev/null | sha256sum | cut -d' ' -f1)
+	local hash=$(dd if=$1 bs=512 count=$2 2>/dev/null | sha1sum | cut -d' ' -f1)
 	[ $hash != "$3" ] && fail "HASH differs (expected: $3) (result $hash)"
 }
 
@@ -855,25 +855,25 @@ export LANG=C
 # REENCRYPTION tests
 
 # 28 MiBs of zeros (32MiBs - 4MiB LUKS2 header)
-HASH1=f8280c81b347b01405277bf9e8bf0685ae8be863ff104797c65b7169f8203fd2
+HASH1=4da90c0638bd7d29ce3d0ace3df5ee99706c23da
 # 1 MiB of zeros
-HASH2=30e14955ebf1352266dc2ff8067e68104607e750abb9d3b36582b8af909fcb58
+HASH2=3b71f43ff30f4b15b5cd85dd9e95ebc7e84eb5a3
 # 256 MiBs of zeros
-HASH3=a6d72ac7690f53be6ae46ba88506bd97302a093f7108472bd9efc3cefda06484
+HASH3=7b91dbdc56c5781edf6c8847b4aa6965566c5c75
 # 64 MiBs of zeroes
-HASH4=3b6a07d0d404fab4e23b6d34bc6696a6a312dd92821332385e5af7c01c421351
+HASH4=44fac4bedde4df04b9572ac665d3ac2c5cd00c7d
 # 56 MiBs of zeroes
-HASH5=8afcb7e7189ce4d112fd245eaa60c3cfcf5a5d5e1d6bf4eb85941d73ef8cfbd5
+HASH5=bcd8ce9b30a43b2dacdf479493c93e167ef60946
 # 43 MiBs of zeroes
-HASH6=39f7c6d38af574fe2c90ef400dfaba8ef8edccd11bdac998a3f8143a86837331
+HASH6=2cf8a5f40a2ab5373c5425d6071da480f1ce08e8
 # 31 MiBs of zeroes
-HASH7=18a393d1a505e22ccf3e29effe3005ea8627e4c36b7cca0e53f58121f49b67e1
+HASH7=7ed56dd14d2841cf169fe503d097be04192666bd
 # 60 MiBs of zeroes
-HASH8=cf5ac69ca412f9b3b1a8b8de27d368c5c05ed4b1b6aa40e6c38d9cbf23711342
+HASH8=233ba936226a3ac499e67babaebd0d4aafb9761a
 # 240 MiBs of zeroes (256MiBs - 16MiBs default LUKS2 header size)
-HASH9=17088b031491a37e0ee9e1025a3938f55ee94ae27653370ad2fe5b0b32e35334
+HASH9=045eebed703cce308e049deb019b877f0445862f
 # 16 MiBs of zeroes
-HASH10=080acf35a507ac9849cfcba47dc2ad83e01b75663a516279c8b9d243b719643e
+HASH10=3b4417fc421cee30a9ad0fd9319220a8dae32da2
 
 prepare dev_size_mb=32
 setup_luks2_env
@@ -1590,14 +1590,14 @@ echo -e "$PWD1\n$PWD2" | $CRYPTSETUP luksAddKey -S2 $DEV -q $FAST_PBKDF_ARGON ||
 # there is not enough space in binary area for keyslot id 4 (replacement for id 2)
 echo -e "$PWD1\n$PWD2\n$PWD2" | $CRYPTSETUP reencrypt $DEV --init-only -q 2>/dev/null && fail
 $CRYPTSETUP luksDump $DEV | grep -q "online-reencrypt" && fail
-# check cli removed all unbound keyslots created in-before reencryption intialization
+# check cli removed all unbound keyslots created in-before reencryption initialization
 $CRYPTSETUP luksDump $DEV | grep -q "unbound" && fail
 
 echo $PWD1 | $CRYPTSETUP luksKillSlot $DEV 2 || fail
 # there is not enough space in binary area for reencryption keyslot
 echo -e "$PWD1\n$PWD2" | $CRYPTSETUP reencrypt $DEV --init-only -q 2>/dev/null && fail
 $CRYPTSETUP luksDump $DEV | grep -q "online-reencrypt" && fail
-# check cli removed all unbound keyslots created in-before reencryption intialization
+# check cli removed all unbound keyslots created in-before reencryption initialization
 $CRYPTSETUP luksDump $DEV | grep -q "unbound" && fail
 
 echo "[23] Reencryption with specified new volume key"
@@ -1799,21 +1799,41 @@ echo $PWD1 | $CRYPTSETUP reencrypt $DEV -q --init-only $FAST_PBKDF_ARGON || fail
 echo $PWD1 | $CRYPTSETUP reencrypt --encrypt --reduce-device-size 4M $DEV -q $FAST_PBKDF_ARGON 2> /dev/null && fail
 echo $PWD1 | $CRYPTSETUP reencrypt --decrypt $DEV -q $FAST_PBKDF_ARGON 2> /dev/null && fail
 echo $PWD1 | $CRYPTSETUP reencrypt $DEV -q --resilience datashift 2> /dev/null && fail
+echo $PWD1 | $CRYPTSETUP reencrypt $DEV -q --resilience datashift-checksum 2> /dev/null && fail
+echo $PWD1 | $CRYPTSETUP reencrypt $DEV -q --resilience datashift-journal 2> /dev/null && fail
 wipe_dev_head $DEV 1
 echo $PWD1 | $CRYPTSETUP reencrypt --encrypt --init-only --reduce-device-size 16M $DEV -q $FAST_PBKDF_ARGON 2> /dev/null || fail
 echo $PWD1 | $CRYPTSETUP reencrypt --decrypt $DEV -q $FAST_PBKDF_ARGON 2> /dev/null && fail
 echo $PWD1 | $CRYPTSETUP reencrypt $DEV -q --resilience journal 2> /dev/null && fail
+echo $PWD1 | $CRYPTSETUP reencrypt $DEV -q --resilience datashift-checksum 2> /dev/null && fail
+echo $PWD1 | $CRYPTSETUP reencrypt $DEV -q --resilience datashift-journal 2> /dev/null && fail
 wipe_dev_head $DEV 1
 echo $PWD1 | $CRYPTSETUP -q luksFormat --type luks2 --header $IMG_HDR $FAST_PBKDF2 $DEV || fail
 echo $PWD1 | $CRYPTSETUP reencrypt $DEV -q --header $IMG_HDR --init-only $FAST_PBKDF_ARGON || fail
 echo $PWD1 | $CRYPTSETUP reencrypt --encrypt --header $IMG_HDR $DEV -q $FAST_PBKDF_ARGON 2> /dev/null && fail
 echo $PWD1 | $CRYPTSETUP reencrypt --decrypt --header $IMG_HDR $DEV -q $FAST_PBKDF_ARGON 2> /dev/null && fail
+echo $PWD1 | $CRYPTSETUP reencrypt $DEV -q --header $IMG_HDR --resilience datashift-checksum 2>/dev/null && fail
+echo $PWD1 | $CRYPTSETUP reencrypt $DEV -q --header $IMG_HDR --resilience datashift-journal 2>/dev/null && fail
 rm -f $IMG_HDR
 echo $PWD1 | $CRYPTSETUP reencrypt $DEV -q --encrypt --header $IMG_HDR --init-only $FAST_PBKDF_ARGON || fail
 echo $PWD1 | $CRYPTSETUP reencrypt --decrypt --header $IMG_HDR $DEV -q $FAST_PBKDF_ARGON 2> /dev/null && fail
 echo $PWD1 | $CRYPTSETUP -q luksFormat --type luks2 --header $IMG_HDR $FAST_PBKDF2 $DEV || fail
 echo $PWD1 | $CRYPTSETUP reencrypt $DEV -q --decrypt --header $IMG_HDR --init-only $FAST_PBKDF_ARGON || fail
 echo $PWD1 | $CRYPTSETUP reencrypt --encrypt --header $IMG_HDR $DEV -q $FAST_PBKDF_ARGON 2> /dev/null && fail
+rm -f $IMG_HDR
+echo $PWD1 | $CRYPTSETUP -q luksFormat --type luks2 $FAST_PBKDF2 $DEV || fail
+echo $PWD1 | $CRYPTSETUP reencrypt --decrypt $DEV --header $IMG_HDR -q --init-only $FAST_PBKDF_ARGON --resilience datashift 2> /dev/null && fail
+test -f $IMG_HDR && fail
+echo $PWD1 | $CRYPTSETUP reencrypt --decrypt $DEV --header $IMG_HDR -q --init-only $FAST_PBKDF_ARGON --resilience none 2> /dev/null && fail
+test -f $IMG_HDR && fail
+$CRYPTSETUP luksDump $DEV | grep -q "online-reencrypt" && fail
+echo $PWD1 | $CRYPTSETUP reencrypt --decrypt $DEV --header $IMG_HDR -q --init-only $FAST_PBKDF_ARGON --resilience checksum --hotzone-size 4m || fail
+$CRYPTSETUP isLuks $DEV -q && fail
+# $CRYPTSETUP luksDump $IMG_HDR
+echo $PWD1 | $CRYPTSETUP reencrypt --decrypt $DEV --header $IMG_HDR -q --resilience datashift 2> /dev/null && fail
+echo $PWD1 | $CRYPTSETUP reencrypt --decrypt $DEV --header $IMG_HDR -q --resilience none 2> /dev/null && fail
+echo $PWD1 | $CRYPTSETUP reencrypt --decrypt $DEV --header $IMG_HDR -q --resilience journal || fail
+rm -f $IMG_HDR
 
 check_blkid
 if [ "$HAVE_BLKID" -gt 0 ]; then
@@ -1964,6 +1984,17 @@ check_hash_dev /dev/mapper/$DEV_NAME $HASH10
 echo $PWD1 | $CRYPTSETUP reencrypt $DEV -q --decrypt --header $IMG_HDR || fail
 check_hash_dev_head $DEV 32768 $HASH10
 # FIXME: Should not reencryption remove it automatically?
+rm -f $IMG_HDR
+
+# 1MiB data size
+echo $PWD1 | $CRYPTSETUP -q luksFormat --type luks2 $FAST_PBKDF_ARGON $DEV --offset 63488 || fail
+echo $PWD1 | $CRYPTSETUP open $DEV $DEV_NAME || fail
+wipe_dev /dev/mapper/$DEV_NAME
+# --hotzone-size larger than data expected to get auto corrected by library
+echo $PWD1 | $CRYPTSETUP reencrypt $DEV -q --decrypt --header $IMG_HDR --init-only --hotzone-size 4M || fail
+check_hash_dev /dev/mapper/$DEV_NAME $HASH2
+echo $PWD1 | $CRYPTSETUP reencrypt $DEV -q --decrypt --header $IMG_HDR || fail
+check_hash_dev_head $DEV 2048 $HASH2
 rm -f $IMG_HDR
 
 # small device (less than header size)

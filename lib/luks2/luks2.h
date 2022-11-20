@@ -121,6 +121,7 @@ struct luks2_hdr {
 	uint8_t		salt2[LUKS2_SALT_L];
 	char		uuid[LUKS2_UUID_L];
 	void		*jobj;
+	void		*jobj_rollback;
 };
 
 struct luks2_keyslot_params {
@@ -167,6 +168,7 @@ int LUKS2_hdr_version_unlocked(struct crypt_device *cd,
 int LUKS2_hdr_read(struct crypt_device *cd, struct luks2_hdr *hdr, int repair);
 int LUKS2_hdr_write(struct crypt_device *cd, struct luks2_hdr *hdr);
 int LUKS2_hdr_write_force(struct crypt_device *cd, struct luks2_hdr *hdr);
+int LUKS2_hdr_rollback(struct crypt_device *cd, struct luks2_hdr *hdr);
 int LUKS2_hdr_dump(struct crypt_device *cd, struct luks2_hdr *hdr);
 int LUKS2_hdr_dump_json(struct crypt_device *cd, struct luks2_hdr *hdr,	const char **json);
 
@@ -283,13 +285,13 @@ int LUKS2_token_open_and_activate(struct crypt_device *cd,
 	uint32_t flags,
 	void *usrptr);
 
-int LUKS2_token_unlock_volume_key(struct crypt_device *cd,
+int LUKS2_token_unlock_key(struct crypt_device *cd,
 	struct luks2_hdr *hdr,
 	int token,
 	const char *type,
 	const char *pin,
 	size_t pin_size,
-	uint32_t flags,
+	int segment,
 	void *usrptr,
 	struct volume_key **vk);
 
@@ -299,6 +301,16 @@ int LUKS2_token_keyring_get(struct luks2_hdr *hdr,
 
 int LUKS2_token_keyring_json(char *buffer, size_t buffer_size,
 	const struct crypt_token_params_luks2_keyring *keyring_params);
+
+int LUKS2_token_unlock_passphrase(struct crypt_device *cd,
+	struct luks2_hdr *hdr,
+	int token,
+	const char *type,
+	const char *pin,
+	size_t pin_size,
+	void *usrptr,
+	char **passphrase,
+	size_t *passphrase_size);
 
 void crypt_token_unload_external_all(struct crypt_device *cd);
 
