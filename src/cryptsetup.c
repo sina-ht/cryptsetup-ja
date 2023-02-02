@@ -105,9 +105,9 @@ static int _try_token_pin_unlock(struct crypt_device *cd,
 	assert(token_id >= 0 || token_id == CRYPT_ANY_TOKEN);
 
 	if (token_id == CRYPT_ANY_TOKEN)
-		r = snprintf(msg, sizeof(msg), _("Enter token PIN:"));
+		r = snprintf(msg, sizeof(msg), _("Enter token PIN: "));
 	else
-		r = snprintf(msg, sizeof(msg), _("Enter token %d PIN:"), token_id);
+		r = snprintf(msg, sizeof(msg), _("Enter token %d PIN: "), token_id);
 	if (r < 0 || (size_t)r >= sizeof(msg))
 		return -EINVAL;
 
@@ -997,7 +997,7 @@ static int action_benchmark_kdf(const char *kdf, const char *hash, size_t key_si
 			.time_ms = 1000,
 		};
 
-		r = crypt_benchmark_pbkdf(NULL, &pbkdf, "foo", 3, "0123456789abcdef", 16, key_size,
+		r = crypt_benchmark_pbkdf(NULL, &pbkdf, "foobarfo", 8, "0123456789abcdef", 16, key_size,
 					&benchmark_callback, &pbkdf);
 		if (r < 0)
 			log_std(_("PBKDF2-%-9s     N/A\n"), hash);
@@ -1012,7 +1012,7 @@ static int action_benchmark_kdf(const char *kdf, const char *hash, size_t key_si
 			.parallel_threads = ARG_UINT32(OPT_PBKDF_PARALLEL_ID)
 		};
 
-		r = crypt_benchmark_pbkdf(NULL, &pbkdf, "foo", 3,
+		r = crypt_benchmark_pbkdf(NULL, &pbkdf, "foobarfo", 8,
 			"0123456789abcdef0123456789abcdef", 32,
 			key_size, &benchmark_callback, &pbkdf);
 		if (r < 0)
@@ -1898,9 +1898,9 @@ static int _ask_for_pin(struct crypt_device *cd,
 		return -EINVAL;
 
 	if (token_id == CRYPT_ANY_TOKEN)
-		r = snprintf(msg, sizeof(msg), _("Enter token PIN:"));
+		r = snprintf(msg, sizeof(msg), _("Enter token PIN: "));
 	else
-		r = snprintf(msg, sizeof(msg), _("Enter token %d PIN:"), token_id);
+		r = snprintf(msg, sizeof(msg), _("Enter token %d PIN: "), token_id);
 	if (r < 0 || (size_t)r >= sizeof(msg))
 		return -EINVAL;
 
@@ -2069,7 +2069,7 @@ static int action_luksAddKey(void)
 			p_kc_new = kc_new;
 		}
 	} else {
-		r = tools_get_key(_("Enter new passphrase for key slot:"),
+		r = tools_get_key(_("Enter new passphrase for key slot: "),
 			      &password_new, &password_new_size,
 			      ARG_UINT64(OPT_NEW_KEYFILE_OFFSET_ID), ARG_UINT32(OPT_NEW_KEYFILE_SIZE_ID), new_key_file,
 			      ARG_UINT32(OPT_TIMEOUT_ID), verify_passphrase(1), !ARG_SET(OPT_FORCE_PASSWORD_ID), cd);

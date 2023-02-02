@@ -29,12 +29,15 @@ export CFLAGS="${CFLAGS:-$flags} -I$DEPS_PATH/include"
 export CXXFLAGS="${CXXFLAGS:-$flags} -I$DEPS_PATH/include"
 export LDFLAGS="${LDFLAGS-} -L$DEPS_PATH/lib"
 
-ENABLED_FUZZERS=${ENABLED_FUZZERS:-crypt2_load_fuzz crypt2_load_proto_plain_json_fuzz}
+ENABLED_FUZZERS=${ENABLED_FUZZERS:-crypt2_load_fuzz crypt2_load_ondisk_fuzz crypt2_load_proto_plain_json_fuzz}
 
 mkdir -p $SRC
 mkdir -p $OUT
 mkdir -p $DEPS_PATH
 cd $SRC
+
+LIBFUZZER_PATCH="$PWD/unpoison-mutated-buffers-from-libfuzzer.patch"
+in_oss_fuzz && LIBFUZZER_PATCH="$PWD/cryptsetup/tests/fuzz/unpoison-mutated-buffers-from-libfuzzer.patch"
 
 in_oss_fuzz && apt-get update && apt-get install -y \
     make autoconf automake autopoint libtool pkg-config \
@@ -46,7 +49,8 @@ in_oss_fuzz && apt-get update && apt-get install -y \
 [ ! -d json-c ] && git clone --depth 1 https://github.com/json-c/json-c.git
 [ ! -d lvm2 ]   && git clone --depth 1 https://sourceware.org/git/lvm2.git
 [ ! -d popt ]   && git clone --depth 1 https://github.com/rpm-software-management/popt.git
-[ ! -d libprotobuf-mutator ] && git clone --depth 1 https://github.com/google/libprotobuf-mutator.git
+[ ! -d libprotobuf-mutator ] && git clone --depth 1 https://github.com/google/libprotobuf-mutator.git \
+                             && [ "$SANITIZER" == "memory" ] && ( cd libprotobuf-mutator; patch -p1 < $LIBFUZZER_PATCH )
 [ ! -d openssl ]    && git clone --depth 1 https://github.com/openssl/openssl
 [ ! -d util-linux ] && git clone --depth 1 https://github.com/util-linux/util-linux
 [ ! -d cryptsetup_fuzzing ] && git clone --depth 1 https://gitlab.com/cryptsetup/cryptsetup_fuzzing.git
@@ -98,11 +102,15 @@ cp ./libdm/libdevmapper.pc "$PKG_CONFIG_PATH"
 cd ..
 
 cd popt
-./autogen.sh
-./configure --prefix="$DEPS_PATH" --disable-shared --enable-static
+# --no-undefined is incompatible with sanitizers
+sed -i -e 's/-Wl,--no-undefined //' src/CMakeLists.txt
+mkdir -p build
+rm -fr build/*
+cd build
+cmake .. -DCMAKE_INSTALL_PREFIX="$DEPS_PATH" -DBUILD_SHARED_LIBS=OFF
 make -j
 make install
-cd ..
+cd ../..
 
 cd libprotobuf-mutator
 mkdir -p build

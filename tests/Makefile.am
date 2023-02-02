@@ -66,8 +66,7 @@ EXTRA_DIST = compatimage.img.xz compatv10image.img.xz \
 	xfs_512_block_size.img.xz \
 	valid_header_file.xz \
 	luks2_valid_hdr.img.xz \
-	luks2_header_requirements.xz \
-	luks2_header_requirements_free.xz \
+	luks2_header_requirements.tar.xz \
 	luks2_mda_images.tar.xz \
 	evil_hdr-payload_overwrite.xz \
 	evil_hdr-stripes_payload_dmg.xz \
@@ -198,8 +197,8 @@ valgrind-check: api-test api-test-2 differ
 	@VALG=1 ./mode-test
 	@VALG=1 ./password-hash-test
 	@VALG=1 ./reencryption-compat-test
+	@VALG=1 ./fvault2-compat-test
 	@[ -z "$RUN_SSH_PLUGIN_TEST" ] || VALG=1 ./ssh-test-plugin
-	@[ -z "$RUN_SYSTEMD_PLUGIN_TEST" ] || VALG=1 ./systemd-test-plugin
 	@INFOSTRING="unit-utils-crypt-test" ./valg-api.sh ./unit-utils-crypt-test
 	@INFOSTRING="vectors-test" ./valg-api.sh ./vectors-test
 	@grep -l "ERROR SUMMARY: [^0][0-9]* errors" valglog* || echo "No leaks detected."

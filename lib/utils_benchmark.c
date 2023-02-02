@@ -47,6 +47,7 @@ int crypt_benchmark(struct crypt_device *cd,
 	r = -ENOMEM;
 	if (posix_memalign(&buffer, crypt_getpagesize(), buffer_size))
 		goto out;
+	memset(buffer, 0, buffer_size);
 
 	r = crypt_cipher_ivsize(cipher, cipher_mode);
 	if (r >= 0 && iv_size != (size_t)r) {
@@ -186,7 +187,7 @@ int crypt_benchmark_pbkdf_internal(struct crypt_device *cd,
 		pbkdf->parallel_threads = 0; /* N/A in PBKDF2 */
 		pbkdf->max_memory_kb = 0; /* N/A in PBKDF2 */
 
-		r = crypt_benchmark_pbkdf(cd, pbkdf, "foo", 3, "01234567890abcdef", 16,
+		r = crypt_benchmark_pbkdf(cd, pbkdf, "foobarfo", 8, "01234567890abcdef", 16,
 					volume_key_size, &benchmark_callback, &u);
 		pbkdf->time_ms = ms_tmp;
 		if (r < 0) {
@@ -206,7 +207,7 @@ int crypt_benchmark_pbkdf_internal(struct crypt_device *cd,
 			return 0;
 		}
 
-		r = crypt_benchmark_pbkdf(cd, pbkdf, "foo", 3,
+		r = crypt_benchmark_pbkdf(cd, pbkdf, "foobarfo", 8,
 			"0123456789abcdef0123456789abcdef", 32,
 			volume_key_size, &benchmark_callback, &u);
 		if (r < 0)

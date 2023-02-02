@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: cryptsetup 2.6.0-rc0\n"
+"Project-Id-Version: cryptsetup 2.6.0-rc1\n"
 "Report-Msgid-Bugs-To: cryptsetup@lists.linux.dev\n"
-"POT-Creation-Date: 2022-11-18 22:14+0100\n"
-"PO-Revision-Date: 2022-11-21 19:36+0900\n"
+"POT-Creation-Date: 2022-11-20 12:38+0100\n"
+"PO-Revision-Date: 2022-11-21 19:43+0900\n"
 "Last-Translator: Hiroshi Takekawa <sian@big.or.jp>\n"
 "Language-Team: Japanese <translation-team-ja@lists.sourceforge.net>\n"
 "Language: ja\n"
@@ -1879,13 +1879,13 @@ msgstr "キースロットの暗号化パラメータは LUKS2 デバイスで�
 
 #: src/cryptsetup.c:108 src/cryptsetup.c:1901
 #, c-format
-msgid "Enter token PIN:"
-msgstr "トークンPINを入力してください:"
+msgid "Enter token PIN: "
+msgstr "トークンPINを入力してください: "
 
 #: src/cryptsetup.c:110 src/cryptsetup.c:1903
 #, c-format
-msgid "Enter token %d PIN:"
-msgstr "トークン %d PINを入力してください:"
+msgid "Enter token %d PIN: "
+msgstr "トークン %d PINを入力してください: "
 
 #: src/cryptsetup.c:159 src/cryptsetup.c:1103 src/cryptsetup.c:1430
 #: src/utils_reencrypt.c:1097 src/utils_reencrypt_luks1.c:517
@@ -2167,7 +2167,7 @@ msgstr "削除するキーのパスフレーズを入力してください: "
 msgid "Device %s is not a valid LUKS2 device."
 msgstr "デバイス %s は有効な LUKS2 デバイスではありません。"
 
-#: src/cryptsetup.c:1867
+#: src/cryptsetup.c:1867 src/cryptsetup.c:2072
 msgid "Enter new passphrase for key slot: "
 msgstr "キースロットの新しいパスフレーズを入力してください: "
 
