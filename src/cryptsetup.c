@@ -113,7 +113,7 @@ static int _try_token_unlock(struct crypt_device *cd,
 		return r;
 
 	if (activation)
-		r = crypt_activate_by_keyslot_context(cd, activated_name, keyslot, kc, activate_flags);
+		r = crypt_activate_by_keyslot_context(cd, activated_name, keyslot, kc, CRYPT_ANY_SLOT, NULL, activate_flags);
 	else
 		r = crypt_resume_by_keyslot_context(cd, activated_name, keyslot, kc);
 
@@ -147,7 +147,7 @@ static int _try_token_unlock(struct crypt_device *cd,
 
 		if (activation)
 			r = crypt_activate_by_keyslot_context(cd, activated_name, keyslot,
-							      kc, activate_flags);
+							      kc, CRYPT_ANY_SLOT, NULL, activate_flags);
 		else
 			r = crypt_resume_by_keyslot_context(cd, activated_name, keyslot, kc);
 
@@ -1759,7 +1759,7 @@ static int parse_vk_and_keyring_description(
 		goto out;
 	}
 
-	r = crypt_set_keyring_to_link(cd, key_part, type_part, keyring_part);
+	r = crypt_set_keyring_to_link(cd, key_part, NULL, type_part, keyring_part);
 out:
 	if (r == -EINVAL)
 		log_err(_("Invalid --link-vk-to-keyring value."));
@@ -1854,7 +1854,7 @@ static int action_open_luks(void)
 		r = crypt_keyslot_context_init_by_vk_in_keyring(cd, vk_description_activation, &kc);
 		if (r)
 			goto out;
-		r = crypt_activate_by_keyslot_context(cd, activated_name, CRYPT_ANY_SLOT, kc, activate_flags);
+		r = crypt_activate_by_keyslot_context(cd, activated_name, CRYPT_ANY_SLOT, kc, CRYPT_ANY_SLOT, NULL, activate_flags);
 		if (r)
 			goto out;
 	} else {
@@ -2942,7 +2942,7 @@ static int opal_erase(struct crypt_device *cd, bool factory_reset) {
 	r = tools_get_key(factory_reset ? _("Enter OPAL PSID: ") : _("Enter OPAL Admin password: "),
 				&password, &password_size, ARG_UINT64(OPT_KEYFILE_OFFSET_ID),
 				ARG_UINT32(OPT_KEYFILE_SIZE_ID), ARG_STR(OPT_KEY_FILE_ID),
-				ARG_UINT32(OPT_TIMEOUT_ID), verify_passphrase(1),
+				ARG_UINT32(OPT_TIMEOUT_ID), verify_passphrase(0),
 				!ARG_SET(OPT_FORCE_PASSWORD_ID), cd);
 	if (r < 0)
 		return r;
