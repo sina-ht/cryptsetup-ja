@@ -1,9 +1,9 @@
 /*
  * Helper utilities for LUKS2 features
  *
- * Copyright (C) 2018-2023 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2018-2023 Milan Broz
- * Copyright (C) 2018-2023 Ondrej Kozina
+ * Copyright (C) 2018-2024 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2018-2024 Milan Broz
+ * Copyright (C) 2018-2024 Ondrej Kozina
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -103,6 +103,9 @@ void set_activation_flags(uint32_t *flags)
 	if (ARG_SET(OPT_TEST_PASSPHRASE_ID) &&
             (ARG_SET(OPT_KEY_SLOT_ID) || ARG_SET(OPT_UNBOUND_ID)))
 		*flags |= CRYPT_ACTIVATE_ALLOW_UNBOUND_KEY;
+
+	if (ARG_SET(OPT_LINK_VK_TO_KEYRING_ID))
+		*flags |= CRYPT_ACTIVATE_KEYRING_KEY;
 
 	if (ARG_SET(OPT_SERIALIZE_MEMORY_HARD_PBKDF_ID))
 		*flags |= CRYPT_ACTIVATE_SERIALIZE_MEMORY_HARD_PBKDF;

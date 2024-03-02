@@ -1,8 +1,8 @@
 /*
  * LUKS - Linux Unified Key Setup v2
  *
- * Copyright (C) 2015-2023 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2015-2023 Milan Broz
+ * Copyright (C) 2015-2024 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2015-2024 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -472,6 +472,9 @@ int LUKS2_reencrypt_locked_recovery_by_passphrase(struct crypt_device *cd,
 	size_t passphrase_size,
 	struct volume_key **vks);
 
+int LUKS2_reencrypt_locked_recovery_by_vks(struct crypt_device *cd,
+	struct volume_key *vks);
+
 void LUKS2_reencrypt_free(struct crypt_device *cd,
 	struct luks2_reencrypt *rh);
 
@@ -494,8 +497,12 @@ int LUKS2_reencrypt_check_device_size(struct crypt_device *cd,
 	struct luks2_hdr *hdr,
 	uint64_t check_size,
 	uint64_t *dev_size,
-	bool activation,
+	bool device_exclusive_check,
 	bool dynamic);
+
+void LUKS2_reencrypt_lookup_key_ids(struct crypt_device *cd,
+        struct luks2_hdr *hdr,
+        struct volume_key *vk);
 
 int LUKS2_reencrypt_digest_verify(struct crypt_device *cd,
 	struct luks2_hdr *hdr,

@@ -2,13 +2,13 @@
 
 Summary: Utility for setting up encrypted disks
 Name: cryptsetup
-Version: 2.5.0
+Version: 2.7.1
 Release: 1%{?dist}
-License: GPLv2+ and LGPLv2+
+License: GPL-2.0-or-later WITH cryptsetup-OpenSSL-exception AND LGPL-2.1-or-later WITH cryptsetup-OpenSSL-exception
 URL: https://gitlab.com/cryptsetup/cryptsetup
 BuildRequires: autoconf, automake, libtool, gettext-devel,
 BuildRequires: openssl-devel, popt-devel, device-mapper-devel
-BuildRequires: libuuid-devel, gcc, json-c-devel, libargon2-devel
+BuildRequires: libuuid-devel, gcc, json-c-devel
 BuildRequires: libpwquality-devel, libblkid-devel
 BuildRequires: make libssh-devel
 BuildRequires: asciidoctor
@@ -18,7 +18,7 @@ Obsoletes: %{name}-reencrypt <= %{version}
 Provides: %{name}-reencrypt = %{version}
 
 %global upstream_version %{version_no_tilde}
-Source0: https://www.kernel.org/pub/linux/utils/cryptsetup/v2.5/cryptsetup-%{upstream_version}.tar.xz
+Source0: https://www.kernel.org/pub/linux/utils/cryptsetup/v2.7/cryptsetup-%{upstream_version}.tar.xz
 
 %description
 The cryptsetup package contains a utility for setting up
@@ -70,7 +70,7 @@ disk integrity protection using dm-integrity kernel module.
 rm -f man/*.8
 
 ./autogen.sh
-%configure --enable-fips --enable-pwquality --enable-libargon2 --enable-asciidoc
+%configure --enable-fips --enable-pwquality --enable-asciidoc
 %make_build
 
 %install

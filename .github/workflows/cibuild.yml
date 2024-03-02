@@ -4,8 +4,7 @@ on:
     branches:
       - 'main'
       - 'wip-luks2'
-      - 'v2.3.x'
-      - 'v2.4.x'
+      - 'v2.*.x'
     paths-ignore:
       - 'docs/**'
 
@@ -17,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         env:
-          - { COMPILER: "gcc", COMPILER_VERSION: "11",  RUN_SSH_PLUGIN_TEST: "1" }
+          - { COMPILER: "gcc", COMPILER_VERSION: "13",  RUN_SSH_PLUGIN_TEST: "1" }
     env: ${{ matrix.env }}
     steps:
       - name: Repository checkout

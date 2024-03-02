@@ -1,6 +1,8 @@
 .dnf-openssl-backend:
+  variables:
+    DISTRO: cryptsetup-fedora-rawhide
   extends:
-    - .dump_kernel_log
+    - .fail_if_coredump_generated
   before_script:
     - >
       [ -z "$RUN_SYSTEMD_PLUGIN_TEST" ] ||
@@ -24,7 +26,7 @@ test-main-commit-job-rawhide:
     - .dnf-openssl-backend
   tags:
     - libvirt
-    - fedora-rawhide
+    - cryptsetup-fedora-rawhide
   stage: test
   interruptible: true
   allow_failure: true
@@ -44,7 +46,7 @@ test-mergerq-job-rawhide:
     - .dnf-openssl-backend
   tags:
     - libvirt
-    - fedora-rawhide
+    - cryptsetup-fedora-rawhide
   stage: test
   interruptible: true
   allow_failure: true

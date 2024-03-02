@@ -3,8 +3,8 @@
  *
  * Copyright (C) 2004 Jana Saout <jana@saout.de>
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2023 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2023 Milan Broz
+ * Copyright (C) 2009-2024 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2024 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -2843,7 +2843,7 @@ static int _process_deps(struct crypt_device *cd, const char *prefix, struct dm_
 int dm_device_deps(struct crypt_device *cd, const char *name, const char *prefix,
 		   char **names, size_t names_length)
 {
-	struct dm_task *dmt;
+	struct dm_task *dmt = NULL;
 	struct dm_info dmi;
 	struct dm_deps *deps;
 	int r = -EINVAL;

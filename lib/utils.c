@@ -3,8 +3,8 @@
  *
  * Copyright (C) 2004 Jana Saout <jana@saout.de>
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2023 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2023 Milan Broz
+ * Copyright (C) 2009-2024 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2024 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -45,34 +45,44 @@ unsigned crypt_cpusonline(void)
 uint64_t crypt_getphysmemory_kb(void)
 {
 	long pagesize, phys_pages;
-	uint64_t phys_memory_kb;
+	uint64_t phys_memory_kb, page_size_kb;
 
 	pagesize = sysconf(_SC_PAGESIZE);
 	phys_pages = sysconf(_SC_PHYS_PAGES);
 
-	if (pagesize < 0 || phys_pages < 0)
+	if (pagesize <= 0 || phys_pages <= 0)
 		return 0;
 
-	phys_memory_kb = pagesize / 1024;
-	phys_memory_kb *= phys_pages;
+	page_size_kb = pagesize / 1024;
+	phys_memory_kb = page_size_kb * phys_pages;
 
+	/* sanity check for overflow */
+	if (phys_memory_kb / phys_pages != page_size_kb)
+		return 0;
+
+	/* coverity[return_overflow:FALSE] */
 	return phys_memory_kb;
 }
 
 uint64_t crypt_getphysmemoryfree_kb(void)
 {
 	long pagesize, phys_pages;
-	uint64_t phys_memoryfree_kb;
+	uint64_t phys_memoryfree_kb, page_size_kb;
 
 	pagesize = sysconf(_SC_PAGESIZE);
 	phys_pages = sysconf(_SC_AVPHYS_PAGES);
 
-	if (pagesize < 0 || phys_pages < 0)
+	if (pagesize <= 0 || phys_pages <= 0)
 		return 0;
 
-	phys_memoryfree_kb = pagesize / 1024;
-	phys_memoryfree_kb *= phys_pages;
+	page_size_kb = pagesize / 1024;
+	phys_memoryfree_kb = page_size_kb * phys_pages;
 
+	/* sanity check for overflow */
+	if (phys_memoryfree_kb / phys_pages != page_size_kb)
+		return 0;
+
+	/* coverity[return_overflow:FALSE] */
 	return phys_memoryfree_kb;
 }
 

@@ -1,12 +1,13 @@
-test-mergerq-job-ubuntu-32bit:
+test-mergerq-job-debian-i686:
   extends:
     - .debian-prep
   tags:
     - libvirt
-    - ubuntu-bionic-32bit
+    - cryptsetup-debian-12i686
   stage: test
   interruptible: true
   variables:
+    DISTRO: cryptsetup-debian-12i686
     RUN_SSH_PLUGIN_TEST: "1"
   rules:
     - if: $RUN_SYSTEMD_PLUGIN_TEST != null
@@ -19,15 +20,16 @@ test-mergerq-job-ubuntu-32bit:
     - make -j -C tests check-programs
     - sudo -E make check
 
-test-main-commit-job-ubuntu-32bit:
+test-main-commit-job-debian-i686:
   extends:
     - .debian-prep
   tags:
     - libvirt
-    - ubuntu-bionic-32bit
+    - cryptsetup-debian-12i686
   stage: test
   interruptible: true
   variables:
+    DISTRO: cryptsetup-debian-12i686
     RUN_SSH_PLUGIN_TEST: "1"
   rules:
     - if: $RUN_SYSTEMD_PLUGIN_TEST != null

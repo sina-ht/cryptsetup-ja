@@ -1,14 +1,16 @@
 test-commit-job-csmock:
   extends:
-    - .dump_kernel_log
+    - .fail_if_coredump_generated
   tags:
     - libvirt
-    - rhel9-csmock
+    - cryptsetup-rhel-9
   stage: test
   interruptible: true
   allow_failure: true
   variables:
+    DISTRO: cryptsetup-rhel-9
     RUN_SSH_PLUGIN_TEST: "1"
+    DISK_SIZE: 20
   rules:
     - if: $CI_PROJECT_PATH != "cryptsetup/cryptsetup"
       when: never

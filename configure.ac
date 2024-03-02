@@ -1,5 +1,5 @@
 AC_PREREQ([2.67])
-AC_INIT([cryptsetup],[2.7.0-rc1])
+AC_INIT([cryptsetup],[2.7.1-rc0])
 
 dnl library version from <major>.<minor>.<release>[-<suffix>]
 LIBCRYPTSETUP_VERSION=$(echo $PACKAGE_VERSION | cut -f1 -d-)
@@ -346,7 +346,7 @@ AC_DEFUN([CONFIGURE_OPENSSL], [
 
 	saved_LIBS=$LIBS
 	AC_CHECK_DECLS([OSSL_get_max_threads], [], [], [#include <openssl/thread.h>])
-	AC_CHECK_DECLS([OSSL_KDF_PARAM_ARGON2_VERSION], [], [], [#include <openssl/core_names.h>])
+	AC_CHECK_DECLS([OSSL_KDF_PARAM_ARGON2_VERSION], [use_internal_argon2=0], [], [#include <openssl/core_names.h>])
 	LIBS=$saved_LIBS
 ])
 
@@ -521,9 +521,9 @@ AC_ARG_ENABLE([internal-argon2],
 AC_ARG_ENABLE([libargon2],
 	AS_HELP_STRING([--enable-libargon2], [enable external libargon2 (PHC) library (disables internal bundled version)]))
 
-if test $use_internal_argon2 = 0 -o "x$enable_internal_argon2" = "xno" ; then
-	if test "x$enable_internal_argon2" = "xyes" -o "x$enable_libargon" = "xyes"; then
-		AC_MSG_WARN([Argon2 in $with_crypto_backend lib is used; internal Argon2 options are ignored.])
+if test $use_internal_argon2 = 0 || ( test "x$enable_internal_argon2" = "xno" && test "x$enable_libargon2" != "xyes" ); then
+	if test "x$enable_internal_argon2" = "xyes" || test "x$enable_libargon2" = "xyes"; then
+		AC_MSG_NOTICE([Argon2 in $with_crypto_backend lib is used; internal Argon2 options are ignored.])
 	fi
 	enable_internal_argon2=no
 	enable_internal_sse_argon2=no
@@ -535,6 +535,7 @@ elif test "x$enable_libargon2" = "xyes" ; then
 	AC_CHECK_DECL(Argon2_id,,[AC_MSG_ERROR([You need more recent Argon2 library with support for Argon2id.])], [#include <argon2.h>])
 	PKG_CHECK_MODULES([LIBARGON2], [libargon2],,[LIBARGON2_LIBS="-largon2"])
 	enable_internal_argon2=no
+	use_internal_argon2=0
 else
 	AC_MSG_WARN([Argon2 bundled (slow) reference implementation will be used, please consider to use system library with --enable-libargon2.])
 

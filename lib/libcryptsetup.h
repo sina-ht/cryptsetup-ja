@@ -3,8 +3,8 @@
  *
  * Copyright (C) 2004 Jana Saout <jana@saout.de>
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2023 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2023 Milan Broz
+ * Copyright (C) 2009-2024 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2024 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -1628,11 +1628,12 @@ int crypt_persistent_flags_get(struct crypt_device *cd,
  * reencryption), more than one keyslot context is required (e.g. one for the old
  * volume key and one for the new volume key). The order of the keyslot
  * contexts does not matter. When less keyslot contexts are supplied than
- * required to unlock the device an -EPERM/-ENOKEY/TODO error code is returned
- * and you should call the function again with more keyslot contexts.
+ * required to unlock the device an -ESRCH error code is returned and you
+ * should call the function again with an additional keyslot context specified.
  *
- * NOTE: the API at the moment works for one keyslot context only, the second
- * keyslot context is just an API placeholder
+ * NOTE: the API at the moment fully works for single keyslot context only,
+ * the additional keyslot context currently works only with
+ * @e CRYPT_KC_TYPE_VK_KEYRING or @e CRYPT_KC_TYPE_KEY contexts.
  *
  * @param cd crypt device handle
  * @param name name of device to create, if @e NULL only check passphrase
@@ -3119,12 +3120,9 @@ void crypt_safe_memzero(void *data, size_t size);
  * devices that are in re-encryption and have two volume keys at the same time
  * (old and new). You can set the @e old_key_description to NULL,
  * but if you supply number of keys less than required, the function will
- * return -EAGAIN.  In that case you need to call the function again and set
+ * return -ESRCH.  In that case you need to call the function again and set
  * the missing key description. When supplying just one key description, make
  * sure to supply it in the @e key_description.
- *
- * NOTE: the API at the moment works for one key description only, the second
- * name is just an API placeholder
  *
  * @param cd crypt device handle
  * @param key_description the key description of the volume key linked in desired keyring.
@@ -3137,7 +3135,7 @@ void crypt_safe_memzero(void *data, size_t size);
  *
  * @note keyring_to_link_vk may be passed in various string formats:
  * 	 It can be kernel key numeric id of existing keyring written as a string,
- * 	 keyring name prefixed optionally be either "%:" or "%keyring:" substrings or keyctl
+ * 	 keyring name prefixed by either "%:" or "%keyring:" substrings or keyctl
  * 	 special values for keyrings "@t", "@p", "@s" and so on. See keyctl(1) man page,
  * 	 section KEY IDENTIFIERS for more information. All other prefixes starting "%<type>:"
  * 	 are ignored.

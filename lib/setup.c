@@ -3,8 +3,8 @@
  *
  * Copyright (C) 2004 Jana Saout <jana@saout.de>
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2009-2023 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2009-2023 Milan Broz
+ * Copyright (C) 2009-2024 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2009-2024 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -62,7 +62,8 @@ struct crypt_device {
 
 	bool link_vk_to_keyring;
 	int32_t keyring_to_link_vk;
-	const char *user_key_name;
+	const char *user_key_name1;
+	const char *user_key_name2;
 	key_type_t keyring_key_type;
 
 	uint64_t data_offset;
@@ -3906,7 +3907,8 @@ void crypt_free(struct crypt_device *cd)
 
 	free(CONST_CAST(void*)cd->pbkdf.type);
 	free(CONST_CAST(void*)cd->pbkdf.hash);
-	free(CONST_CAST(void*)cd->user_key_name);
+	free(CONST_CAST(void*)cd->user_key_name1);
+	free(CONST_CAST(void*)cd->user_key_name2);
 
 	/* Some structures can contain keys (TCRYPT), wipe it */
 	crypt_safe_memzero(cd, sizeof(*cd));
@@ -4112,29 +4114,6 @@ static int resume_luks1_by_volume_key(struct crypt_device *cd,
 	return r;
 }
 
-static key_serial_t crypt_volume_key_load_in_user_keyring(struct crypt_device *cd, struct volume_key *vk)
-{
-	key_serial_t kid;
-	const char *type_name;
-
-	assert(cd);
-	assert(cd->link_vk_to_keyring);
-
-	if (!vk || !(type_name = key_type_name(cd->keyring_key_type)))
-		return -EINVAL;
-
-	log_dbg(cd, "Linking volume key (type %s, name %s) to the specified keyring",
-		    type_name, cd->user_key_name);
-
-	kid = keyring_add_key_to_custom_keyring(cd->keyring_key_type, cd->user_key_name, vk->key, vk->keylength, cd->keyring_to_link_vk);
-	if (kid <= 0) {
-		log_err(cd, _("Failed to link key to the specified keyring."));
-		log_dbg(cd, "The keyring_link_key_to_keyring function failed (error %d).", errno);
-	}
-
-	return kid;
-}
-
 static void crypt_unlink_key_from_custom_keyring(struct crypt_device *cd, key_serial_t kid)
 {
 	assert(cd);
@@ -4150,6 +4129,58 @@ static void crypt_unlink_key_from_custom_keyring(struct crypt_device *cd, key_se
 	log_err(cd, _("Failed to unlink volume key from user specified keyring."));
 }
 
+static key_serial_t crypt_single_volume_key_load_in_user_keyring(struct crypt_device *cd, struct volume_key *vk, const char *user_key_name)
+{
+	key_serial_t kid;
+	const char *type_name;
+
+	assert(cd);
+	assert(cd->link_vk_to_keyring);
+
+	if (!vk || !(type_name = key_type_name(cd->keyring_key_type)))
+		return -EINVAL;
+
+	log_dbg(cd, "Linking volume key (type %s, name %s) to the specified keyring",
+		    type_name, user_key_name);
+
+	kid = keyring_add_key_to_custom_keyring(cd->keyring_key_type, user_key_name, vk->key, vk->keylength, cd->keyring_to_link_vk);
+	if (kid <= 0) {
+		log_dbg(cd, "The keyring_link_key_to_keyring function failed (error %d).", errno);
+	}
+
+	return kid;
+}
+
+static int crypt_volume_key_load_in_user_keyring(struct crypt_device *cd, struct volume_key *vk, key_serial_t *kid1_out, key_serial_t *kid2_out)
+{
+	key_serial_t kid1, kid2 = 0;
+
+	assert(cd);
+	assert(cd->link_vk_to_keyring);
+	assert(cd->user_key_name1);
+
+	if (!vk || !key_type_name(cd->keyring_key_type))
+		return -EINVAL;
+
+	kid1 = crypt_single_volume_key_load_in_user_keyring(cd, vk, cd->user_key_name1);
+	if (kid1 <= 0)
+		return -EINVAL;
+
+	vk = vk->next;
+	if (vk) {
+		assert(cd->user_key_name2);
+		kid2 = crypt_single_volume_key_load_in_user_keyring(cd, vk, cd->user_key_name2);
+		if (kid2 <= 0) {
+			crypt_unlink_key_from_custom_keyring(cd, kid1);
+			return -EINVAL;
+		}
+	}
+
+	*kid2_out = kid2;
+	*kid1_out = kid1;
+	return 0;
+}
+
 static int resume_luks2_by_volume_key(struct crypt_device *cd,
 		int digest,
 		struct volume_key *vk,
@@ -4158,10 +4189,10 @@ static int resume_luks2_by_volume_key(struct crypt_device *cd,
 	bool use_keyring;
 	int r, enc_type;
 	uint32_t opal_segment_number;
-	key_serial_t user_vk_kid = 0;
 	struct volume_key *p_crypt = vk, *p_opal = NULL, *zerokey = NULL, *crypt_key = NULL, *opal_key = NULL;
 	char *iname = NULL;
 	struct crypt_lock_handle *opal_lh = NULL;
+	key_serial_t kid1 = 0, kid2 = 0;
 
 	assert(digest >= 0);
 	assert(vk && crypt_volume_key_get_id(vk) == digest);
@@ -4208,10 +4239,9 @@ static int resume_luks2_by_volume_key(struct crypt_device *cd,
 
 		/* upload volume key in custom keyring if requested */
 		if (cd->link_vk_to_keyring) {
-			user_vk_kid = crypt_volume_key_load_in_user_keyring(cd, vk);
-			if (user_vk_kid <= 0) {
+			r = crypt_volume_key_load_in_user_keyring(cd, vk, &kid1, &kid2);
+			if (r < 0) {
 				log_err(cd, _("Failed to link volume key in user defined keyring."));
-				r = -EINVAL;
 				goto out;
 			}
 		}
@@ -4254,8 +4284,10 @@ static int resume_luks2_by_volume_key(struct crypt_device *cd,
 out:
 	if (r < 0) {
 		crypt_drop_keyring_key(cd, p_crypt);
-		if (user_vk_kid > 0 && cd->link_vk_to_keyring)
-			crypt_unlink_key_from_custom_keyring(cd, user_vk_kid);
+		if (cd->link_vk_to_keyring && kid1)
+			crypt_unlink_key_from_custom_keyring(cd, kid1);
+		if (cd->link_vk_to_keyring && kid2)
+			crypt_unlink_key_from_custom_keyring(cd, kid2);
 	}
 
 	if (r < 0 && p_opal)
@@ -4884,8 +4916,8 @@ static int _open_and_activate(struct crypt_device *cd,
 {
 	bool use_keyring;
 	int r;
-	key_serial_t user_vk_kid = 0;
 	struct volume_key *p_crypt = NULL, *p_opal = NULL, *crypt_key = NULL, *opal_key = NULL, *vk = NULL;
+	key_serial_t kid1 = 0, kid2 = 0;
 
 	r = LUKS2_keyslot_open(cd, keyslot,
 			       (flags & CRYPT_ACTIVATE_ALLOW_UNBOUND_KEY) ?
@@ -4929,10 +4961,9 @@ static int _open_and_activate(struct crypt_device *cd,
 
 		/* upload the volume key in custom user keyring if requested */
 		if (cd->link_vk_to_keyring) {
-			user_vk_kid = crypt_volume_key_load_in_user_keyring(cd, vk);
-			if (user_vk_kid <= 0) {
+			r = crypt_volume_key_load_in_user_keyring(cd, vk, &kid1, &kid2);
+			if (r < 0) {
 				log_err(cd, _("Failed to link volume key in user defined keyring."));
-				r = -EINVAL;
 				goto out;
 			}
 		}
@@ -4943,8 +4974,10 @@ static int _open_and_activate(struct crypt_device *cd,
 out:
 	if (r < 0) {
 		crypt_drop_keyring_key(cd, p_crypt);
-		if (user_vk_kid > 0 && cd->link_vk_to_keyring)
-			crypt_unlink_key_from_custom_keyring(cd, user_vk_kid);
+		if (cd->link_vk_to_keyring && kid1)
+			crypt_unlink_key_from_custom_keyring(cd, kid1);
+		if (cd->link_vk_to_keyring && kid2)
+			crypt_unlink_key_from_custom_keyring(cd, kid2);
 	}
 	crypt_free_volume_key(vk);
 	crypt_free_volume_key(crypt_key);
@@ -5017,6 +5050,107 @@ static int _open_all_keys(struct crypt_device *cd,
 	return r < 0 ? r : keyslot;
 }
 
+static int _open_and_activate_reencrypt_device_by_vk(struct crypt_device *cd,
+	struct luks2_hdr *hdr,
+	const char *name,
+	struct volume_key *vks,
+	uint32_t flags)
+{
+	bool dynamic_size;
+	crypt_reencrypt_info ri;
+	uint64_t minimal_size, device_size;
+	int r = 0;
+	struct crypt_lock_handle *reencrypt_lock = NULL;
+	key_serial_t kid1 = 0, kid2 = 0;
+	struct volume_key *vk;
+
+	if (!vks)
+		return -EINVAL;
+
+	if (crypt_use_keyring_for_vk(cd))
+		flags |= CRYPT_ACTIVATE_KEYRING_KEY;
+
+	r = LUKS2_reencrypt_lock(cd, &reencrypt_lock);
+	if (r) {
+		if (r == -EBUSY)
+			log_err(cd, _("Reencryption in-progress. Cannot activate device."));
+		else
+			log_err(cd, _("Failed to get reencryption lock."));
+		return r;
+	}
+
+	if ((r = crypt_load(cd, CRYPT_LUKS2, NULL)))
+		goto out;
+
+	ri = LUKS2_reencrypt_status(hdr);
+
+	if (ri == CRYPT_REENCRYPT_CRASH) {
+		r = LUKS2_reencrypt_locked_recovery_by_vks(cd, vks);
+		if (r < 0) {
+			log_err(cd, _("LUKS2 reencryption recovery using volume key(s) failed."));
+			goto out;
+		}
+
+		ri = LUKS2_reencrypt_status(hdr);
+	}
+	/* recovery finished reencryption or it's already finished */
+	if (ri == CRYPT_REENCRYPT_NONE) {
+		vk = crypt_volume_key_by_id(vks, LUKS2_digest_by_segment(hdr, CRYPT_DEFAULT_SEGMENT));
+		if (!vk) {
+			r = -EPERM;
+			goto out;
+		}
+
+		r = LUKS2_digest_verify_by_segment(cd, &cd->u.luks2.hdr, CRYPT_DEFAULT_SEGMENT, vk);
+		if (r == -EPERM || r == -ENOENT)
+			log_err(cd, _("Volume key does not match the volume."));
+		if (r >= 0 && cd->link_vk_to_keyring) {
+			kid1 = crypt_single_volume_key_load_in_user_keyring(cd, vk, cd->user_key_name1);
+			if (kid1 <= 0)
+				r = -EINVAL;
+		}
+		if (r >= 0)
+			r = LUKS2_activate(cd, name, vk, NULL, flags);
+		goto out;
+	}
+	if (ri > CRYPT_REENCRYPT_CLEAN) {
+		r = -EINVAL;
+		goto out;
+	}
+
+	if ((flags & CRYPT_ACTIVATE_KEYRING_KEY)) {
+		r = load_all_keys(cd, vks);
+		if (r < 0)
+			goto out;
+	}
+
+	if ((r = LUKS2_get_data_size(hdr, &minimal_size, &dynamic_size)))
+		goto out;
+
+	r = LUKS2_reencrypt_digest_verify(cd, hdr, vks);
+	if (r < 0)
+		goto out;
+
+	log_dbg(cd, "Entering clean reencryption state mode.");
+
+	r = LUKS2_reencrypt_check_device_size(cd, hdr, minimal_size, &device_size, true, dynamic_size);
+	if (r < 0)
+		goto out;
+	if (cd->link_vk_to_keyring) {
+		r = crypt_volume_key_load_in_user_keyring(cd, vks, &kid1, &kid2);
+		if (r < 0) {
+			log_err(cd, _("Failed to link volume keys in user defined keyring."));
+			goto out;
+		}
+	}
+	r = LUKS2_activate_multi(cd, name, vks, device_size >> SECTOR_SHIFT, flags);
+out:
+	LUKS2_reencrypt_unlock(cd, reencrypt_lock);
+	crypt_drop_keyring_key(cd, vks);
+
+	return r;
+}
+
 static int _open_and_activate_reencrypt_device(struct crypt_device *cd,
 	struct luks2_hdr *hdr,
 	int keyslot,
@@ -5031,6 +5165,7 @@ static int _open_and_activate_reencrypt_device(struct crypt_device *cd,
 	struct volume_key *vks = NULL;
 	int r = 0;
 	struct crypt_lock_handle *reencrypt_lock = NULL;
+	key_serial_t kid1 = 0, kid2 = 0;
 
 	if (crypt_use_keyring_for_vk(cd))
 		flags |= CRYPT_ACTIVATE_KEYRING_KEY;
@@ -5091,15 +5226,31 @@ static int _open_and_activate_reencrypt_device(struct crypt_device *cd,
 
 	log_dbg(cd, "Entering clean reencryption state mode.");
 
+	if (cd->link_vk_to_keyring) {
+		r = crypt_volume_key_load_in_user_keyring(cd, vks, &kid1, &kid2);
+		if (r < 0) {
+			log_err(cd, _("Failed to link volume keys in user defined keyring."));
+			goto out;
+		}
+	}
+
 	if (r >= 0)
-		r = LUKS2_reencrypt_check_device_size(cd, hdr, minimal_size, &device_size, true, dynamic_size);
+		r = LUKS2_reencrypt_check_device_size(cd, hdr, minimal_size, &device_size,
+						      !(flags & CRYPT_ACTIVATE_SHARED),
+						      dynamic_size);
 
 	if (r >= 0)
 		r = LUKS2_activate_multi(cd, name, vks, device_size >> SECTOR_SHIFT, flags);
 out:
 	LUKS2_reencrypt_unlock(cd, reencrypt_lock);
-	if (r < 0)
+	if (r < 0) {
 		crypt_drop_keyring_key(cd, vks);
+		if (cd->link_vk_to_keyring && kid1)
+			crypt_unlink_key_from_custom_keyring(cd, kid1);
+		if (cd->link_vk_to_keyring && kid2)
+			crypt_unlink_key_from_custom_keyring(cd, kid2);
+	}
+
 	crypt_free_volume_key(vks);
 
 	return r < 0 ? r : keyslot;
@@ -5145,6 +5296,43 @@ static int _open_and_activate_luks2(struct crypt_device *cd,
 
 	return r;
 }
+
+static int _activate_luks2_by_volume_key(struct crypt_device *cd,
+	const char *name,
+	struct volume_key *vk,
+	struct volume_key *external_key,
+	uint32_t flags)
+{
+	int r;
+	crypt_reencrypt_info ri;
+	int digest_new, digest_old;
+	struct volume_key *vk_old = NULL, *vk_new = NULL;
+	ri = LUKS2_reencrypt_status(&cd->u.luks2.hdr);
+	if (ri == CRYPT_REENCRYPT_INVALID)
+		return -EINVAL;
+
+	if (ri > CRYPT_REENCRYPT_NONE) {
+		digest_new = LUKS2_reencrypt_digest_new(&cd->u.luks2.hdr);
+		digest_old = LUKS2_reencrypt_digest_old(&cd->u.luks2.hdr);
+
+		if (digest_new >= 0) {
+			vk_new = crypt_volume_key_by_id(vk, digest_new);
+			assert(vk_new);
+			assert(crypt_volume_key_get_id(vk_new) == digest_new);
+		}
+		if (digest_old >= 0) {
+			vk_old = crypt_volume_key_by_id(vk, digest_old);
+			assert(vk_old);
+			assert(crypt_volume_key_get_id(vk_old) == digest_old);
+		}
+		r = _open_and_activate_reencrypt_device_by_vk(cd, &cd->u.luks2.hdr, name, vk, flags);
+	} else {
+		assert(crypt_volume_key_get_id(vk) == LUKS2_digest_by_segment(&cd->u.luks2.hdr, CRYPT_DEFAULT_SEGMENT));
+		r = LUKS2_activate(cd, name, vk, external_key, flags);
+	}
+
+	return r;
+}
 #else
 static int _open_and_activate_luks2(struct crypt_device *cd,
 	int keyslot,
@@ -5165,6 +5353,29 @@ static int _open_and_activate_luks2(struct crypt_device *cd,
 	}
 
 	return _open_and_activate(cd, keyslot, name, passphrase, passphrase_size, flags);
+}
+
+static int _activate_luks2_by_volume_key(struct crypt_device *cd,
+	const char *name,
+	struct volume_key *vk,
+	struct volume_key *external_key,
+	uint32_t flags)
+{
+	int r;
+	crypt_reencrypt_info ri;
+	ri = LUKS2_reencrypt_status(&cd->u.luks2.hdr);
+	if (ri == CRYPT_REENCRYPT_INVALID)
+		return -EINVAL;
+
+	if (ri > CRYPT_REENCRYPT_NONE) {
+		log_err(cd, _("This operation is not supported for this device type."));
+		r = -ENOTSUP;
+	} else {
+		assert(crypt_volume_key_get_id(vk) == LUKS2_digest_by_segment(&cd->u.luks2.hdr, CRYPT_DEFAULT_SEGMENT));
+		r = LUKS2_activate(cd, name, vk, external_key, flags);
+	}
+
+	return r;
 }
 #endif
 
@@ -5296,6 +5507,8 @@ static int _verify_key(struct crypt_device *cd,
 	struct volume_key *vk)
 {
 	int r = -EINVAL;
+	crypt_reencrypt_info ri;
+	struct luks2_hdr *hdr = &cd->u.luks2.hdr;
 
 	assert(cd);
 
@@ -5309,6 +5522,18 @@ static int _verify_key(struct crypt_device *cd,
 		if (r == -EPERM)
 			log_err(cd, _("Volume key does not match the volume."));
 	} else if (isLUKS2(cd->type)) {
+		ri = LUKS2_reencrypt_status(hdr);
+		if (ri == CRYPT_REENCRYPT_INVALID)
+			return -EINVAL;
+
+		if (ri > CRYPT_REENCRYPT_NONE) {
+			LUKS2_reencrypt_lookup_key_ids(cd, hdr, vk);
+			r = LUKS2_reencrypt_digest_verify(cd, hdr, vk);
+			if (r == -EPERM || r == -ENOENT || r == -EINVAL)
+				log_err(cd, _("Reencryption volume keys do not match the volume."));
+			return r;
+		}
+
 		if (segment == CRYPT_ANY_SEGMENT)
 			r = LUKS2_digest_any_matching(cd, &cd->u.luks2.hdr, vk);
 		else {
@@ -5361,8 +5586,7 @@ static int _activate_by_volume_key(struct crypt_device *cd,
 
 		r = LUKS1_activate(cd, name, vk, flags);
 	} else if (isLUKS2(cd->type)) {
-		assert(crypt_volume_key_get_id(vk) == LUKS2_digest_by_segment(&cd->u.luks2.hdr, CRYPT_DEFAULT_SEGMENT));
-		r = LUKS2_activate(cd, name, vk, external_key, flags);
+		r = _activate_luks2_by_volume_key(cd, name, vk, external_key, flags);
 	} else if (isVERITY(cd->type)) {
 		assert(crypt_volume_key_get_id(vk) == KEY_VERIFIED);
 		r = VERITY_activate(cd, name, vk, external_key, cd->u.verity.fec_device,
@@ -5403,17 +5627,15 @@ const char *name,
 		*vk_sign = NULL, *p_crypt = NULL;
 	size_t passphrase_size;
 	const char *passphrase = NULL;
-	int unlocked_keyslot, r = -EINVAL;
-	key_serial_t user_vk_kid = 0;
-
-	UNUSED(additional_keyslot);
-	UNUSED(additional_kc);
-
-	log_dbg(cd, "%s volume %s [keyslot %d] using %s.",
-		name ? "Activating" : "Checking", name ?: "passphrase", keyslot, keyslot_context_type_string(kc));
+	int unlocked_keyslot, required_keys, unlocked_keys = 0, r = -EINVAL;
+	key_serial_t kid1 = 0, kid2 = 0;
+	struct luks2_hdr *hdr = &cd->u.luks2.hdr;
 
 	if (!cd || !kc)
 		return -EINVAL;
+
+	log_dbg(cd, "%s volume %s [keyslot %d] using %s.",
+		name ? "Activating" : "Checking", name ?: "passphrase", keyslot, keyslot_context_type_string(kc));
 	if (!name && (flags & CRYPT_ACTIVATE_REFRESH))
 		return -EINVAL;
 	if ((flags & CRYPT_ACTIVATE_KEYRING_KEY) && !crypt_use_keyring_for_vk(cd))
@@ -5458,10 +5680,27 @@ const char *name,
 		if (kc->get_luks1_volume_key)
 			r = kc->get_luks1_volume_key(cd, kc, keyslot, &vk);
 	} else if (isLUKS2(cd->type)) {
+		required_keys = LUKS2_reencrypt_vks_count(hdr);
+
 		if (flags & CRYPT_ACTIVATE_ALLOW_UNBOUND_KEY && kc->get_luks2_key)
 			r = kc->get_luks2_key(cd, kc, keyslot, CRYPT_ANY_SEGMENT, &vk);
 		else if (kc->get_luks2_volume_key)
 			r = kc->get_luks2_volume_key(cd, kc, keyslot, &vk);
+		if (r >= 0) {
+			unlocked_keys++;
+
+			if (required_keys > 1 && vk && additional_kc) {
+				if (flags & CRYPT_ACTIVATE_ALLOW_UNBOUND_KEY && additional_kc->get_luks2_key)
+					r = additional_kc->get_luks2_key(cd, additional_kc, additional_keyslot, CRYPT_ANY_SEGMENT, &vk->next);
+				else if (additional_kc->get_luks2_volume_key)
+					r = additional_kc->get_luks2_volume_key(cd, additional_kc, additional_keyslot, &vk->next);
+				if (r >= 0)
+					unlocked_keys++;
+			}
+
+			if (unlocked_keys < required_keys)
+				r = -ESRCH;
+		}
 	} else if (isTCRYPT(cd->type)) {
 		r = 0;
 	} else if (name && isPLAIN(cd->type)) {
@@ -5504,7 +5743,6 @@ const char *name,
 	r = _verify_key(cd,
 			flags & CRYPT_ACTIVATE_ALLOW_UNBOUND_KEY ? CRYPT_ANY_SEGMENT : CRYPT_DEFAULT_SEGMENT,
 			vk);
-
 	if (r < 0)
 		goto out;
 
@@ -5544,10 +5782,9 @@ const char *name,
 
 			/* upload the volume key in custom user keyring if requested */
 			if (cd->link_vk_to_keyring) {
-				user_vk_kid = crypt_volume_key_load_in_user_keyring(cd, vk);
-				if (user_vk_kid <= 0) {
+				r = crypt_volume_key_load_in_user_keyring(cd, vk, &kid1, &kid2);
+				if (r < 0) {
 					log_err(cd, _("Failed to link volume key in user defined keyring."));
-					r = -EINVAL;
 					goto out;
 				}
 			}
@@ -5564,9 +5801,12 @@ const char *name,
 		r = unlocked_keyslot;
 out:
 	if (r < 0) {
+		crypt_drop_keyring_key(cd, vk);
 		crypt_drop_keyring_key(cd, p_crypt);
-		if (user_vk_kid > 0 && cd->link_vk_to_keyring)
-			crypt_unlink_key_from_custom_keyring(cd, user_vk_kid);
+		if (cd->link_vk_to_keyring && kid1)
+			crypt_unlink_key_from_custom_keyring(cd, kid1);
+		if (cd->link_vk_to_keyring && kid2)
+			crypt_unlink_key_from_custom_keyring(cd, kid2);
 	}
 
 	crypt_free_volume_key(vk);
@@ -7565,20 +7805,37 @@ int crypt_set_keyring_to_link(struct crypt_device *cd, const char *key_descripti
 			      const char *key_type_desc, const char *keyring_to_link_vk)
 {
 	key_type_t key_type = USER_KEY;
-	const char *name = NULL;
+	const char *name1 = NULL, *name2 = NULL;
 	int32_t id = 0;
+	int r, ri;
+	struct luks2_hdr *hdr;
+	unsigned user_descriptions_count, vks_count = 1;
 
-	UNUSED(old_key_description);
-
-	if (!cd || (!key_description && keyring_to_link_vk) ||
-	    (key_description && !keyring_to_link_vk))
+	if (!cd || ((!key_description && !old_key_description) && (keyring_to_link_vk || key_type_desc)) ||
+	    ((key_description || old_key_description) && !keyring_to_link_vk))
 		return -EINVAL;
+
+	hdr = crypt_get_hdr(cd, CRYPT_LUKS2);
+
+	/* if only one key description is supplied, force it to be the first one */
+	if (!key_description && old_key_description)
+		return -EINVAL;
+
+	if ((r = _onlyLUKS2(cd, 0, CRYPT_REQUIREMENT_OPAL | CRYPT_REQUIREMENT_ONLINE_REENCRYPT)))
+		return r;
 
 	if (key_type_desc)
 		key_type = key_type_by_name(key_type_desc);
-
 	if (key_type != LOGON_KEY && key_type != USER_KEY)
 		return -EINVAL;
+
+	ri = crypt_reencrypt_status(cd, NULL);
+	if (ri > CRYPT_REENCRYPT_NONE && ri < CRYPT_REENCRYPT_INVALID)
+		vks_count = LUKS2_reencrypt_vks_count(hdr);
+
+	user_descriptions_count = (key_description ? 1 : 0) + (old_key_description ? 1 : 0);
+	if (user_descriptions_count != 0 && vks_count > user_descriptions_count)
+		return -ESRCH;
 
 	if (keyring_to_link_vk) {
 		id = keyring_find_keyring_id_by_name(keyring_to_link_vk);
@@ -7586,14 +7843,20 @@ int crypt_set_keyring_to_link(struct crypt_device *cd, const char *key_descripti
 			log_err(cd, _("Could not find keyring described by \"%s\"."), keyring_to_link_vk);
 			return -EINVAL;
 		}
-		if (!(name = strdup(key_description)))
+		if (key_description && !(name1 = strdup(key_description)))
 			return -ENOMEM;
+		if (old_key_description && !(name2 = strdup(old_key_description))) {
+			free(CONST_CAST(void*)name1);
+			return -ENOMEM;
+		}
 	}
 
 	cd->keyring_key_type = key_type;
 
-	free(CONST_CAST(void*)cd->user_key_name);
-	cd->user_key_name = name;
+	free(CONST_CAST(void*)cd->user_key_name1);
+	free(CONST_CAST(void*)cd->user_key_name2);
+	cd->user_key_name1 = name1;
+	cd->user_key_name2 = name2;
 	cd->keyring_to_link_vk = id;
 	cd->link_vk_to_keyring = id != 0;
 

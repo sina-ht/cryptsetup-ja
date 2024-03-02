@@ -1,9 +1,9 @@
 /*
  * LUKS - Linux Unified Key Setup v2, reencryption digest helpers
  *
- * Copyright (C) 2022-2023 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2022-2023 Ondrej Kozina
- * Copyright (C) 2022-2023 Milan Broz
+ * Copyright (C) 2022-2024 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2022-2024 Ondrej Kozina
+ * Copyright (C) 2022-2024 Milan Broz
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -373,6 +373,22 @@ int LUKS2_keyslot_reencrypt_digest_create(struct crypt_device *cd,
 		return r;
 
 	return LUKS2_digest_assign(cd, hdr, keyslot_reencrypt, digest_reencrypt, 1, 0);
+}
+
+void LUKS2_reencrypt_lookup_key_ids(struct crypt_device *cd, struct luks2_hdr *hdr, struct volume_key *vk)
+{
+	int digest_old, digest_new;
+
+	digest_old = LUKS2_reencrypt_digest_old(hdr);
+	digest_new = LUKS2_reencrypt_digest_new(hdr);
+
+	while (vk) {
+		if (digest_old >= 0 && LUKS2_digest_verify_by_digest(cd, digest_old, vk) == digest_old)
+			crypt_volume_key_set_id(vk, digest_old);
+		if (digest_new >= 0 && LUKS2_digest_verify_by_digest(cd, digest_new, vk) == digest_new)
+			crypt_volume_key_set_id(vk, digest_new);
+		vk = vk->next;
+	}
 }
 
 int LUKS2_reencrypt_digest_verify(struct crypt_device *cd,
