@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * cryptsetup - action re-encryption utilities
  *
  * Copyright (C) 2009-2024 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2009-2024 Milan Broz
  * Copyright (C) 2021-2024 Ondrej Kozina
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <uuid/uuid.h>
@@ -1451,7 +1438,8 @@ static int _decrypt(struct crypt_device **cd, enum device_status_info dev_st, co
 
 	assert(cd);
 
-	if (dev_st == DEVICE_LUKS1 || dev_st == DEVICE_LUKS1_UNUSABLE)
+	if (dev_st == DEVICE_LUKS1 || dev_st == DEVICE_LUKS1_UNUSABLE ||
+	    (dev_st == DEVICE_NOT_LUKS && ARG_SET(OPT_UUID_ID) && !ARG_SET(OPT_HEADER_ID)))
 		return reencrypt_luks1(data_device);
 
 	/* header file does not exist, try loading device type from data device */

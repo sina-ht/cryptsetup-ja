@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * cryptsetup library LUKS2 API check functions
  *
  * Copyright (C) 2009-2024 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2009-2024 Milan Broz
  * Copyright (C) 2016-2024 Ondrej Kozina
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <stdbool.h>
@@ -687,6 +674,17 @@ static void UseLuks2Device(void)
 	OK_(crypt_deactivate(cd, CDEVICE_1));
 	FAIL_(crypt_deactivate(cd, CDEVICE_1), "no such device");
 
+	if (!_fips_mode) {
+		/* keyslot 0 is PBKDF2, keyslot 1 is Argon2id */
+		OK_(crypt_activate_by_passphrase(cd, NULL, 0, KEY1, strlen(KEY1), 0));
+		EQ_(crypt_activate_by_passphrase(cd, NULL, 1, KEY2, strlen(KEY2), 0), 1);
+		EQ_(crypt_activate_by_passphrase(cd, CDEVICE_1, 1, KEY2, strlen(KEY2), 0), 1);
+		FAIL_(crypt_activate_by_passphrase(cd, CDEVICE_1, 1, KEY2, strlen(KEY2), 0), "already open");
+		GE_(crypt_status(cd, CDEVICE_1), CRYPT_ACTIVE);
+		OK_(crypt_deactivate(cd, CDEVICE_1));
+		FAIL_(crypt_deactivate(cd, CDEVICE_1), "no such device");
+	}
+
 #if KERNEL_KEYRING
 	// repeat previous tests and check kernel keyring is released when not needed
 	if (t_dm_crypt_keyring_support()) {
@@ -701,6 +699,21 @@ static void UseLuks2Device(void)
 		OK_(crypt_activate_by_passphrase(cd, NULL, CRYPT_ANY_SLOT, KEY1, strlen(KEY1), 0));
 		OK_(crypt_deactivate(cd, CDEVICE_1));
 		FAIL_(_volume_key_in_keyring(cd, 0), "");
+
+		if (!_fips_mode) {
+			/* keyslot 0 is PBKDF2, keyslot 1 is Argon2id */
+			EQ_(crypt_activate_by_passphrase(cd, NULL, 1, KEY2, strlen(KEY2), 0), 1);
+			FAIL_(_drop_keyring_key(cd, 0), "");
+			EQ_(crypt_activate_by_passphrase(cd, NULL, 1, KEY2, strlen(KEY2), CRYPT_ACTIVATE_KEYRING_KEY), 1);
+			OK_(_drop_keyring_key(cd, 0));
+			EQ_(crypt_activate_by_passphrase(cd, CDEVICE_1, 1, KEY2, strlen(KEY2), 0), 1);
+			OK_(_drop_keyring_key(cd, 0));
+			FAIL_(crypt_activate_by_passphrase(cd, CDEVICE_1, 1, KEY2, strlen(KEY2), 0), "already open");
+			FAIL_(_volume_key_in_keyring(cd, 0), "");
+			EQ_(crypt_activate_by_passphrase(cd, NULL, 1, KEY2, strlen(KEY2), 0), 1);
+			OK_(crypt_deactivate(cd, CDEVICE_1));
+			FAIL_(_volume_key_in_keyring(cd, 0), "");
+		}
 	}
 #endif
 
@@ -5302,6 +5315,11 @@ static void KeyslotContextAndKeyringLink(void)
 		pbkdf.parallel_threads = 0;
 		pbkdf.max_memory_kb = 0;
 		pbkdf.iterations = 1000;
+	}
+
+	if (!t_dm_crypt_keyring_support()) {
+		printf("WARNING: dm-crypt does not support keyring, skipping test.\n");
+		return;
 	}
 
 	OK_(get_luks2_offsets(0, 0, 0, NULL, &r_payload_offset));

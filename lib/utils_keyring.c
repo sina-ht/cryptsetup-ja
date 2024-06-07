@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * kernel keyring utilities
  *
  * Copyright (C) 2016-2024 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2016-2024 Ondrej Kozina
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <assert.h>
@@ -158,7 +145,7 @@ static key_serial_t find_key_by_type_and_desc(const char *type, const char *desc
 	char *newline;
 	size_t buffer_len = 0;
 
-	int n;
+	ssize_t n;
 
 	do {
 		id = request_key(type, desc, NULL, 0);
@@ -171,7 +158,8 @@ static key_serial_t find_key_by_type_and_desc(const char *type, const char *desc
 		return 0;
 
 	while ((n = read(f, buf + buffer_len, sizeof(buf) - buffer_len - 1)) > 0) {
-		buffer_len += n;
+		/* coverity[overflow:FALSE] */
+		buffer_len += (size_t)n;
 		buf[buffer_len] = '\0';
 		newline = strchr(buf, '\n');
 		while (newline != NULL && buffer_len != 0) {

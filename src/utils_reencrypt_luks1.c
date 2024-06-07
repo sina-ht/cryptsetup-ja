@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * cryptsetup - LUKS1 utility for offline re-encryption
  *
  * Copyright (C) 2012-2024 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2012-2024 Milan Broz
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <sys/ioctl.h>
@@ -690,29 +677,6 @@ out:
 	return r;
 }
 
-static ssize_t read_buf(int fd, void *buf, size_t count)
-{
-	size_t read_size = 0;
-	ssize_t s;
-
-	do {
-		/* This expects that partial read is aligned in buffer */
-		s = read(fd, buf, count - read_size);
-		if (s == -1 && errno != EINTR)
-			return s;
-		if (s == 0)
-			return (ssize_t)read_size;
-		if (s > 0) {
-			if (s != (ssize_t)count)
-				log_dbg("Partial read %zd / %zu.", s, count);
-			read_size += (size_t)s;
-			buf = (uint8_t*)buf + s;
-		}
-	} while (read_size != count);
-
-	return (ssize_t)count;
-}
-
 static int copy_data_forward(struct reenc_ctx *rc, int fd_old, int fd_new,
 			     size_t block_size, void *buf, uint64_t *bytes)
 {
@@ -726,6 +690,10 @@ static int copy_data_forward(struct reenc_ctx *rc, int fd_old, int fd_new,
 		.interrupt_message = _("\nReencryption interrupted."),
 		.device = tools_get_device_name(rc->device, &backing_file)
 	};
+
+	assert(rc);
+	assert(bytes);
+	assert(buf);
 
 	log_dbg("Reencrypting in forward direction.");
 
@@ -745,26 +713,21 @@ static int copy_data_forward(struct reenc_ctx *rc, int fd_old, int fd_new,
 	while (!quit && rc->device_offset < rc->device_size) {
 		if ((rc->device_size - rc->device_offset) < (uint64_t)block_size)
 			block_size = rc->device_size - rc->device_offset;
-		s1 = read_buf(fd_old, buf, block_size);
-		if (s1 < 0 || ((size_t)s1 != block_size &&
-		    (rc->device_offset + s1) != rc->device_size)) {
+		s1 = read_buffer(fd_old, buf, block_size);
+		if (s1 < 0 || ((size_t)s1 != block_size)) {
 			log_dbg("Read error, expecting %zu, got %zd.",
 				block_size, s1);
 			goto out;
 		}
 
-		/* If device_size is forced, never write more than limit */
-		if ((s1 + rc->device_offset) > rc->device_size)
-			s1 = rc->device_size - rc->device_offset;
-
-		s2 = write(fd_new, buf, s1);
-		if (s2 < 0) {
-			log_dbg("Write error, expecting %zu, got %zd.",
-				block_size, s2);
+		s2 = write_buffer(fd_new, buf, s1);
+		if (s2 < 0 || s2 != s1) {
+			log_dbg("Write error, expecting %zd, got %zd.",
+				s1, s2);
 			goto out;
 		}
 
-		rc->device_offset += s1;
+		rc->device_offset += s2;
 		if (ARG_SET(OPT_WRITE_LOG_ID) && write_log(rc) < 0)
 			goto out;
 
@@ -833,21 +796,21 @@ static int copy_data_backward(struct reenc_ctx *rc, int fd_old, int fd_new,
 			goto out;
 		}
 
-		s1 = read_buf(fd_old, buf, working_block);
+		s1 = read_buffer(fd_old, buf, working_block);
 		if (s1 < 0 || (s1 != working_block)) {
 			log_dbg("Read error, expecting %zu, got %zd.",
 				block_size, s1);
 			goto out;
 		}
 
-		s2 = write(fd_new, buf, working_block);
-		if (s2 < 0) {
-			log_dbg("Write error, expecting %zu, got %zd.",
-				block_size, s2);
+		s2 = write_buffer(fd_new, buf, s1);
+		if (s2 < 0 || s2 != s1) {
+			log_dbg("Write error, expecting %zd, got %zd.",
+				s1, s2);
 			goto out;
 		}
 
-		rc->device_offset -= s1;
+		rc->device_offset -= s2;
 		if (ARG_SET(OPT_WRITE_LOG_ID) && write_log(rc) < 0)
 			goto out;
 
@@ -867,43 +830,20 @@ out:
 	return quit ? -EAGAIN : r;
 }
 
-static void zero_rest_of_device(int fd, size_t block_size, void *buf,
-				uint64_t *bytes, uint64_t offset)
+static int detect_interrupt(uint64_t size __attribute__((unused)),
+			  uint64_t offset __attribute__((unused)),
+			  void *usrptr __attribute__((unused)))
 {
-	ssize_t s1, s2;
+	int r = 0;
 
-	log_dbg("Zeroing rest of device.");
+	check_signal(&r);
 
-	if (lseek(fd, offset, SEEK_SET) < 0) {
-		log_dbg("Cannot seek to device offset.");
-		return;
-	}
-
-	memset(buf, 0, block_size);
-	s1 = block_size;
-
-	while (!quit && *bytes) {
-		if (*bytes < (uint64_t)s1)
-			s1 = *bytes;
-
-		s2 = write(fd, buf, s1);
-		if (s2 != s1) {
-			log_dbg("Write error, expecting %zd, got %zd.",
-				s1, s2);
-			return;
-		}
-
-		if (ARG_SET(OPT_USE_FSYNC_ID) && fsync(fd) < 0) {
-			log_dbg("Write error, fsync.");
-			return;
-		}
-
-		*bytes -= s2;
-	}
+	return r;
 }
 
 static int copy_data(struct reenc_ctx *rc)
 {
+	struct crypt_device *wipe_cd;
 	size_t block_size = ARG_UINT32(OPT_BLOCK_SIZE_ID) * 1024 * 1024;
 	int fd_old = -1, fd_new = -1;
 	int r = -EINVAL;
@@ -959,7 +899,14 @@ static int copy_data(struct reenc_ctx *rc)
 	if (!r && rc->reencrypt_mode == DECRYPT &&
 	    rc->device_size_new_real > rc->device_size_org_real) {
 		bytes = rc->device_size_new_real - rc->device_size_org_real;
-		zero_rest_of_device(fd_new, block_size, buf, &bytes, rc->device_size_org_real);
+		if (crypt_init(&wipe_cd, rc->crypt_path_new) == 0) {
+			log_dbg("Zeroing rest of device.");
+			(void)crypt_wipe(wipe_cd, NULL, CRYPT_WIPE_ZERO,
+				   rc->device_size_org_real, bytes, block_size,
+				   !ARG_SET(OPT_USE_DIRECTIO_ID) ? CRYPT_WIPE_NO_DIRECT_IO : 0,
+				   detect_interrupt, NULL);
+			crypt_free(wipe_cd);
+		}
 	}
 
 	set_int_block(1);

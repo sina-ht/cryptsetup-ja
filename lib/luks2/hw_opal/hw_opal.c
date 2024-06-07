@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * OPAL utilities
  *
  * Copyright (C) 2022-2023 Luca Boccassi <bluca@debian.org>
  *               2023 Ondrej Kozina <okozina@redhat.com>
- *
- * This file is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This file is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this file; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <stdio.h>
@@ -41,6 +28,7 @@
 #if HAVE_HW_OPAL
 
 #include <linux/sed-opal.h>
+#include <linux/fs.h>
 
 /* Error codes are defined in the specification:
  * TCG_Storage_Architecture_Core_Spec_v2.01_r1.00
@@ -290,6 +278,7 @@ static int opal_range_check_attributes_fd(struct crypt_device *cd,
 {
 	int r;
 	struct opal_lr_status *lrs;
+	int device_block_bytes;
 	uint32_t opal_block_bytes = 0;
 	uint64_t offset, length;
 	bool read_locked, write_locked;
@@ -297,12 +286,17 @@ static int opal_range_check_attributes_fd(struct crypt_device *cd,
 	assert(fd >= 0);
 	assert(cd);
 	assert(vk);
+	assert(check_offset_sectors);
+	assert(check_length_sectors);
 
-	if (check_offset_sectors || check_length_sectors) {
-		r = opal_geometry_fd(cd, fd, NULL, &opal_block_bytes, NULL, NULL);
-		if (r != OPAL_STATUS_SUCCESS)
-			return -EINVAL;
-	}
+	r = opal_geometry_fd(cd, fd, NULL, &opal_block_bytes, NULL, NULL);
+	if (r != OPAL_STATUS_SUCCESS)
+		return -EINVAL;
+
+	/* Keep this as warning only */
+	if (ioctl(fd, BLKSSZGET, &device_block_bytes) < 0 ||
+	    (uint32_t)device_block_bytes != opal_block_bytes)
+		log_err(cd, _("Bogus OPAL logical block size differs from device block size."));
 
 	lrs = crypt_safe_alloc(sizeof(*lrs));
 	if (!lrs)
@@ -329,22 +323,18 @@ static int opal_range_check_attributes_fd(struct crypt_device *cd,
 
 	r = 0;
 
-	if (check_offset_sectors) {
-		offset = lrs->range_start * opal_block_bytes / SECTOR_SIZE;
-		if (offset != *check_offset_sectors) {
-			log_err(cd, _("OPAL range %d offset %" PRIu64 " does not match expected values %" PRIu64 "."),
-				segment_number, offset, *check_offset_sectors);
-			r = -EINVAL;
-		}
+	offset = lrs->range_start * opal_block_bytes / SECTOR_SIZE;
+	if (offset != *check_offset_sectors) {
+		log_err(cd, _("OPAL range %d offset %" PRIu64 " does not match expected values %" PRIu64 "."),
+			segment_number, offset, *check_offset_sectors);
+		r = -EINVAL;
 	}
 
-	if (check_length_sectors) {
-		length = lrs->range_length * opal_block_bytes / SECTOR_SIZE;
-		if (length != *check_length_sectors) {
-			log_err(cd, _("OPAL range %d length %" PRIu64" does not match device length %" PRIu64 "."),
-				segment_number, length, *check_length_sectors);
-			r = -EINVAL;
-		}
+	length = lrs->range_length * opal_block_bytes / SECTOR_SIZE;
+	if (length != *check_length_sectors) {
+		log_err(cd, _("OPAL range %d length %" PRIu64" does not match device length %" PRIu64 "."),
+			segment_number, length, *check_length_sectors);
+		r = -EINVAL;
 	}
 
 	if (!lrs->RLE || !lrs->WLE) {
@@ -405,8 +395,9 @@ static int opal_enabled(struct crypt_device *cd, struct device *dev)
 int opal_setup_ranges(struct crypt_device *cd,
 		      struct device *dev,
 		      const struct volume_key *vk,
-		      uint64_t range_start,
-		      uint64_t range_length,
+		      uint64_t range_start_blocks,
+		      uint64_t range_length_blocks,
+		      uint32_t opal_block_bytes,
 		      uint32_t segment_number,
 		      const void *admin_key,
 		      size_t admin_key_len)
@@ -423,8 +414,13 @@ int opal_setup_ranges(struct crypt_device *cd,
 	assert(vk);
 	assert(admin_key);
 	assert(vk->keylength <= OPAL_KEY_MAX);
+	assert(opal_block_bytes >= SECTOR_SIZE);
 
 	if (admin_key_len > OPAL_KEY_MAX)
+		return -EINVAL;
+
+	if (((UINT64_MAX / opal_block_bytes) < range_start_blocks) ||
+	    ((UINT64_MAX / opal_block_bytes) < range_length_blocks))
 		return -EINVAL;
 
 	fd = device_open(cd, dev, O_RDONLY);
@@ -604,8 +600,8 @@ int opal_setup_ranges(struct crypt_device *cd,
 		goto out;
 	}
 	*setup = (struct opal_user_lr_setup) {
-		.range_start = range_start,
-		.range_length = range_length,
+		.range_start = range_start_blocks,
+		.range_length = range_length_blocks,
 		/* Some drives do not enable Locking Ranges on setup. This have some
 		 * interesting consequences: Lock command called later below will pass,
 		 * but locking range will _not_ be locked at all.
@@ -658,9 +654,10 @@ int opal_setup_ranges(struct crypt_device *cd,
 	}
 
 	/* Double check the locking range is locked and the ranges are set up as configured */
-	r = opal_range_check_attributes_fd(cd, fd, segment_number, vk, &range_start,
-					   &range_length, &(bool) {true}, &(bool){true},
-					   NULL, NULL);
+	r = opal_range_check_attributes_fd(cd, fd, segment_number, vk,
+					   &(uint64_t) {range_start_blocks * opal_block_bytes / SECTOR_SIZE},
+					   &(uint64_t) {range_length_blocks * opal_block_bytes / SECTOR_SIZE},
+					   &(bool) {true}, &(bool){true}, NULL, NULL);
 out:
 	crypt_safe_free(activate);
 	crypt_safe_free(user_session);
@@ -1011,8 +1008,9 @@ void opal_exclusive_unlock(struct crypt_device *cd, struct crypt_lock_handle *op
 int opal_setup_ranges(struct crypt_device *cd,
 		      struct device *dev,
 		      const struct volume_key *vk,
-		      uint64_t range_start,
-		      uint64_t range_length,
+		      uint64_t range_start_blocks,
+		      uint64_t range_length_blocks,
+		      uint32_t opal_block_bytes,
 		      uint32_t segment_number,
 		      const void *admin_key,
 		      size_t admin_key_len)

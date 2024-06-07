@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * TCRYPT (TrueCrypt-compatible) and VeraCrypt volume handling
  *
  * Copyright (C) 2012-2024 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2012-2024 Milan Broz
- *
- * This file is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This file is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this file; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <errno.h>
@@ -1070,7 +1057,7 @@ uint64_t TCRYPT_get_iv_offset(struct crypt_device *cd,
 			      struct tcrypt_phdr *hdr,
 			      struct crypt_params_tcrypt *params)
 {
-	uint64_t iv_offset;
+	uint64_t iv_offset, partition_offset;
 
 	if (params->mode && !strncmp(params->mode, "xts", 3))
 		iv_offset = TCRYPT_get_data_offset(cd, hdr, params);
@@ -1079,8 +1066,14 @@ uint64_t TCRYPT_get_iv_offset(struct crypt_device *cd,
 	else
 		iv_offset = hdr->d.mk_offset / SECTOR_SIZE;
 
-	if (params->flags & CRYPT_TCRYPT_SYSTEM_HEADER)
-		iv_offset += crypt_dev_partition_offset(device_path(crypt_data_device(cd)));
+	if (params->flags & CRYPT_TCRYPT_SYSTEM_HEADER) {
+		partition_offset = crypt_dev_partition_offset(device_path(crypt_data_device(cd)));
+		/* FIXME: we need to deal with overflow sooner */
+		if (iv_offset > (UINT64_MAX - partition_offset))
+			iv_offset = UINT64_MAX;
+		else
+			iv_offset += partition_offset;
+	}
 
 	return iv_offset;
 }

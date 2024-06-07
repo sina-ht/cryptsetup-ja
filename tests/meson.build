@@ -16,6 +16,9 @@ test_files_to_copy = [
     'fvault2-images.tar.xz',
     'generators/generate-luks2-area-in-json-hdr-space-json0.img.sh',
     'img_fs_ext4.img.xz',
+    'img_fs_vfat.img.xz',
+    'img_fs_xfs.img.xz',
+    'img_fs_xfs5.img.xz',
     'luks1-images.tar.xz',
     'luks2_header_requirements.tar.xz',
     'luks2_keyslot_unassigned.img.xz',
@@ -27,6 +30,7 @@ test_files_to_copy = [
     'xfs_512_block_size.img.xz',
     'valg.sh',
     'cryptsetup-valg-supps',
+    'LUKS-d238e48a-0ed3-4169-b841-f26b44693134.tar.xz'
 ]
 
 foreach file : test_files_to_copy
@@ -467,7 +471,7 @@ if get_option('ssh-token') and not enable_static
         ])
 endif
 
-if get_option('external-tokens') and not enable_static
+if get_option('external-tokens') and get_option('systemd-tokens-test') and not enable_static
     test('systemd-test-plugin',
         find_program('systemd-test-plugin'),
         workdir: meson.current_build_dir(),

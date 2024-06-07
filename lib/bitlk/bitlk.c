@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * BITLK (BitLocker-compatible) volume handling
  *
  * Copyright (C) 2019-2024 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2019-2024 Milan Broz
  * Copyright (C) 2019-2024 Vojtech Trefny
- *
- * This file is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This file is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this file; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <errno.h>
@@ -324,6 +311,9 @@ static int parse_vmk_entry(struct crypt_device *cd, uint8_t *data, int start, in
 		/* unknown timestamps in recovery protected VMK */
 		} else if (key_entry_value == BITLK_ENTRY_VALUE_RECOVERY_TIME) {
 			;
+		/* optional hint (?) string (masked email?), we can safely ignore it */
+		} else if (key_entry_value == BITLK_ENTRY_VALUE_HINT) {
+			;
 		} else if (key_entry_value == BITLK_ENTRY_VALUE_STRING) {
 			if (key_entry_size < BITLK_ENTRY_HEADER_LEN)
 				return -EINVAL;
@@ -352,6 +342,9 @@ static int parse_vmk_entry(struct crypt_device *cd, uint8_t *data, int start, in
 			}
 		/* no idea what this is, lets hope it's not important */
 		} else if (key_entry_value == BITLK_ENTRY_VALUE_USE_KEY && (*vmk)->protection == BITLK_PROTECTION_STARTUP_KEY) {
+			;
+		/* quietly ignore unsupported TPM key */
+		} else if (key_entry_value == BITLK_ENTRY_VALUE_TPM_KEY && (*vmk)->protection == BITLK_PROTECTION_TPM) {
 			;
 		} else {
 			if (supported) {

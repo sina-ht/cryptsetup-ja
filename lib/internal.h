@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * libcryptsetup - cryptsetup library internal
  *
@@ -5,20 +6,6 @@
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
  * Copyright (C) 2009-2024 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2009-2024 Milan Broz
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #ifndef INTERNAL_H
@@ -116,6 +103,7 @@ void device_disable_direct_io(struct device *device);
 int device_is_identical(struct device *device1, struct device *device2);
 int device_is_rotational(struct device *device);
 int device_is_dax(struct device *device);
+int device_is_zoned(struct device *device);
 size_t device_alignment(struct device *device);
 int device_direct_io(const struct device *device);
 int device_fallocate(struct device *device, uint64_t size);
@@ -166,6 +154,7 @@ int crypt_confirm(struct crypt_device *cd, const char *msg);
 char *crypt_lookup_dev(const char *dev_id);
 int crypt_dev_is_rotational(int major, int minor);
 int crypt_dev_is_dax(int major, int minor);
+int crypt_dev_is_zoned(int major, int minor);
 int crypt_dev_is_partition(const char *dev_path);
 char *crypt_get_partition_device(const char *dev_path, uint64_t offset, uint64_t size);
 int crypt_dev_get_partition_number(const char *dev_path);
@@ -266,6 +255,8 @@ static inline void *crypt_zalloc(size_t size) { return calloc(1, size); }
 static inline bool uint64_mult_overflow(uint64_t *u, uint64_t b, size_t size)
 {
 	*u = (uint64_t)b * size;
+	if (size == 0)
+		return true;
 	if ((uint64_t)(*u / size) != b)
 		return true;
 	return false;

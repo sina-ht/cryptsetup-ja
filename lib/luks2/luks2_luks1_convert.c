@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * LUKS - Linux Unified Key Setup v2, LUKS1 conversion code
  *
  * Copyright (C) 2015-2024 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2015-2024 Ondrej Kozina
  * Copyright (C) 2015-2024 Milan Broz
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "luks2_internal.h"
@@ -620,6 +607,10 @@ int LUKS2_luks1_to_luks2(struct crypt_device *cd, struct luks_phdr *hdr1, struct
 
 	if (max_size < required_size)
 		max_size = required_size;
+
+	/* fix coverity false positive integer underflow */
+	if (max_size < 2 * LUKS2_HDR_16K_LEN)
+		return -EINVAL;
 
 	r = json_luks1_object(hdr1, &jobj, max_size - 2 * LUKS2_HDR_16K_LEN);
 	if (r < 0)

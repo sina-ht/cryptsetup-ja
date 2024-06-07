@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * LUKS - Linux Unified Key Setup v2, keyslot handling
  *
  * Copyright (C) 2015-2024 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2015-2024 Milan Broz
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "luks2_internal.h"
@@ -428,11 +415,13 @@ static int LUKS2_keyslot_open_priority_digest(struct crypt_device *cd,
 {
 	json_object *jobj_keyslots, *jobj;
 	crypt_keyslot_priority slot_priority;
-	int keyslot, r = -ENOENT;
+	int keyslot, r = -ENOENT, r_old;
 
 	json_object_object_get_ex(hdr->jobj, "keyslots", &jobj_keyslots);
 
 	json_object_object_foreach(jobj_keyslots, slot, val) {
+		r_old = r;
+
 		if (!json_object_object_get_ex(val, "priority", &jobj))
 			slot_priority = CRYPT_SLOT_PRIORITY_NORMAL;
 		else
@@ -451,6 +440,9 @@ static int LUKS2_keyslot_open_priority_digest(struct crypt_device *cd,
 		   former meaning password wrong, latter key slot unusable for segment */
 		if ((r != -EPERM) && (r != -ENOENT))
 			break;
+		/* If a previous keyslot failed with EPERM (bad password) prefer it */
+		if (r_old == -EPERM && r == -ENOENT)
+			r = -EPERM;
 	}
 
 	return r;
@@ -466,11 +458,13 @@ static int LUKS2_keyslot_open_priority(struct crypt_device *cd,
 {
 	json_object *jobj_keyslots, *jobj;
 	crypt_keyslot_priority slot_priority;
-	int keyslot, r = -ENOENT;
+	int keyslot, r = -ENOENT, r_old;
 
 	json_object_object_get_ex(hdr->jobj, "keyslots", &jobj_keyslots);
 
 	json_object_object_foreach(jobj_keyslots, slot, val) {
+		r_old = r;
+
 		if (!json_object_object_get_ex(val, "priority", &jobj))
 			slot_priority = CRYPT_SLOT_PRIORITY_NORMAL;
 		else
@@ -489,6 +483,9 @@ static int LUKS2_keyslot_open_priority(struct crypt_device *cd,
 		   former meaning password wrong, latter key slot unusable for segment */
 		if ((r != -EPERM) && (r != -ENOENT))
 			break;
+		/* If a previous keyslot failed with EPERM (bad password) prefer it */
+		if (r_old == -EPERM && r == -ENOENT)
+			r = -EPERM;
 	}
 
 	return r;

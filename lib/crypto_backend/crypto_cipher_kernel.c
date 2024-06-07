@@ -1,28 +1,13 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * Linux kernel userspace API crypto backend implementation (skcipher)
  *
  * Copyright (C) 2012-2024 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2012-2024 Milan Broz
- *
- * This file is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This file is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this file; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <errno.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -101,9 +86,13 @@ int crypt_cipher_init_kernel(struct crypt_cipher_kernel *ctx, const char *name,
 	if (!strcmp(name, "cipher_null"))
 		key_length = 0;
 
-	r = snprintf((char *)sa.salg_name, sizeof(sa.salg_name), "%s(%s)", mode, name);
-	if (r < 0 || (size_t)r >= sizeof(sa.salg_name))
-		return -EINVAL;
+	if (!strncmp(name, "capi:", 5))
+		strncpy((char *)sa.salg_name, &name[5], sizeof(sa.salg_name) - 1);
+	else {
+		r = snprintf((char *)sa.salg_name, sizeof(sa.salg_name), "%s(%s)", mode, name);
+		if (r < 0 || (size_t)r >= sizeof(sa.salg_name))
+			return -EINVAL;
+	}
 
 	return _crypt_cipher_init(ctx, key, key_length, 0, &sa);
 }

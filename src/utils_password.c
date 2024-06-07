@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Password quality check wrapper
  *
  * Copyright (C) 2012-2024 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2012-2024 Milan Broz
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "cryptsetup.h"
@@ -109,8 +96,10 @@ static int tools_check_password(const char *password)
 static ssize_t read_tty_eol(int fd, char *pass, size_t maxlen)
 {
 	bool eol = false;
-	size_t read_size = 0;
-	ssize_t r;
+	ssize_t r, read_size = 0;
+
+	if (maxlen > SSIZE_MAX)
+		return -EINVAL;
 
 	do {
 		r = read(fd, pass, maxlen - read_size);
@@ -119,12 +108,13 @@ static ssize_t read_tty_eol(int fd, char *pass, size_t maxlen)
 		if (r >= 0) {
 			if (!r || pass[r-1] == '\n')
 				eol = true;
-			read_size += (size_t)r;
+			/* coverity[overflow:FALSE] */
+			read_size += r;
 			pass = pass + r;
 		}
-	} while (!eol && read_size != maxlen);
+	} while (!eol && (size_t)read_size != maxlen);
 
-	return (ssize_t)read_size;
+	return read_size;
 }
 
 /* The pass buffer is zeroed and has trailing \0 already " */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * libcryptsetup - cryptsetup library
  *
@@ -5,20 +6,6 @@
  * Copyright (C) 2004-2007 Clemens Fruhwirth <clemens@endorphin.org>
  * Copyright (C) 2009-2024 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2009-2024 Milan Broz
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <string.h>
@@ -1790,6 +1777,12 @@ static int _crypt_format_luks1(struct crypt_device *cd,
 		return -EINVAL;
 	}
 
+	if (device_is_zoned(crypt_metadata_device(cd)) > 0) {
+		log_err(cd, _("Zoned device %s cannot be used for LUKS header."),
+			device_path(crypt_metadata_device(cd)));
+		return -EINVAL;
+	}
+
 	if (params && cd->data_offset && params->data_alignment &&
 	   (cd->data_offset % params->data_alignment)) {
 		log_err(cd, _("Requested data alignment is not compatible with data offset."));
@@ -2027,6 +2020,12 @@ static int _crypt_format_luks2(struct crypt_device *cd,
 		return -EINVAL;
 	}
 
+	if (device_is_zoned(crypt_metadata_device(cd)) > 0) {
+		log_err(cd, _("Zoned device %s cannot be used for LUKS header."),
+			device_path(crypt_metadata_device(cd)));
+		return -EINVAL;
+	}
+
 	if (params && cd->data_offset && params->data_alignment &&
 	   (cd->data_offset % params->data_alignment)) {
 		log_err(cd, _("Requested data alignment is not compatible with data offset."));
@@ -2140,7 +2139,7 @@ static int _crypt_format_luks2(struct crypt_device *cd,
 
 	device_set_block_size(crypt_data_device(cd), sector_size);
 
-	r = LUKS2_wipe_header_areas(cd, &cd->u.luks2.hdr, cd->metadata_device != NULL);
+	r = LUKS2_wipe_header_areas(cd, &cd->u.luks2.hdr);
 	if (r < 0) {
 		log_err(cd, _("Cannot wipe header on device %s."),
 			mdata_device_path(cd));
@@ -2220,7 +2219,7 @@ static int opal_topology_alignment(struct crypt_device *cd,
 {
 	bool opal_align;
 	int r;
-	uint32_t opal_block_bytes;
+	uint32_t opal_block_bytes, device_block_bytes;
 	uint64_t opal_alignment_granularity_blocks, opal_lowest_lba_blocks;
 
 	assert(cd);
@@ -2236,12 +2235,20 @@ static int opal_topology_alignment(struct crypt_device *cd,
 		return -EINVAL;
 	}
 
-	log_dbg(cd, "OPAL geometry: alignment: '%c', logical block size: %" PRIu32
+	device_block_bytes = device_block_size(cd, crypt_data_device(cd));
+
+	log_dbg(cd, "OPAL geometry: alignment: '%c', logical block size: %" PRIu32 "/%" PRIu32
 		    ", alignment granularity: %" PRIu64 ", lowest aligned LBA: %" PRIu64,
-	        opal_align ? 'y' : 'n', opal_block_bytes, opal_alignment_granularity_blocks, opal_lowest_lba_blocks);
+		    opal_align ? 'y' : 'n', opal_block_bytes, device_block_bytes,
+		    opal_alignment_granularity_blocks, opal_lowest_lba_blocks);
 
 	if (opal_block_bytes < SECTOR_SIZE || NOTPOW2(opal_block_bytes)) {
 		log_err(cd, _("Bogus OPAL logical block size."));
+		return -EINVAL;
+	}
+
+	if (device_block_bytes != opal_block_bytes) {
+		log_err(cd, _("Bogus OPAL logical block size differs from device block size."));
 		return -EINVAL;
 	}
 
@@ -2496,7 +2503,7 @@ int crypt_format_luks2_opal(struct crypt_device *cd,
 			(device_size_bytes - range_size_bytes) / SECTOR_SIZE);
 
 	if (cipher) {
-		r = LUKS2_check_encryption_sector(cd, device_size_bytes, data_offset_bytes, sector_size,
+		r = LUKS2_check_encryption_sector(cd, range_size_bytes, data_offset_bytes, sector_size,
 						  sector_size_autodetect, integrity == NULL,
 						  &sector_size);
 		if (r < 0)
@@ -2517,7 +2524,7 @@ int crypt_format_luks2_opal(struct crypt_device *cd,
 			       sector_size,
 			       data_offset_bytes,
 			       metadata_size_bytes, keyslots_size_bytes,
-			       device_size_bytes,
+			       range_size_bytes,
 			       opal_segment_number,
 			       opal_params->user_key_size);
 	if (r < 0)
@@ -2537,7 +2544,7 @@ int crypt_format_luks2_opal(struct crypt_device *cd,
 
 	device_set_block_size(crypt_data_device(cd), sector_size);
 
-	r = LUKS2_wipe_header_areas(cd, &cd->u.luks2.hdr, cd->metadata_device != NULL);
+	r = LUKS2_wipe_header_areas(cd, &cd->u.luks2.hdr);
 	if (r < 0) {
 		log_err(cd, _("Cannot wipe header on device %s."),
 			mdata_device_path(cd));
@@ -2556,7 +2563,8 @@ int crypt_format_luks2_opal(struct crypt_device *cd,
 
 	r = opal_setup_ranges(cd, crypt_data_device(cd), user_key ?: cd->volume_key,
 					range_offset_blocks, range_size_bytes / opal_block_bytes,
-					opal_segment_number, opal_params->admin_key, opal_params->admin_key_size);
+					opal_block_bytes, opal_segment_number,
+					opal_params->admin_key, opal_params->admin_key_size);
 	if (r < 0) {
 		if (r == -EPERM)
 			log_err(cd, _("Incorrect OPAL Admin key."));
@@ -5327,7 +5335,8 @@ static int _activate_luks2_by_volume_key(struct crypt_device *cd,
 		}
 		r = _open_and_activate_reencrypt_device_by_vk(cd, &cd->u.luks2.hdr, name, vk, flags);
 	} else {
-		assert(crypt_volume_key_get_id(vk) == LUKS2_digest_by_segment(&cd->u.luks2.hdr, CRYPT_DEFAULT_SEGMENT));
+		/* hw-opal data segment type does not require volume key for activation */
+		assert(!vk || crypt_volume_key_get_id(vk) == LUKS2_digest_by_segment(&cd->u.luks2.hdr, CRYPT_DEFAULT_SEGMENT));
 		r = LUKS2_activate(cd, name, vk, external_key, flags);
 	}
 

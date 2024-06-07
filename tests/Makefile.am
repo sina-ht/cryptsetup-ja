@@ -55,7 +55,7 @@ EXTRA_DIST = compatimage.img.xz compatv10image.img.xz \
 	compatimage2.img.xz \
 	conversion_imgs.tar.xz \
 	luks2_keyslot_unassigned.img.xz \
-	img_fs_ext4.img.xz img_fs_vfat.img.xz img_fs_xfs.img.xz \
+	img_fs_ext4.img.xz img_fs_vfat.img.xz img_fs_xfs.img.xz img_fs_xfs5.img.xz \
 	xfs_512_block_size.img.xz \
 	valid_header_file.xz \
 	luks2_valid_hdr.img.xz \
@@ -100,7 +100,8 @@ EXTRA_DIST = compatimage.img.xz compatv10image.img.xz \
 	run-all-symbols \
 	fake_systemd_tpm_path.c \
 	unit-wipe-test \
-	systemd-test-plugin
+	systemd-test-plugin \
+	LUKS-d238e48a-0ed3-4169-b841-f26b44693134.tar.xz
 
 CLEANFILES = cryptsetup-tst* valglog* *-fail-*.log test-symbols-list.h fake_systemd_tpm_path.so
 clean-local:
