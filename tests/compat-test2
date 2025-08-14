@@ -558,7 +558,7 @@ echo $PWD1 | $CRYPTSETUP luksFormat $FAST_PBKDF_OPT --type luks2 $LOOPDEV -q --o
 $CRYPTSETUP -q luksDump  $LOOPDEV | grep -q "offset: $((512 * 16384)) \[bytes\]" || fail
 echo $PWD1 | $CRYPTSETUP luksFormat $FAST_PBKDF_OPT --type luks2 $LOOPDEV -q --sector-size 1024 --offset 16384 >/dev/null || fail
 $CRYPTSETUP -q luksDump  $LOOPDEV | grep -q "offset: $((512 * 16384)) \[bytes\]" || fail
-truncate -s 4096 $HEADER_IMG
+truncate -s 4096 $HEADER_IMG || fail
 echo $PWD1 | $CRYPTSETUP luksFormat $FAST_PBKDF_OPT --type luks2 $LOOPDEV --header $HEADER_IMG -q --offset 80000 >/dev/null 2>&1 || fail
 
 prepare "[2] Sector size and old payload alignment" wipe
@@ -1286,6 +1286,7 @@ echo $PWD1 | $CRYPTSETUP luksFormat --type luks2 --pbkdf pbkdf2   --pbkdf-force-
 echo $PWD1 | $CRYPTSETUP -q luksFormat --type luks2 --pbkdf pbkdf2   --pbkdf-force-iterations 1234 $LOOPDEV || fail
 $CRYPTSETUP luksDump $LOOPDEV | grep "Iterations:" | grep -q "1234" || fail
 echo $PWD1 | $CRYPTSETUP -q luksFormat --type luks2 --pbkdf argon2id --pbkdf-force-iterations 3 $LOOPDEV 2>/dev/null && fail
+echo $PWD1 | $CRYPTSETUP -q luksFormat --type luks2 --pbkdf argon2id --pbkdf-parallel 99 $LOOPDEV 2>/dev/null && fail
 echo $PWD1 | $CRYPTSETUP -q luksFormat --type luks2 --pbkdf argon2id --pbkdf-force-iterations 4 --pbkdf-memory 100000 $LOOPDEV || can_fail_fips
 $CRYPTSETUP luksDump $LOOPDEV | grep "PBKDF:" | grep -q "argon2id" || can_fail_fips
 echo $PWD1 | $CRYPTSETUP -q luksFormat --type luks2 --pbkdf argon2i  --pbkdf-force-iterations 4 \
