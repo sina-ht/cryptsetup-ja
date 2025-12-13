@@ -111,6 +111,7 @@ struct bitlk_superblock {
 struct bitlk_fve_metadata {
 	/* FVE metadata block header */
 	uint8_t signature[8];
+	/* size of this block (in 16-byte units) */
 	uint16_t fve_size;
 	uint16_t fve_version;
 	uint16_t curr_state;
@@ -130,6 +131,32 @@ struct bitlk_fve_metadata {
 	uint16_t encryption;
 	uint16_t unknown3;
 	uint64_t creation_time;
+} __attribute__ ((packed));
+
+struct bitlk_validation_hash {
+	uint16_t size;
+	uint16_t role;
+	uint16_t type;
+	uint16_t flags;
+	/* likely a hash type code, anything other than 0x2005 isn't supported */
+	uint16_t hash_type;
+	uint16_t unknown1;
+	/* SHA-256 */
+	uint8_t hash[32];
+} __attribute__ ((packed));
+
+struct bitlk_fve_metadata_validation {
+	/* FVE metadata validation block header */
+	uint16_t validation_size;
+	uint16_t validation_version;
+	uint32_t fve_crc32;
+	/* this is a single nested structure's header defined here for simplicity */
+	uint16_t nested_struct_size;
+	uint16_t nested_struct_role;
+	uint16_t nested_struct_type;
+	uint16_t nested_struct_flags;
+	/* datum containing a similar nested structure (encrypted using VMK) with hash (SHA256) */
+	uint8_t nested_struct_data[BITLK_VALIDATION_VMK_DATA_SIZE];
 } __attribute__ ((packed));
 
 struct bitlk_entry_header_block {
@@ -237,10 +264,11 @@ static int parse_vmk_entry(struct crypt_device *cd, uint8_t *data, int start, in
 	bool supported = false;
 	int r = 0;
 
-	/* only passphrase or recovery passphrase vmks are supported (can be used to activate) */
+	/* only passphrase, recovery passphrase, startup key and clearkey vmks are supported (can be used to activate) */
 	supported = (*vmk)->protection == BITLK_PROTECTION_PASSPHRASE ||
 		    (*vmk)->protection == BITLK_PROTECTION_RECOVERY_PASSPHRASE ||
-		    (*vmk)->protection == BITLK_PROTECTION_STARTUP_KEY;
+		    (*vmk)->protection == BITLK_PROTECTION_STARTUP_KEY ||
+		    (*vmk)->protection == BITLK_PROTECTION_CLEAR_KEY;
 
 	while ((end - start) >= (ssize_t)(sizeof(key_entry_size) + sizeof(key_entry_type) + sizeof(key_entry_value))) {
 		/* size of this entry */
@@ -297,17 +325,13 @@ static int parse_vmk_entry(struct crypt_device *cd, uint8_t *data, int start, in
 			crypt_volume_key_add_next(&((*vmk)->vk), vk);
 		/* clear key for a partially decrypted volume */
 		} else if (key_entry_value == BITLK_ENTRY_VALUE_KEY) {
-			/* We currently don't want to support opening a partially decrypted
-			 * device so we don't need to store this key.
-			 *
-			 * key_size = key_entry_size - (BITLK_ENTRY_HEADER_LEN + 4);
-			 * key = (const char *) data + start + BITLK_ENTRY_HEADER_LEN + 4;
-			 * vk = crypt_alloc_volume_key(key_size, key);
-			 * if (vk == NULL)
-			 * 	return -ENOMEM;
-			 * crypt_volume_key_add_next(&((*vmk)->vk), vk);
-			 */
-			log_dbg(cd, "Skipping clear key metadata entry.");
+			/* For clearkey protection, we need to store this key */
+			key_size = key_entry_size - (BITLK_ENTRY_HEADER_LEN + 4);
+			key = (const char *) data + start + BITLK_ENTRY_HEADER_LEN + 4;
+			vk = crypt_alloc_volume_key(key_size, key);
+			if (vk == NULL)
+				return -ENOMEM;
+			crypt_volume_key_add_next(&((*vmk)->vk), vk);
 		/* unknown timestamps in recovery protected VMK */
 		} else if (key_entry_value == BITLK_ENTRY_VALUE_RECOVERY_TIME) {
 			;
@@ -361,6 +385,54 @@ static int parse_vmk_entry(struct crypt_device *cd, uint8_t *data, int start, in
 	return 0;
 }
 
+static bool check_fve_metadata(struct bitlk_fve_metadata *fve)
+{
+	if (memcmp(fve->signature, BITLK_SIGNATURE, sizeof(fve->signature)) || le16_to_cpu(fve->fve_version) != 2 ||
+		(fve->fve_size << 4) > BITLK_FVE_METADATA_SIZE)
+		return false;
+
+	return true;
+}
+
+static bool check_fve_metadata_validation(struct bitlk_fve_metadata_validation *validation)
+{
+	/* only check if there is room for CRC-32, the actual size must be larger */
+	if (le16_to_cpu(validation->validation_size) < 8 || le16_to_cpu(validation->validation_version > 2))
+		return false;
+
+	return true;
+}
+
+static bool parse_fve_metadata_validation(struct bitlk_metadata *params, struct bitlk_fve_metadata_validation *validation)
+{
+	/* extra checks for a nested structure (MAC) and BITLK FVE metadata */
+
+	if (le16_to_cpu(validation->validation_size) < sizeof(struct bitlk_fve_metadata_validation))
+		return false;
+
+	if (le16_to_cpu(validation->nested_struct_size != BITLK_VALIDATION_VMK_HEADER_SIZE + BITLK_VALIDATION_VMK_DATA_SIZE) ||
+		le16_to_cpu(validation->nested_struct_role) != 0 ||
+		le16_to_cpu(validation->nested_struct_type) != 5)
+		return false;
+
+	/* nonce */
+	memcpy(params->validation->nonce,
+		validation->nested_struct_data,
+		BITLK_NONCE_SIZE);
+
+	/* MAC tag */
+	memcpy(params->validation->mac_tag,
+		validation->nested_struct_data + BITLK_NONCE_SIZE,
+		BITLK_VMK_MAC_TAG_SIZE);
+
+	/* AES-CCM encrypted datum with SHA256 hash */
+	memcpy(params->validation->enc_datum,
+		validation->nested_struct_data + BITLK_NONCE_SIZE + BITLK_VMK_MAC_TAG_SIZE,
+		BITLK_VALIDATION_VMK_DATA_SIZE - BITLK_NONCE_SIZE - BITLK_VMK_MAC_TAG_SIZE);
+
+	return true;
+}
+
 void BITLK_bitlk_fvek_free(struct bitlk_fvek *fvek)
 {
 	if (!fvek)
@@ -391,6 +463,7 @@ void BITLK_bitlk_metadata_free(struct bitlk_metadata *metadata)
 
 	free(metadata->guid);
 	free(metadata->description);
+	free(metadata->validation);
 	BITLK_bitlk_vmk_free(metadata->vmks);
 	BITLK_bitlk_fvek_free(metadata->fvek);
 }
@@ -402,20 +475,25 @@ int BITLK_read_sb(struct crypt_device *cd, struct bitlk_metadata *params)
 	struct bitlk_signature sig = {};
 	struct bitlk_superblock sb = {};
 	struct bitlk_fve_metadata fve = {};
+	struct bitlk_fve_metadata_validation validation = {};
 	struct bitlk_entry_vmk entry_vmk = {};
 	uint8_t *fve_entries = NULL;
+	uint8_t *fve_validated_block = NULL;
 	size_t fve_entries_size = 0;
 	uint32_t fve_metadata_size = 0;
+	uint32_t fve_size_real = 0;
 	int fve_offset = 0;
 	char guid_buf[UUID_STR_LEN] = {0};
 	uint16_t entry_size = 0;
 	uint16_t entry_type = 0;
 	int i = 0;
 	int r = 0;
+	int valid_fve_metadata_idx = -1;
 	int start = 0;
 	size_t key_size = 0;
 	const char *key = NULL;
 	char *description = NULL;
+	struct crypt_hash *hash;
 
 	struct bitlk_vmk *vmk = NULL;
 	struct bitlk_vmk *vmk_p = params->vmks;
@@ -490,15 +568,80 @@ int BITLK_read_sb(struct crypt_device *cd, struct bitlk_metadata *params)
 	for (i = 0; i < 3; i++)
 		params->metadata_offset[i] = le64_to_cpu(sb.fve_offset[i]);
 
-	log_dbg(cd, "Reading BITLK FVE metadata of size %zu on device %s, offset %" PRIu64 ".",
-		sizeof(fve), device_path(device), params->metadata_offset[0]);
+	fve_validated_block = malloc(BITLK_FVE_METADATA_SIZE);
+	if (fve_validated_block == NULL) {
+		r = -ENOMEM;
+		goto out;
+	}
 
-	/* read FVE metadata from the first metadata area */
-	if (read_lseek_blockwise(devfd, device_block_size(cd, device),
-		device_alignment(device), &fve, sizeof(fve), params->metadata_offset[0]) != sizeof(fve) ||
-		memcmp(fve.signature, BITLK_SIGNATURE, sizeof(fve.signature)) ||
-		le16_to_cpu(fve.fve_version) != 2) {
-		log_err(cd, _("Failed to read BITLK FVE metadata from %s."), device_path(device));
+	for (i = 0; i < 3; i++) {
+		/* iterate over FVE metadata copies and pick the valid one */
+		log_dbg(cd, "Reading BITLK FVE metadata copy #%d of size %zu on device %s, offset %" PRIu64 ".",
+			i, sizeof(fve), device_path(device), params->metadata_offset[i]);
+
+		if (read_lseek_blockwise(devfd, device_block_size(cd, device),
+			device_alignment(device), &fve, sizeof(fve), params->metadata_offset[i]) != sizeof(fve) ||
+			!check_fve_metadata(&fve) ||
+			(fve_size_real = le16_to_cpu(fve.fve_size) << 4, read_lseek_blockwise(devfd, device_block_size(cd, device),
+			device_alignment(device), &validation, sizeof(validation), params->metadata_offset[i] + fve_size_real) != sizeof(validation)) ||
+			!check_fve_metadata_validation(&validation) ||
+			/* double-fetch is here, but we aren't validating MAC */
+			read_lseek_blockwise(devfd, device_block_size(cd, device), device_alignment(device), fve_validated_block, fve_size_real,
+			params->metadata_offset[i]) != fve_size_real ||
+			(crypt_crc32(~0, fve_validated_block, fve_size_real) ^ ~0) != le32_to_cpu(validation.fve_crc32)) {
+			/* found an invalid FVE metadata copy, log and skip */
+			log_dbg(cd, _("Failed to read or validate BITLK FVE metadata copy #%d from %s."), i, device_path(device));
+		} else {
+			/* found a valid FVE metadata copy, use it */
+			valid_fve_metadata_idx = i;
+			break;
+		}
+	}
+
+	if (valid_fve_metadata_idx < 0) {
+		/* all FVE metadata copies are invalid, fail */
+		log_err(cd, _("Failed to read and validate BITLK FVE metadata from %s."), device_path(device));
+		r = -EINVAL;
+		goto out;
+	}
+
+	/* check that a valid FVE metadata block is in its expected location */
+	if (params->metadata_offset[valid_fve_metadata_idx] != le64_to_cpu(fve.fve_offset[valid_fve_metadata_idx])) {
+		log_err(cd, _("Failed to validate the location of BITLK FVE metadata from %s."), device_path(device));
+		r = -EINVAL;
+		goto out;
+	}
+
+	/* update offsets from a valid FVE metadata copy */
+	for (i = 0; i < 3; i++)
+		params->metadata_offset[i] = le64_to_cpu(fve.fve_offset[i]);
+
+	/* check that the FVE metadata hasn't changed between reads, because we are preparing for the MAC check */
+	if (memcmp(&fve, fve_validated_block, sizeof(fve)) != 0) {
+		log_err(cd, _("BITLK FVE metadata changed between reads from %s."), device_path(device));
+		r = -EINVAL;
+		goto out;
+	}
+
+	crypt_backend_memzero(&params->sha256_fve, 32);
+	if (crypt_hash_init(&hash, "sha256")) {
+		log_err(cd, _("Failed to hash BITLK FVE metadata read from %s."), device_path(device));
+		r = -EINVAL;
+		goto out;
+	}
+	crypt_hash_write(hash, (const char *)fve_validated_block, fve_size_real);
+	crypt_hash_final(hash, (char *)&params->sha256_fve, 32);
+	crypt_hash_destroy(hash);
+
+	/* do some extended checks against FVE metadata, but not including MAC verification */
+	params->validation = malloc(sizeof(struct bitlk_validation));
+	if (!params->validation) {
+		r = -ENOMEM;
+		goto out;
+	}
+
+	if (!parse_fve_metadata_validation(params, &validation)) {
+		log_err(cd, _("Failed to parse BITLK FVE validation metadata from %s."), device_path(device));
 		r = -EINVAL;
 		goto out;
 	}
@@ -583,16 +726,17 @@ int BITLK_read_sb(struct crypt_device *cd, struct bitlk_metadata *params)
 	}
 	memset(fve_entries, 0, fve_entries_size);
 
-	log_dbg(cd, "Reading BITLK FVE metadata entries of size %zu on device %s, offset %" PRIu64 ".",
-		fve_entries_size, device_path(device), params->metadata_offset[0] + BITLK_FVE_METADATA_HEADERS_LEN);
+	log_dbg(cd, "Getting BITLK FVE metadata entries of size %zu on device %s, offset %" PRIu64 ".",
+		fve_entries_size, device_path(device), params->metadata_offset[valid_fve_metadata_idx] + BITLK_FVE_METADATA_HEADERS_LEN);
 
-	if (read_lseek_blockwise(devfd, device_block_size(cd, device),
-		device_alignment(device), fve_entries, fve_entries_size,
-		params->metadata_offset[0] + BITLK_FVE_METADATA_HEADERS_LEN) != (ssize_t)fve_entries_size) {
-		log_err(cd, _("Failed to read BITLK metadata entries from %s."), device_path(device));
+	if (BITLK_FVE_METADATA_HEADERS_LEN + fve_entries_size > fve_size_real) {
+		log_err(cd, _("Failed to check BITLK metadata entries previously read from %s."), device_path(device));
 		r = -EINVAL;
 		goto out;
 	}
+
+	/* fetch these entries from validated buffer to avoid double-fetch */
+	memcpy(fve_entries, fve_validated_block + BITLK_FVE_METADATA_HEADERS_LEN, fve_entries_size);
 
 	while ((fve_entries_size - start) >= (sizeof(entry_size) + sizeof(entry_type))) {
 
@@ -716,6 +860,8 @@ int BITLK_read_sb(struct crypt_device *cd, struct bitlk_metadata *params)
 	}
 out:
 	free(fve_entries);
+	free(fve_validated_block);
+
 	return r;
 }
 
@@ -986,6 +1132,9 @@ static int bitlk_kdf(const char *password,
 	int i = 0;
 	int r = 0;
 
+	if (!password)
+		return -EINVAL;
+
 	memcpy(kdf.salt, salt, 16);
 
 	r = crypt_hash_init(&hd, BITLK_KDF_HASH);
@@ -1100,6 +1249,41 @@ out:
 	return r;
 }
 
+static int get_clear_key(struct crypt_device *cd, const struct bitlk_vmk *vmk, struct volume_key **vmk_dec_key)
+{
+	struct volume_key *nested_key = vmk->vk;
+
+	if (!nested_key) {
+		log_dbg(cd, "Clearkey VMK structure incomplete - missing nested key");
+		return -ENOTSUP;
+	}
+
+	struct volume_key *encrypted_vmk = crypt_volume_key_next(nested_key);
+
+	if (!encrypted_vmk) {
+		log_dbg(cd, "Clearkey VMK structure incomplete - missing encrypted VMK");
+		return -ENOTSUP;
+	}
+
+	/**
+	 *  For clearkey protection, we need to decrypt the encrypted VMK using the nested key
+	 *  and return the decrypted VMK as vmk_dec_key
+	 */
+	struct volume_key *decrypted_vmk = NULL;
+	int r = decrypt_key(cd, &decrypted_vmk, encrypted_vmk, nested_key,
+			vmk->mac_tag, BITLK_VMK_MAC_TAG_SIZE,
+			vmk->nonce, BITLK_NONCE_SIZE, false);
+
+	if (r == 0 && decrypted_vmk) {
+		log_dbg(cd, "Successfully decrypted VMK using nested key");
+		*vmk_dec_key = decrypted_vmk;
+		return 0;
+	} else {
+		log_dbg(cd, "Failed to decrypt VMK using nested key (error: %d)", r);
+		return r;
+	}
+}
+
 int BITLK_get_volume_key(struct crypt_device *cd,
 			 const char *password,
 			 size_t passwordLen,
@@ -1110,10 +1294,12 @@ int BITLK_get_volume_key(struct crypt_device *cd,
 	struct volume_key *open_vmk_key = NULL;
 	struct volume_key *vmk_dec_key = NULL;
 	struct volume_key *recovery_key = NULL;
+	struct bitlk_validation_hash dec_hash = {};
 	const struct bitlk_vmk *next_vmk = NULL;
 
 	next_vmk = params->vmks;
 	while (next_vmk) {
+		bool is_decrypted = false;
 		if (next_vmk->protection == BITLK_PROTECTION_PASSPHRASE) {
 			r = bitlk_kdf(password, passwordLen, false, next_vmk->salt, &vmk_dec_key);
 			if (r) {
@@ -1148,8 +1334,18 @@ int BITLK_get_volume_key(struct crypt_device *cd,
 				continue;
 			}
 			log_dbg(cd, "Trying to use external key found in provided password.");
+		} else if (next_vmk->protection == BITLK_PROTECTION_CLEAR_KEY) {
+			r = get_clear_key(cd, next_vmk, &vmk_dec_key);
+			if (r) {
+				/* something wrong happened, but we still want to check other key slots */
+				next_vmk = next_vmk->next;
+				continue;
+			}
+			is_decrypted = true;
+			open_vmk_key = vmk_dec_key;
+			log_dbg(cd, "Extracted VMK using clearkey.");
 		} else {
-			/* only passphrase, recovery passphrase and startup key VMKs supported right now */
+			/* only passphrase, recovery passphrase, startup key and clearkey VMKs supported right now */
 			log_dbg(cd, "Skipping %s", get_vmk_protection_string(next_vmk->protection));
 			next_vmk = next_vmk->next;
 			if (r == 0)
@@ -1158,19 +1354,51 @@ int BITLK_get_volume_key(struct crypt_device *cd,
 			continue;
 		}
 
-		log_dbg(cd, "Trying to decrypt %s.", get_vmk_protection_string(next_vmk->protection));
-		r = decrypt_key(cd, &open_vmk_key, next_vmk->vk, vmk_dec_key,
-				next_vmk->mac_tag, BITLK_VMK_MAC_TAG_SIZE,
-				next_vmk->nonce, BITLK_NONCE_SIZE, false);
+		if (!is_decrypted) {
+			r = decrypt_key(cd, &open_vmk_key, next_vmk->vk, vmk_dec_key,
+					next_vmk->mac_tag, BITLK_VMK_MAC_TAG_SIZE,
+					next_vmk->nonce, BITLK_NONCE_SIZE, false);
+
+			crypt_free_volume_key(vmk_dec_key);
+		}
 		if (r < 0) {
 			log_dbg(cd, "Failed to decrypt VMK using provided passphrase.");
-			crypt_free_volume_key(vmk_dec_key);
+
 			if (r == -ENOTSUP)
 				return r;
 			next_vmk = next_vmk->next;
 			continue;
 		}
-		crypt_free_volume_key(vmk_dec_key);
+
+		log_dbg(cd, "Trying to decrypt validation metadata using VMK.");
+		r = crypt_bitlk_decrypt_key(crypt_volume_key_get_key(open_vmk_key),
+			crypt_volume_key_length(open_vmk_key),
+			(const char*)params->validation->enc_datum,
+			(char *)&dec_hash,
+			BITLK_VALIDATION_VMK_DATA_SIZE - BITLK_NONCE_SIZE - BITLK_VMK_MAC_TAG_SIZE,
+			(const char*)params->validation->nonce, BITLK_NONCE_SIZE,
+			(const char*)params->validation->mac_tag, BITLK_VMK_MAC_TAG_SIZE);
+		if (r < 0) {
+			log_dbg(cd, "Failed to decrypt validation metadata using VMK.");
+			crypt_free_volume_key(open_vmk_key);
+			if (r == -ENOTSUP)
+				return r;
+			break;
+		}
+
+		/* now, do the MAC validation */
+		if (le16_to_cpu(dec_hash.role) != 0 ||le16_to_cpu(dec_hash.type) != 1 ||
+			(le16_to_cpu(dec_hash.hash_type) != 0x2005)) {
+			log_dbg(cd, "Failed to parse decrypted validation metadata.");
+			crypt_free_volume_key(open_vmk_key);
+			return -ENOTSUP;
+		}
+
+		if (memcmp(dec_hash.hash, params->sha256_fve, sizeof(dec_hash.hash)) != 0) {
+			log_dbg(cd, "Failed MAC validation of BITLK FVE metadata.");
+			crypt_free_volume_key(open_vmk_key);
+			return -EINVAL;
+		}
 
 		r = decrypt_key(cd, open_fvek_key, params->fvek->vk, open_vmk_key,
 				params->fvek->mac_tag, BITLK_VMK_MAC_TAG_SIZE,
@@ -1199,8 +1427,6 @@ int BITLK_get_volume_key(struct crypt_device *cd,
 static int _activate_check(struct crypt_device *cd,
 		           const struct bitlk_metadata *params)
 {
-	const struct bitlk_vmk *next_vmk = NULL;
-
 	if (!params->state) {
 		log_err(cd, _("This BITLK device is in an unsupported state and cannot be activated."));
 		return -ENOTSUP;
@@ -1209,15 +1435,6 @@ static int _activate_check(struct crypt_device *cd,
 	if (params->type != BITLK_ENCRYPTION_TYPE_NORMAL) {
 		log_err(cd, _("BITLK devices with type '%s' cannot be activated."), get_bitlk_type_string(params->type));
 		return -ENOTSUP;
-	}
-
-	next_vmk = params->vmks;
-	while (next_vmk) {
-		if (next_vmk->protection == BITLK_PROTECTION_CLEAR_KEY) {
-			log_err(cd, _("Activation of BITLK device with clear key protection is not supported."));
-			return -ENOTSUP;
-		}
-		next_vmk = next_vmk->next;
 	}
 
 	return 0;

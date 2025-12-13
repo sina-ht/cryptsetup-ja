@@ -1,5 +1,5 @@
 AC_PREREQ([2.67])
-AC_INIT([cryptsetup],[2.8.1-rc0])
+AC_INIT([cryptsetup],[2.8.2-rc0])
 
 dnl library version from <major>.<minor>.<release>[-<suffix>]
 LIBCRYPTSETUP_VERSION=$(echo $PACKAGE_VERSION | cut -f1 -d-)
@@ -674,6 +674,27 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 [[ _test_sym() ]]
 )],[
 	AC_DEFINE([HAVE_ATTRIBUTE_SYMVER], 1, [Define to 1 to use __attribute__((symver))])
+	AC_MSG_RESULT([yes])
+], [
+	AC_MSG_RESULT([no])
+])
+CFLAGS=$saved_CFLAGS
+
+dnl Force compiler to use zero_call_used_regs("used") to check for the function attribute support.
+dnl Otherwise the compiler may falsely advertise it with __has_attribute operator, even though
+dnl it does not implement it on some archs.
+AC_MSG_CHECKING([for zero_call_used_regs(user)])
+saved_CFLAGS=$CFLAGS
+CFLAGS="-O0 -Werror"
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+	void _test_function(void);
+	__attribute__((zero_call_used_regs("used"))) void _test_function(void) {
+		volatile int *i; volatile int j = 0; if (j) *i = 0;
+	}
+]],
+[[ _test_function() ]]
+)],[
+	AC_DEFINE([HAVE_ATTRIBUTE_ZEROCALLUSEDREGS], 1, [Define to 1 to use __attribute__((zero_call_used_regs("used")))])
 	AC_MSG_RESULT([yes])
 ], [
 	AC_MSG_RESULT([no])

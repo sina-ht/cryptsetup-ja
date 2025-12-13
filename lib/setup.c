@@ -3026,6 +3026,17 @@ int crypt_format_inline(struct crypt_device *cd,
 	} else if (isLUKS2(type)) {
 		lparams = params;
 		iparams = lparams->integrity_params;
+
+		if (lparams->data_device) {
+			if (!cd->metadata_device)
+				cd->metadata_device = cd->device;
+			else
+				device_free(cd, cd->device);
+			cd->device = NULL;
+			if (device_alloc(cd, &cd->device, lparams->data_device) < 0)
+				return -ENOMEM;
+		}
+
 		idevice = crypt_data_device(cd);
 		required_sector_size = lparams->sector_size;
 
@@ -3045,7 +3056,11 @@ int crypt_format_inline(struct crypt_device *cd,
 	    iparams->journal_integrity_key_size))
 		return -EINVAL;
 
-	if (!device_is_nop_dif(idevice, &device_tag_size)) {
+	r = device_is_nop_dif(idevice, &device_tag_size);
+	if (r < 0)
+		return r;
+
+	if (!r) {
 		log_err(cd, _("Device %s does not provide inline integrity data fields."), mdata_device_path(cd));
 		return -EINVAL;
 	}
@@ -5446,6 +5461,9 @@ int crypt_activate_by_keyslot_context(struct crypt_device *cd,
 		return _activate_loopaes(cd, name, passphrase, passphrase_size, flags);
 	}
 
+	if (flags & CRYPT_ACTIVATE_SERIALIZE_MEMORY_HARD_PBKDF)
+		cd->memory_hard_pbkdf_lock_enabled = true;
+
 	/* acquire the volume key(s) */
 	r = -EINVAL;
 	if (isLUKS1(cd->type)) {
@@ -5820,12 +5838,18 @@ int crypt_get_active_device(struct crypt_device *cd, const char *name,
 	if (r < 0)
 		return r;
 
-	/* For LUKS2 with integrity we need flags from underlying dm-integrity */
-	if (isLUKS2(cd->type) && crypt_get_integrity_tag_size(cd) &&
-		(iname = dm_get_active_iname(cd, name))) {
-		if (dm_query_device(cd, iname, 0, &dmdi) >= 0)
-			dmd.flags |= dmdi.flags;
-		free(iname);
+	/*
+	 * For integrity and LUKS2 (and detached header where context is NULL)
+	 * we need flags from underlying dm-integrity device.
+	 * This check must be skipped for non-LUKS2 integrity device.
+	 */
+	if ((isLUKS2(cd->type) || !cd->type) && crypt_get_integrity_tag_size(cd)) {
+	    if ((iname = dm_get_active_iname(cd, name))) {
+	        if (dm_query_device(cd, iname, 0, &dmdi) >= 0)
+	            dmd.flags |= dmdi.flags;
+	        free(iname);
+	    } else
+	        dmd.flags |= (CRYPT_ACTIVATE_NO_JOURNAL | CRYPT_ACTIVATE_INLINE_MODE);
 	}
 
 	if (cd && isTCRYPT(cd->type)) {
@@ -5917,7 +5941,7 @@ int crypt_volume_key_get_by_keyslot_context(struct crypt_device *cd,
 	struct volume_key *vk = NULL;
 
 	if (!cd || !volume_key || !volume_key_size ||
-	    (!kc && !isLUKS(cd->type) && !isTCRYPT(cd->type) && !isVERITY(cd->type)))
+	    (!kc && !isLUKS(cd->type) && !isTCRYPT(cd->type) && !isVERITY(cd->type) && !isBITLK(cd->type)))
 		return -EINVAL;
 
 	if (isLUKS2(cd->type) && keyslot != CRYPT_ANY_SLOT)
@@ -5977,6 +6001,8 @@ int crypt_volume_key_get_by_keyslot_context(struct crypt_device *cd,
 	} else if (isBITLK(cd->type)) {
 		if (kc && kc->get_bitlk_volume_key)
 			r = kc->get_bitlk_volume_key(cd, kc, &cd->u.bitlk.params, &vk);
+		else if (!kc)
+			r = BITLK_get_volume_key(cd, NULL, 0, &cd->u.bitlk.params, &vk);
 		if (r < 0)
 			log_err(cd, _("Cannot retrieve volume key for BITLK device."));
 	} else if (isFVAULT2(cd->type)) {
