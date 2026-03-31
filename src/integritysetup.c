@@ -270,7 +270,13 @@ static int action_resize(void)
 	if (r)
 		goto out;
 
-	reactivate_flags = CRYPT_ACTIVATE_REFRESH | (cad.flags & CRYPT_ACTIVATE_INLINE_MODE);
+	/*
+	 * We have to preserve CRYPT_ACTIVATE_NO_JOURNAL_BITMAP flag, otherwise overloaded
+	 * 'journal_watermark' parameter in device context would fail the DM_TABLE_LOAD
+	 * operation.
+	 */
+	reactivate_flags = CRYPT_ACTIVATE_REFRESH |
+		(cad.flags & (CRYPT_ACTIVATE_INLINE_MODE | CRYPT_ACTIVATE_NO_JOURNAL_BITMAP));
 
 	if (!new_dev_size)
 		new_dev_size = cad.size;
@@ -424,7 +430,6 @@ static int action_status(void)
 	char *backing_file;
 	const char *device, *metadata_device;
 	int path = 0, r = 0;
-	uint64_t sector_size;
 
 	/* perhaps a path, not a dm device name */
 	if (strchr(action_argv[0], '/'))
@@ -482,10 +487,9 @@ static int action_status(void)
 				free(backing_file);
 			}
 		}
-		sector_size = (uint64_t)crypt_get_sector_size(cd) ?: SECTOR_SIZE;
-		log_std("  sector size:  %" PRIu64 " [bytes]\n", sector_size);
+		log_std("  sector size:  %" PRIu64 " [bytes]\n", (uint64_t)crypt_get_sector_size(cd) ?: SECTOR_SIZE);
 		log_std("  interleave sectors: %u\n", ip.interleave_sectors);
-		log_std("  size:    %" PRIu64 " [512-byte units] (%" PRIu64 " [bytes])\n", cad.size, cad.size * sector_size);
+		log_std("  size:    %" PRIu64 " [512-byte units] (%" PRIu64 " [bytes])\n", cad.size, cad.size * SECTOR_SIZE);
 		log_std("  mode:    %s%s\n",
 			cad.flags & CRYPT_ACTIVATE_READONLY ? "readonly" : "read/write",
 			cad.flags & CRYPT_ACTIVATE_RECOVERY ? " recovery" : "");
@@ -518,7 +522,6 @@ out:
 	if (r == -ENOTSUP)
 		r = 0;
 	return r;
-	return -EINVAL;
 }
 
 static int action_dump(void)

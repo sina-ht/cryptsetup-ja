@@ -388,7 +388,7 @@ static int parse_vmk_entry(struct crypt_device *cd, uint8_t *data, int start, in
 static bool check_fve_metadata(struct bitlk_fve_metadata *fve)
 {
 	if (memcmp(fve->signature, BITLK_SIGNATURE, sizeof(fve->signature)) || le16_to_cpu(fve->fve_version) != 2 ||
-		(fve->fve_size << 4) > BITLK_FVE_METADATA_SIZE)
+		(le16_to_cpu(fve->fve_size) << 4) > BITLK_FVE_METADATA_SIZE)
 		return false;
 
 	return true;
@@ -397,7 +397,7 @@ static bool check_fve_metadata(struct bitlk_fve_metadata *fve)
 static bool check_fve_metadata_validation(struct bitlk_fve_metadata_validation *validation)
 {
 	/* only check if there is room for CRC-32, the actual size must be larger */
-	if (le16_to_cpu(validation->validation_size) < 8 || le16_to_cpu(validation->validation_version > 2))
+	if (le16_to_cpu(validation->validation_size) < 8 || le16_to_cpu(validation->validation_version) > 2)
 		return false;
 
 	return true;
@@ -410,7 +410,7 @@ static bool parse_fve_metadata_validation(struct bitlk_metadata *params, struct 
 	if (le16_to_cpu(validation->validation_size) < sizeof(struct bitlk_fve_metadata_validation))
 		return false;
 
-	if (le16_to_cpu(validation->nested_struct_size != BITLK_VALIDATION_VMK_HEADER_SIZE + BITLK_VALIDATION_VMK_DATA_SIZE) ||
+	if (le16_to_cpu(validation->nested_struct_size) != BITLK_VALIDATION_VMK_HEADER_SIZE + BITLK_VALIDATION_VMK_DATA_SIZE ||
 		le16_to_cpu(validation->nested_struct_role) != 0 ||
 		le16_to_cpu(validation->nested_struct_type) != 5)
 		return false;
@@ -590,7 +590,7 @@ int BITLK_read_sb(struct crypt_device *cd, struct bitlk_metadata *params)
 			params->metadata_offset[i]) != fve_size_real ||
 			(crypt_crc32(~0, fve_validated_block, fve_size_real) ^ ~0) != le32_to_cpu(validation.fve_crc32)) {
 			/* found an invalid FVE metadata copy, log and skip */
-			log_dbg(cd, _("Failed to read or validate BITLK FVE metadata copy #%d from %s."), i, device_path(device));
+			log_dbg(cd, "Failed to read or validate BITLK FVE metadata copy #%d from %s.", i, device_path(device));
 		} else {
 			/* found a valid FVE metadata copy, use it */
 			valid_fve_metadata_idx = i;
@@ -1300,6 +1300,17 @@ int BITLK_get_volume_key(struct crypt_device *cd,
 	next_vmk = params->vmks;
 	while (next_vmk) {
 		bool is_decrypted = false;
+
+		if (password == NULL && next_vmk->protection != BITLK_PROTECTION_CLEAR_KEY) {
+			/*
+			 * Clearkey is the only slot that doesn't require password so no password
+			 * means we are trying to use clearkey and we can skip all other key slots.
+			 */
+			r = -EPERM;
+			next_vmk = next_vmk->next;
+			continue;
+		}
+
 		if (next_vmk->protection == BITLK_PROTECTION_PASSPHRASE) {
 			r = bitlk_kdf(password, passwordLen, false, next_vmk->salt, &vmk_dec_key);
 			if (r) {
