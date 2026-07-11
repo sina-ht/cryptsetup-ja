@@ -6,29 +6,14 @@
  */
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 
+#ifndef NO_CRYPT_BACKEND
 #include "crypto_backend/crypto_backend.h"
-
-static bool fips_mode(void)
-{
-	int fd;
-	char buf = 0;
-
-	fd = open("/proc/sys/crypto/fips_enabled", O_RDONLY);
-
-	if (fd < 0)
-		return false;
-
-	if (read(fd, &buf, 1) != 1)
-		buf = '0';
-
-	close(fd);
-
-	return (buf == '1');
-}
 
 static int check_cipher(const char *alg, const char *mode, unsigned long key_bits)
 {
@@ -69,6 +54,62 @@ static int check_hash(const char *hash)
 
 	crypt_hash_destroy(h);
 	return EXIT_SUCCESS;
+}
+
+#else /* NO_CRYPT_BACKEND */
+/*
+ * All default backends should work with options hardcoded here
+ */
+static int crypt_backend_init(__attribute__ ((unused))bool fips) { return 0; };
+static void crypt_backend_destroy(void) {};
+static const char *crypt_backend_version(void) { return "none"; };
+
+static int check_cipher(const char *alg, const char *mode, unsigned long key_bits)
+{
+	if (strcmp(alg, "aes"))
+		return EXIT_FAILURE;
+
+	if (!strcmp(mode, "cbc") && (key_bits == 128 || key_bits == 256))
+		return EXIT_SUCCESS;
+
+	if (!strcmp(mode, "xts") && (key_bits == 256 || key_bits == 512))
+		return EXIT_SUCCESS;
+
+	return EXIT_FAILURE;
+}
+
+static int check_cipher_kernel(const char *alg, const char *mode, unsigned long key_bits)
+{
+	/* Expect AF_ALG not available */
+	return  EXIT_FAILURE;
+}
+
+static int check_hash(const char *hash)
+{
+	if (!strcmp(hash, "sha512") || !strcmp(hash, "sha256") || !strcmp(hash, "sha1"))
+		return EXIT_SUCCESS;
+
+	return EXIT_FAILURE;
+}
+
+#endif
+
+static bool fips_mode(void)
+{
+	int fd;
+	char buf = 0;
+
+	fd = open("/proc/sys/crypto/fips_enabled", O_RDONLY);
+
+	if (fd < 0)
+		return false;
+
+	if (read(fd, &buf, 1) != 1)
+		buf = '0';
+
+	close(fd);
+
+	return (buf == '1');
 }
 
 static void __attribute__((noreturn)) exit_help(bool destroy_backend)

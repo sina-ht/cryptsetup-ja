@@ -1,8 +1,19 @@
-Cryptsetup 2.8.7-rc1 Release Notes
+Cryptsetup 2.8.7-rc2 Release Notes
 ==================================
 Stable bug-fix release candidate that solves several compatibility issues.
 
 All users of cryptsetup must upgrade to this version.
+
+Changes since version 2.8.7-rc1
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Fix tests to compile crypto-check helper properly.
+
+* Add support for --integrity-legacy-hmac in integritysetup open command.
+  Integritysetup open command incorrectly configured options for legacy HMAC devices.
+  To use --integrity-legacy-hmac, it must now be used both on format and open.
+
+* Fix cryptsetup --tries option not to overflow for high values.
 
 Changes since version 2.8.6
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
