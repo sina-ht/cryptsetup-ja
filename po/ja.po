@@ -1,11 +1,11 @@
 # Japanese messages for cryptsetup.
 # Copyright (C) 2019, 2020 Free Software Foundation, Inc.
 # This file is distributed under the same license as the cryptsetup package.
-# Hiroshi Takekawa <sian@big.or.jp>, <sian.ht@gmail.com>, 2019, 2020, 2021, 2022, 2023, 2024, 2025
+# Hiroshi Takekawa <sian@big.or.jp>, <sian.ht@gmail.com>, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: cryptsetup 2.8.5-rc0\n"
+"Project-Id-Version: cryptsetup 2.8.7-rc2\n"
 "Report-Msgid-Bugs-To: cryptsetup@lists.linux.dev\n"
 "POT-Creation-Date: 2026-07-09 10:46+0200\n"
 "PO-Revision-Date: 2026-07-11 23:24+0900\n"

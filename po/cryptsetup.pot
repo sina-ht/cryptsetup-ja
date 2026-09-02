@@ -5,7 +5,7 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: cryptsetup 2.8.7-rc2\n"
+"Project-Id-Version: cryptsetup 2.8.7\n"
 "Report-Msgid-Bugs-To: cryptsetup@lists.linux.dev\n"
 "POT-Creation-Date: 2026-07-09 10:46+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
