@@ -1,9 +1,9 @@
 AC_PREREQ([2.67])
-AC_INIT([cryptsetup],[2.8.8-rc0])
+AC_INIT([cryptsetup],[2.8.9])
 
 dnl library version from <major>.<minor>.<release>[-<suffix>]
 LIBCRYPTSETUP_VERSION=$(echo $PACKAGE_VERSION | cut -f1 -d-)
-LIBCRYPTSETUP_VERSION_INFO=23:0:11
+LIBCRYPTSETUP_VERSION_INFO=24:0:12
 
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR(src/cryptsetup.c)
@@ -166,6 +166,14 @@ AC_ARG_ENABLE([luks2-reencryption],
 	[], [enable_luks2_reencryption=yes])
 if test "x$enable_luks2_reencryption" = "xyes"; then
 	AC_DEFINE(USE_LUKS2_REENCRYPTION, 1, [Use LUKS2 online reencryption extension])
+fi
+
+dnl Enforce LUKS2 OPAL segment verification
+AC_ARG_ENABLE([enforce-opal-segment-digest],
+	AS_HELP_STRING([--enable-enforce-opal-segment-digest], [enforce LUKS2 OPAL segment verification upon device activation]),
+	[enforce_opal_segment_digest=yes], [])
+if test "x$enforce_opal_segment_digest" = "xyes"; then
+	AC_DEFINE(STRICT_OPAL_SEGMENT_POLICY, 1, [Enforce LUKS2 OPAL segment verification upon activation])
 fi
 
 dnl ==========================================================================

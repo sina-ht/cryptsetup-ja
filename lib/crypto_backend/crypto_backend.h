@@ -92,8 +92,7 @@ int crypt_base64_decode(char **out, size_t *out_length, const char *in, size_t i
 
 /* UTF8/16 */
 int crypt_utf16_to_utf8(char **out, const char16_t *s, size_t length /* bytes! */);
-int crypt_utf8_to_utf16(char16_t **out, const char *s, size_t length);
-size_t crypt_char16_strlen(const char16_t *s);
+int crypt_utf8_to_utf16(char16_t **out, size_t *out_length, const char *s, size_t length);
 
 /* Block ciphers */
 int crypt_cipher_ivsize(const char *name, const char *mode);
@@ -108,15 +107,12 @@ int crypt_cipher_decrypt(struct crypt_cipher *ctx,
 			 const char *in, char *out, size_t length,
 			 const char *iv, size_t iv_length);
 bool crypt_cipher_kernel_only(struct crypt_cipher *ctx);
+bool crypt_cipher_aead_known(const char *name, const char *mode, const char *integrity, size_t key_bytes);
 
 /* Benchmark of kernel cipher performance */
 int crypt_cipher_perf_kernel(const char *name, const char *mode, char *buffer, size_t buffer_size,
 			     const char *key, size_t key_size, const char *iv, size_t iv_size,
 			     double *encryption_mbs, double *decryption_mbs);
-
-/* Check availability of a cipher (in kernel only) */
-int crypt_cipher_check_kernel(const char *name, const char *mode,
-			      const char *integrity, size_t key_length);
 
 /* Storage encryption wrappers */
 int crypt_storage_init(struct crypt_storage **ctx, size_t sector_size,

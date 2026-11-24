@@ -1566,13 +1566,16 @@ static int utf8_16_test(void)
 	unsigned int i;
 	char s8[128], *s;
 	char16_t c16[256], s16[256], *su;
+	size_t s16_len;
 
 	for (i = 0; i < ARRAY_SIZE(utf8_16_test_vectors); i++) {
 		printf("UTF8/16 %02d ", i);
 		crypt_backend_memzero(s16, sizeof(s16));
 		su = &s16[0];
-		if (crypt_utf8_to_utf16(&su, utf8_16_test_vectors[i].utf8,
+		s16_len = 0;
+		if (crypt_utf8_to_utf16(&su, &s16_len, utf8_16_test_vectors[i].utf8,
 					utf8_16_test_vectors[i].len8) < 0 ||
+			utf8_16_test_vectors[i].len16 != s16_len ||
 			memcmp(utf8_16_test_vectors[i].utf16, s16,
 			       utf8_16_test_vectors[i].len16)) {
 			printf("[UTF8_TO_UTF16 FAILED]\n");
@@ -1592,6 +1595,18 @@ static int utf8_16_test(void)
 		}
 		printf("[UTF16_TO_UTF8]\n");
 	}
+
+	/* Input is not a C string, embedded zero must not truncate the output. */
+	printf("UTF8/16 zero ");
+	crypt_backend_memzero(s16, sizeof(s16));
+	su = &s16[0];
+	s16_len = 0;
+	if (crypt_utf8_to_utf16(&su, &s16_len, "a\0b", 3) < 0 ||
+	    s16_len != 6 || memcmp("\x61\x00\x00\x00\x62\x00", s16, 6)) {
+		printf("[UTF8_TO_UTF16 FAILED]\n");
+		return EXIT_FAILURE;
+	}
+	printf("[UTF8_TO_UTF16]\n");
 
 	return EXIT_SUCCESS;
 }
@@ -1624,57 +1639,6 @@ static int memcmp_test(void)
 		return EXIT_FAILURE;
 	printf("[OK]\n");
 
-	return EXIT_SUCCESS;
-}
-
-#if ENABLE_AF_ALG
-struct capi_test_vector {
-	const char *name;
-	const char *mode;
-	const char *integrity;
-	size_t key_length;
-	bool fips;
-};
-
-static struct capi_test_vector capi_test_vectors[] = {
-	{ "aes", "xts", NULL, 64, true },
-	{ "aes", "xts-plain64", NULL, 32, true },
-	{ "aes", "xts-plain64", NULL, 64, true },
-	{ "aes", "xts-plain64", "none", 64, true },
-	{ "aes", "gcm-random", "aead", 16, true },
-	{ "aes", "gcm-random", "aead", 32, true },
-	{ "aes", "ccm-random", "aead", 19, false },
-	{ "aes", "ccm-random", "aead", 35, false },
-	{ "chacha20", "random", "poly1305", 32, false },
-	{ "aegis128", "random", "aead", 16, false },
-};
-#endif
-
-static int kernel_capi_check_test(void)
-{
-#if ENABLE_AF_ALG
-	unsigned int i;
-	int r;
-
-	for (i = 0; i < ARRAY_SIZE(capi_test_vectors); i++) {
-		printf("CAPI %s/%s/%s/%zu ", capi_test_vectors[i].name,
-			capi_test_vectors[i].mode,
-			capi_test_vectors[i].integrity ?: "NULL",
-			capi_test_vectors[i].key_length);
-
-		r = crypt_cipher_check_kernel(capi_test_vectors[i].name,
-			capi_test_vectors[i].mode,
-			capi_test_vectors[i].integrity,
-			capi_test_vectors[i].key_length);
-		if (!r)
-			printf("[OK]\n");
-		else if (r == -ENOENT || r == -ENOTSUP ||
-			(fips_active && !capi_test_vectors[i].fips))
-			printf("[N/A]\n");
-		else
-			return EXIT_FAILURE;
-	}
-#endif
 	return EXIT_SUCCESS;
 }
 
@@ -1727,9 +1691,6 @@ int main(__attribute__ ((unused)) int argc, __attribute__ ((unused))char *argv[]
 
 	if (utf8_16_test())
 		exit_test("UTF8/16 test failed.", EXIT_FAILURE);
-
-	if (kernel_capi_check_test())
-		exit_test("Kernel CAPI test failed.", EXIT_FAILURE);
 
 	if (default_alg_test()) {
 		if (fips_mode())

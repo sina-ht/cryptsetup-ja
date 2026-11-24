@@ -2,9 +2,9 @@ project('cryptsetup',
     'c',
     default_options: [ 'prefix=/usr' ],
     meson_version: '>=0.64',
-    version: '2.8.8-rc0')
+    version: '2.8.9')
 
-libcryptsetup_version = '12.11.0'
+libcryptsetup_version = '12.12.0'
 
 includes_root = include_directories('.')
 includes_lib = include_directories('lib')
@@ -223,6 +223,11 @@ endif
 if get_option('luks2-reencryption')
     conf.set10('USE_LUKS2_REENCRYPTION', true,
         description: 'Use LUKS2 online reencryption extension')
+endif
+
+if get_option('enforce-opal-segment-digest')
+    conf.set10('STRICT_OPAL_SEGMENT_POLICY', true,
+        description: 'Enforce LUKS2 OPAL segment verification upon activation')
 endif
 
 # ==========================================================================
